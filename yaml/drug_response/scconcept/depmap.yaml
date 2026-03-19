@@ -1,0 +1,106 @@
+# Drug Response Prediction on DepMap PRISM dataset
+# Evaluates FM embeddings on predicting drug sensitivity (AUC)
+#
+# Uses 1/10 subsample (~68.5K obs) for faster embedding. Create it once with:
+#   python scripts/subsample_depmap.py
+#
+# Splits:
+#   - new_cell_line: Test on unseen cell lines (drugs seen in training)
+#   - new_drug: Test on unseen drugs (cell lines seen in training)
+#   - new_both: Test on unseen cell lines AND drugs (hardest)
+
+run_id: null
+
+dataset:
+  module: data.depmap_loader
+  class: DepMapLoader
+  # Subsampled 1/10 (run scripts/subsample_depmap.py once if missing)
+  path: ${VCC_DATA}/DATASETS/SCFM_datasets/EvalDatasets/cancer_benchmarking/Depmap/Depmap_bulk_rna_drug_auc_subsampled10.h5ad
+  load_raw: False
+  # DepMap-specific columns
+  cell_line_col: depmap_id
+  drug_col: broad_id
+  target_col: auc
+  tissue_col: cell_line_OncotreeLineage
+  moa_col: moa
+  # Standard keys (mapped from DepMap columns)
+  label_key: cell_line_OncotreeLineage  # tissue as "label" for compatibility
+  batch_key: depmap_id  # cell line as "batch" for compatibility
+  layer_name: X
+  train_test_split: null
+  cv_splits: null
+  dataset_name: depmap
+  task_name: drug_response
+  # Set to false - we need full data with all (cell line, drug) pairs
+  extract_unique_cell_lines: false
+
+qc:
+  skip: true  # DepMap data is pre-processed
+
+preprocessing:
+  skip: false
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+
+hvg:
+  skip: true  # Skip HVG for drug response - use all genes
+
+embedding:
+  method: scConcept
+  module: extractors.scconcept.extract
+  class: scConceptExtractor
+  viz: false  # Skip embedding viz for large dataset
+  eval: true
+  params:
+    model_name: Corpus-30M
+    cache_dir: ${VCC_CHECKPOINTS_BASE}/scConcept
+    batch_size: 64
+    gene_id_column: gene_id
+    repo_id: theislab/scConcept
+    num_workers: 2
+    # DepMap is already log-scaled; avoid double log1p in scConcept
+    skip_log1p: true
+
+evaluations:
+- type: drug_response
+  skip: false
+  params:
+    # Column names (should match dataset config)
+    cell_line_col: depmap_id
+    drug_col: broad_id
+    target_col: auc
+    tissue_col: cell_line_OncotreeLineage
+    moa_col: moa
+    
+    # Split configuration
+    split_types:
+      - new_cell_line
+      - new_drug
+      - new_both
+    test_size: 0.2
+    random_state: 42
+
+    # Model configuration
+    model_type: both  # 'mlp', 'rf', or 'both'
+    task_type: both   # regression + classification (RF: sensitive vs resistant by z-score)
+    classification_threshold: 0.9  # used only if classification_target: threshold
+    # Z-score classification (sensitive vs resistant by lineage-drug z)
+    classification_target: zscore
+    z_score_domain: per_lineage_drug  # z = (AUC - mu) / sigma per (lineage, drug) on train
+    z_sensitive_threshold: -1.0       # z < this → sensitive (0), z >= this → resistant (1)
+    z_min_std: 1.0e-6
+
+    # MLP hyperparameters
+    mlp_epochs: 500
+    mlp_patience: 20
+    mlp_hidden_dims: [256, 128, 64]
+    
+    # Random Forest hyperparameters
+    rf_n_estimators: 100
+
+    # Drug features (Morgan fingerprints from SMILES)
+    use_drug_features: true
+    smiles_col: smiles
+    morgan_nbits: 1024
+    morgan_radius: 2

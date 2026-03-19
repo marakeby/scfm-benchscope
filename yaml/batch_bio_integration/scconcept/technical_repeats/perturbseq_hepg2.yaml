@@ -1,0 +1,54 @@
+run_id: null
+dataset:
+  dataset_name: perturbseq_hepg2
+  task_name: batch_bio_integration
+  module: data.data_loader
+  class: H5ADLoader
+  path: DATASETS/SC_PerturbSeq_datasets/hepg2.h5
+  load_raw: false
+  label_key: gene
+  batch_key: gem_group
+  layer_name: X
+  filter:
+    - column: gene
+      values: ['non-targeting']
+  train_test_split: null
+  cv_splits: null
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  skip: false
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  skip: false
+  batch_key: gem_group
+  n_top_genes: 4096
+  flavor: seurat
+embedding:
+  method: scConcept
+  module: extractors.scconcept_extractor
+  class: scConceptExtractor
+  viz: true
+  eval: true
+  params:
+    model_name: Corpus-30M
+    cache_dir: ${VCC_CHECKPOINTS_BASE}/scConcept
+    batch_size: 32
+    gene_id_column: gene_id
+    repo_id: theislab/scConcept
+evaluations:
+- type: batch_effects
+  skip: false
+  params:
+    batch_key: gem_group
+    label_key: gene
+    metric: cosine
+    auto_subsample: true
+    n_neighbors: 90
+    run_baselines: true
+    baseline_methods:
+    - embed_cell_types
+    - embed_cell_types_jittered

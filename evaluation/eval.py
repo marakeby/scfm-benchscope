@@ -4,6 +4,7 @@ from anndata import AnnData
 import numpy as np
 import scanpy as sc
 import scib
+from scipy import sparse
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, ConfusionMatrixDisplay
 from sklearn import metrics
 from matplotlib import pyplot as plt
@@ -18,6 +19,86 @@ logger = get_logger()
 
 from sklearn.metrics import accuracy_score
 from utils.sampling import sample_adata
+
+
+def compute_lisi_pure_python(
+    adata: AnnData,
+    obs_key: str,
+    n_neighbors: int = 90,
+    use_rep: str = None,
+) -> np.ndarray:
+    """
+    Compute Local Inverse Simpson's Index (LISI) using pure Python.
+    
+    This implementation uses scanpy's neighbor computation to avoid 
+    the scib compiled extension that requires newer GLIBC versions.
+    
+    LISI measures the effective number of categories (batches or cell types)
+    in each cell's local neighborhood. Higher values indicate better mixing.
+    
+    Args:
+        adata: AnnData object (must have neighbors computed in adata.obsp)
+        obs_key: Key in adata.obs containing categorical labels (batch or cell type)
+        n_neighbors: Number of neighbors to consider for LISI computation
+        use_rep: Embedding key to use for neighbor computation (if neighbors not precomputed)
+    
+    Returns:
+        Array of LISI scores per cell
+    """
+    # Get the connectivity matrix from precomputed neighbors
+    if 'connectivities' not in adata.obsp:
+        if use_rep is None:
+            raise ValueError("Neighbors not computed. Either compute neighbors first or provide use_rep.")
+        logger.info(f"Computing neighbors for LISI using {use_rep}")
+        sc.pp.neighbors(adata, use_rep=use_rep, n_neighbors=n_neighbors)
+    
+    # Get connectivity matrix and convert to distances (1 - connectivity for weighted graphs)
+    conn = adata.obsp['connectivities']
+    if sparse.issparse(conn):
+        conn = conn.toarray()
+    
+    # Get labels
+    labels = adata.obs[obs_key].values
+    unique_labels = np.unique(labels)
+    n_labels = len(unique_labels)
+    label_to_idx = {label: i for i, label in enumerate(unique_labels)}
+    label_indices = np.array([label_to_idx[l] for l in labels])
+    
+    n_cells = adata.n_obs
+    lisi_scores = np.zeros(n_cells)
+    
+    for i in range(n_cells):
+        # Get neighbors for this cell (non-zero connections)
+        neighbor_weights = conn[i, :]
+        neighbor_mask = neighbor_weights > 0
+        
+        if np.sum(neighbor_mask) == 0:
+            # No neighbors, LISI is 1 (only the cell itself)
+            lisi_scores[i] = 1.0
+            continue
+        
+        # Get neighbor labels and weights
+        neighbor_labels = label_indices[neighbor_mask]
+        weights = neighbor_weights[neighbor_mask]
+        
+        # Normalize weights to sum to 1
+        weights = weights / np.sum(weights)
+        
+        # Compute proportion of each category in neighborhood
+        proportions = np.zeros(n_labels)
+        for j, label_idx in enumerate(neighbor_labels):
+            proportions[label_idx] += weights[j]
+        
+        # Compute Simpson's Index: sum of squared proportions
+        simpson_index = np.sum(proportions ** 2)
+        
+        # LISI = 1 / Simpson's Index (Inverse Simpson's Index)
+        if simpson_index > 0:
+            lisi_scores[i] = 1.0 / simpson_index
+        else:
+            lisi_scores[i] = 1.0
+    
+    return lisi_scores
 
 
 class EmbeddingEvaluator:
@@ -71,7 +152,7 @@ def eval_scib_metrics(
     results_dict = dict()
     
 
-    print('louvain')
+    print('leiden')
     sc.pp.neighbors(
     adata,
     use_rep=embedding_key,
@@ -80,7 +161,7 @@ def eval_scib_metrics(
     random_state=0
     )
         
-    sc.tl.louvain(
+    sc.tl.leiden(
         adata,
         key_added="cluster",
         random_state=0,
@@ -161,6 +242,65 @@ def eval_scib_metrics(
             n_comps=50,
             verbose=False
         )
+        # Add iLISI (integration LISI) - raw median, range [1, n_batches], higher = better mixing
+        logger.info('Computing iLISI...')
+        try:
+            ilisi_scores = compute_lisi_pure_python(
+                adata,
+                obs_key=batch_key,
+                n_neighbors=90,
+            )
+            ilisi = np.nanmedian(ilisi_scores)
+            results_dict["iLISI"] = float(ilisi)
+        except Exception as e:
+            logger.warning(f"iLISI computation failed: {e}")
+            results_dict["iLISI"] = np.nan
+
+        # Add cLISI (cell type LISI) - raw median, range [1, n_labels], lower = better separation (optimal = 1)
+        logger.info('Computing cLISI...')
+        try:
+            clisi_scores = compute_lisi_pure_python(
+                adata,
+                obs_key=label_key,
+                n_neighbors=90,
+            )
+            clisi = np.nanmedian(clisi_scores)
+            results_dict["cLISI"] = float(clisi)
+        except Exception as e:
+            logger.warning(f"cLISI computation failed: {e}")
+            results_dict["cLISI"] = np.nan
+        
+        # Add kBET (k-nearest neighbor batch effect test)
+        # NOTE: kBET requires R to be installed and properly configured
+        logger.info('Computing kBET...')
+        try:
+            from scib.metrics import kBET
+            results_dict["kBET"] = kBET(
+                adata,
+                batch_key=batch_key,
+                label_key=label_key,
+                type_="embed",
+                embed=embedding_key,
+                scaled=True,
+                verbose=False,
+            )
+        except ImportError:
+            logger.warning(
+                "kBET requires R and rpy2 to be installed. "
+                "Install R and run: pip install rpy2. Skipping kBET metric."
+            )
+            results_dict["kBET"] = np.nan
+        except Exception as e:
+            error_msg = str(e)
+            if "libR.so" in error_msg or "cannot open shared object" in error_msg:
+                logger.warning(
+                    "kBET failed: R shared library not found. "
+                    "Ensure R is installed and LD_LIBRARY_PATH includes R lib directory. "
+                    "You may need: export LD_LIBRARY_PATH=$R_HOME/lib:$LD_LIBRARY_PATH"
+                )
+            else:
+                logger.warning(f"kBET computation failed: {error_msg}")
+            results_dict["kBET"] = np.nan
 
     # print('avg_bio')
     results_dict["avg_bio"] = np.mean(
@@ -395,5 +535,20 @@ def eval_classifier(y_test, y_pred, y_pred_score, estimator_name, label_names):
         zero_division=0,
         output_dict=True,
     )
+    
+    # Extract per-class metrics from classification report
+    per_class_metrics = {}
+    for class_name in label_names:
+        if class_name in cls_report:
+            class_metrics = cls_report[class_name]
+            per_class_metrics[f'{class_name}_precision'] = class_metrics.get('precision', np.nan)
+            per_class_metrics[f'{class_name}_recall'] = class_metrics.get('recall', np.nan)
+            per_class_metrics[f'{class_name}_f1'] = class_metrics.get('f1-score', np.nan)
+            per_class_metrics[f'{class_name}_support'] = class_metrics.get('support', np.nan)
+    
+    # Create per-class metrics DataFrame
+    per_class_df = pd.Series(per_class_metrics, name='Metrics').to_frame()
+    per_class_df.columns = [estimator_name]
+    per_class_df.index.name = 'Metrics'
 
-    return metrics_df, cls_report
+    return metrics_df, cls_report, per_class_df

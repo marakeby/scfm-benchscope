@@ -1,0 +1,67 @@
+run_id: null
+dataset:
+  dataset_name: gtex_v9
+  task_name: batch_bio_integration
+  module: data.data_loader
+  class: H5ADLoader
+  path: DATASETS/SCFM_datasets/EvalDatasets/cell_identity_batch/gtex_v9.h5ad
+  load_raw: false
+  label_key: cell_type
+  batch_key: prep
+  layer_name: X
+  train_test_split: null
+  cv_splits: null
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  skip: false
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  skip: true
+  batch_key: prep
+  n_top_genes: 4096
+  flavor: seurat
+embedding:
+  method: scimilarity
+  module: extractors.scimilarity.extract
+  class: SCimilarityExtractor
+  viz: true
+  eval: true
+  params:
+    model_path: ${VCC_CHECKPOINTS_BASE}/SCSimilarity/model_v1.1
+    use_gpu: true
+  load_cached: false
+evaluations:
+- type: batch_effects
+  skip: false
+  params:
+    batch_key: prep
+    label_key: cell_type
+    metric: euclidean
+    auto_subsample: true
+    n_neighbors: 90
+    run_baselines: true
+    baseline_methods:
+    - embed_cell_types
+    - embed_cell_types_jittered
+- type: biological_signal
+  skip: false
+  params:
+    label_key: cell_type
+    metric: euclidean
+    auto_subsample: true
+    leiden_resolution: 0.3
+    n_neighbors: 15
+- type: annotation
+  skip: false
+  params:
+    label_key: cell_type
+    k: 15
+    metric: euclidean
+    method: sklearn_knn
+    split_strategies:
+    - round_robin
+    min_cells_per_type: 2

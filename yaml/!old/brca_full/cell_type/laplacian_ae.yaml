@@ -1,0 +1,65 @@
+# =============================================================================
+# Cell Type Classification using LaplacianAE embeddings
+# =============================================================================
+
+run_id:
+dataset:
+    module: data.data_loader
+    class: H5ADLoader
+    path: DATASETS/SCFM_datasets/Bassez_2021_processed/bassez_combined_preprocessed_prepared.h5ad
+    load_raw: False
+    label_key: cell_types
+    batch_key: donor_id
+    filter: 
+      - column: timepoint
+        values:
+          - Pre
+    layer_name: X
+    train_test_split: data_splits/brca_full/brca_cell_type/train_test_split.json
+    cv_splits: data_splits/brca_full/brca_cell_type/cv_splits.json
+
+qc:
+    skip: True
+
+preprocessing:
+    normalize: True
+    target_sum: 10000
+    apply_log1p: True
+
+embedding:
+  method: laplacian_ae
+  module: extractors.laplacian_ae_extractor
+  class: LaplacianAEExtractor
+  params:
+    checkpoint_path: ${VCC_DATA}/ML_OUTPUTS/SC_FM/laplacian_ae/cxg_subset/last.ckpt
+    gene_order_file: ${VCC_CHECKPOINTS_BASE}/SCSimilarity/model_v1.1/gene_order.tsv
+    batch_size: 1000
+    use_gpu: True
+  viz: True
+  eval: True
+
+classification:
+    skip: False
+    module: models.classify
+    class: ClassifierPipeline
+    params:
+        model: random_forest
+        n_estimators: 100
+        max_depth: 5
+        train_funcs: 
+            - avg
+            - mil
+            - vote
+        cv: True
+        cls_level: cell
+        label_map:
+            T_cell: 0
+            Cancer_cell: 1
+            Fibroblast: 2
+            Myeloid_cell: 3
+            B_cell: 4
+            Endothelial_cell: 5
+            Mast_cell: 6
+            pDC: 7
+    viz: True
+    eval: True

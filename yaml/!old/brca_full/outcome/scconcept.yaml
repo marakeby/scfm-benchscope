@@ -1,0 +1,65 @@
+run_id: 
+dataset:
+    module: data.data_loader
+    class: H5ADLoader
+    path: mnt/DATA/brca_full/T_cells_only.h5ad
+    load_raw: False
+    label_key: outcome
+    batch_key: donor_id
+    filter: 
+      - column: outcome
+        values:
+          - NE
+          - E
+      - column: timepoint
+        values:
+          - Pre
+    layer_name: X
+    train_test_split: data_splits/brca_full/brca_outcome/train_test_split_oversampled.json
+    cv_splits: data_splits/brca_full/brca_outcome/cv_splits_oversampled.json
+
+qc:
+    min_genes: 10
+    min_cells: 10
+
+preprocessing:
+    normalize: True
+    target_sum: 10000
+    apply_log1p: True
+
+embedding:
+    method: scConcept
+    module: extractors.scconcept_extractor
+    class: scConceptExtractor
+    viz: True
+    eval: True
+    params: 
+        model_name: Corpus-30M
+        cache_dir: ${VCC_DATA}/SC_FM_repo_checkpoints/scConcept
+        batch_size: 32
+        gene_id_column: gene_ids
+        repo_id: theislab/scConcept
+
+# Evaluations section: configure which evaluations to run
+evaluations:
+    # Classification evaluation (treatment response prediction)
+    - type: classification
+      skip: False
+      params:
+          module: models.classify
+          class: ClassifierPipeline
+          model: random_forest
+          n_estimators: 100
+          max_depth: 5
+          train_funcs: 
+              - avg
+              - mil
+              - vote
+          cv: True
+          cls_level: patient
+          label_map:
+              NE: 0
+              E: 1
+          viz: True
+          eval: True
+

@@ -1,0 +1,51 @@
+run_id: 
+dataset:
+    module: data.data_loader
+    class: H5ADLoader
+    path: DATASETS/SCFM_datasets/Bassez_2021_processed/bassez_combined_preprocessed_prepared.h5ad  # Combined Cohort 1 + Cohort 2
+    load_raw: False
+    label_key: pre_post
+    batch_key: donor_id
+    layer_name: X
+    train_test_split: data_splits/brca_full/brca_pre_post/train_test_split.json
+    cv_splits: data_splits/brca_full/brca_pre_post/cv_splits.json
+
+qc:
+    skip: True  # Data already preprocessed, skip QC
+    min_genes: 10
+    min_cells: 10
+
+preprocessing:
+    normalize: True
+    target_sum: 10000
+    apply_log1p: True
+
+embedding:
+  method: laplacian_ae
+  module: extractors.laplacian_ae_extractor
+  class: LaplacianAEExtractor
+  params:
+    checkpoint_path: ${VCC_DATA}/ML_OUTPUTS/SC_FM/laplacian_ae/cxg_subset/last.ckpt
+    gene_order_file: ${VCC_CHECKPOINTS_BASE}/SCSimilarity/model_v1.1/gene_order.tsv
+    batch_size: 1000
+    use_gpu: True
+  viz: True
+  eval: True
+
+classification:
+    module: models.classify
+    class: ClassifierPipeline
+    params:
+        model: random_forest
+        n_estimators: 100
+        max_depth: 5
+        train_funcs: 
+            - avg
+            - mil
+            - vote
+        cv: True
+        label_map:
+            Pre: 0
+            Post: 1
+    viz: True
+    eval: True

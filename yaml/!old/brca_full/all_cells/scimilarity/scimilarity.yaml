@@ -1,0 +1,97 @@
+run_id:
+dataset:
+    module: data.data_loader
+    class: H5ADLoader
+    # path: mnt/DATA/brca_full/brca_cells_only_3000cell_4096gene.h5ad #path is relative to DATA_PATH in setup_path.py
+    path: DATASETS/SCFM_datasets/Bassez_2021_processed/bassez_combined_preprocessed_prepared.h5ad
+
+    load_raw: False
+    label_key: cell_types
+    batch_key: donor_id
+    filter: 
+      - column: timepoint
+        values:
+          - Pre
+    layer_name: X  #if data exist in another layer (e.g. adta.layers['counts']). The data will be copied to adata.X
+    train_test_split: data_splits/brca_full/brca_cell_type/train_test_split.json #path is relative to BASE_PATH in setup_path.py
+    cv_splits: data_splits/brca_full/brca_cell_type/cv_splits.json #path is relative to BASE_PATH in setup_path.py
+
+qc:
+    # skip: True
+    min_genes: 10
+    min_cells: 10
+
+preprocessing:
+    skip: True
+    normalize: True
+    target_sum: 10000
+    apply_log1p: True
+
+hvg:
+    skip: True
+    batch_key: batch
+    n_top_genes: 4096
+    flavor: seurat # expect logarithmized data
+    
+embedding:
+    load_cached: False
+    method: scimilarity
+    module: extractors.scimilarity_extractor
+    class: SCimilarityExtractor
+    viz: True
+    eval: True
+    params: 
+        model_path: ${VCC_CHECKPOINTS_BASE}/SCSimilarity/model_v1.1
+        use_gpu: True
+
+# Evaluations section: configure which evaluations to run
+evaluations:
+    # Biological signal evaluation (cell type preservation, clustering quality)
+    - type: biological_signal
+      skip: False
+      params:
+          label_key: cell_types  # Override default label_key from dataset config
+          metric: cosine  # Use 'cosine' for hypersphere embeddings, 'euclidean' for others
+          auto_subsample: True
+          leiden_resolution: 0.3  # Resolution for Leiden clustering
+          n_neighbors: 15  # Number of neighbors for graph construction
+    
+    # Batch effects evaluation
+    - type: batch_effects
+      skip: False
+      params:
+          batch_key: donor_id  # Override default batch_key from dataset config
+          label_key: cell_types  # Override default label_key from dataset config
+          metric: cosine  # Use 'cosine' for hypersphere embeddings (normalized), 'euclidean' for others
+          auto_subsample: True
+          n_neighbors: 90  # For LISI computation
+          run_baselines: True  # Set to True to also evaluate baseline methods
+          baseline_methods:  # List of baseline methods to evaluate (empty = all)
+              - no_integration
+              - no_integration_batch
+              - embed_cell_types
+              - embed_cell_types_jittered
+              # - shuffle_integration
+              # - shuffle_integration_by_batch
+              # - shuffle_integration_by_cell_type
+    
+    # Classification evaluation (train and evaluate classifier on embeddings)
+    - type: classification
+      skip: False  # Set to False to enable classification
+      params:
+          module: models.classify
+          class: ClassifierPipeline
+          model: randomforest
+          n_estimators: 100
+          max_depth: 5
+          train_funcs: 
+              - avg
+              - mil
+              - vote
+          cv: True
+          # onesplit: True
+          label_map:
+              treatment_naive: 0
+              neoadjuvant_chemo: 1
+          viz: True
+          eval: True

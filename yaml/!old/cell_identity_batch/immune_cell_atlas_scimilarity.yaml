@@ -1,0 +1,268 @@
+run_id: null
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: DATASETS/SCFM_datasets/EvalDatasets/cell_identity_batch/immune_cell_atlas.h5ad
+  load_raw: false
+  label_key: cell_type
+  batch_key: _scvi_batch
+  layer_name: X
+  train_test_split: null
+  cv_splits: null
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  skip: false
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  skip: true
+  batch_key: _scvi_batch
+  n_top_genes: 4096
+  flavor: seurat
+embedding:
+  load_cached: false
+  method: scimilarity
+  module: extractors.scimilarity_extractor
+  class: SCimilarityExtractor
+  viz: true
+  eval: true
+  params:
+    model_path: ${VCC_CHECKPOINTS_BASE}/SCSimilarity/model_v1.1
+    use_gpu: true
+evaluations:
+- type: biological_signal
+  skip: false
+  params:
+    label_key: cell_type
+    metric: cosine
+    auto_subsample: true
+    leiden_resolution: 0.3
+    n_neighbors: 15
+- type: batch_effects
+  skip: false
+  params:
+    batch_key: _scvi_batch
+    label_key: cell_type
+    metric: cosine
+    auto_subsample: true
+    n_neighbors: 90
+    run_baselines: true
+    baseline_methods:
+    - no_integration
+    - no_integration_batch
+    - embed_cell_types
+    - embed_cell_types_jittered
+- type: classification
+  skip: false
+  params:
+    module: models.classify
+    class: ClassifierPipeline
+    model: random_forest
+    n_estimators: 100
+    max_depth: 5
+    train_funcs:
+    - avg
+    - mil
+    - vote
+    cv: true
+    cls_level: cell
+    label_map:
+      B cell: 0
+      BEST4+ enterocyte: 1
+      CD4-positive, alpha-beta T cell: 2
+      CD4-positive, alpha-beta thymocyte: 3
+      CD8-positive, alpha-beta T cell: 4
+      CD8-positive, alpha-beta thymocyte: 5
+      Langerhans cell: 6
+      Leydig cell: 7
+      Mueller cell: 8
+      Schwann cell: 9
+      T cell: 10
+      T follicular helper cell: 11
+      acinar cell: 12
+      acinar cell of salivary gland: 13
+      activated CD4-positive, alpha-beta T cell: 14
+      activated CD8-positive, alpha-beta T cell: 15
+      adipocyte: 16
+      adventitial cell: 17
+      alveolar adventitial fibroblast: 18
+      basal cell: 19
+      basal cell of prostate epithelium: 20
+      basophil: 21
+      bladder urothelial cell: 22
+      blood vessel smooth muscle cell: 23
+      bronchial smooth muscle cell: 24
+      capillary endothelial cell: 25
+      cardiac endothelial cell: 26
+      ciliated epithelial cell: 27
+      classical monocyte: 28
+      club cell: 29
+      colon endothelial cell: 30
+      colon macrophage: 31
+      common myeloid progenitor: 32
+      conjunctival epithelial cell: 33
+      connective tissue cell: 34
+      corneal epithelial cell: 35
+      duct epithelial cell: 36
+      endothelial cell: 37
+      endothelial cell of arteriole: 38
+      endothelial cell of artery: 39
+      endothelial cell of lymphatic vessel: 40
+      endothelial cell of vascular tree: 41
+      endothelial cell of venule: 42
+      enterochromaffin-like cell: 43
+      enterocyte of epithelium of large intestine: 44
+      enterocyte of epithelium proper of duodenum: 45
+      enterocyte of epithelium proper of ileum: 46
+      enterocyte of epithelium proper of jejunum: 47
+      enterocyte of epithelium proper of small intestine: 48
+      enteroendocrine cell: 49
+      enteroendocrine cell of small intestine: 50
+      enteroglial cell: 51
+      epithelial cell: 52
+      epithelial cell of uterus: 53
+      epithelial fate stem cell: 54
+      erythrocyte: 55
+      erythroid lineage cell: 56
+      erythroid progenitor cell: 57
+      eye photoreceptor cell: 58
+      fast muscle cell: 59
+      fibroblast: 60
+      fibroblast of breast: 61
+      fibroblast of cardiac tissue: 62
+      gamma-delta T cell: 63
+      glandular secretory epithelial cell: 64
+      glial cell: 65
+      granulocyte: 66
+      hematopoietic cell: 67
+      hematopoietic precursor cell: 68
+      hematopoietic stem cell: 69
+      hepatic stellate cell: 70
+      hepatocyte: 71
+      innate lymphoid cell: 72
+      intermediate monocyte: 73
+      interstitial cell of Cajal: 74
+      intestinal crypt stem cell of colon: 75
+      intestinal crypt stem cell of small intestine: 76
+      intestinal tuft cell: 77
+      intrahepatic cholangiocyte: 78
+      ionocyte: 79
+      keratocyte: 80
+      kidney epithelial cell: 81
+      large intestine goblet cell: 82
+      leukocyte: 83
+      luminal cell of prostate epithelium: 84
+      luminal epithelial cell of mammary gland: 85
+      lung multiciliated epithelial cell: 86
+      macrophage: 87
+      male germ cell: 88
+      mast cell: 89
+      mature NK T cell: 90
+      medullary thymic epithelial cell: 91
+      melanocyte: 92
+      mesenchymal cell: 93
+      mesenchymal stem cell: 94
+      mesenchymal stem cell of adipose tissue: 95
+      mesothelial cell: 96
+      microglial cell: 97
+      monocyte: 98
+      mononuclear phagocyte: 99
+      mucus secreting cell: 100
+      multiciliated columnar cell of tracheobronchial tree: 101
+      mural cell: 102
+      muscle cell: 103
+      myeloid cell: 104
+      myeloid dendritic cell: 105
+      myeloid leukocyte: 106
+      myo-medullary thymic epithelial cell: 107
+      myoepithelial cell: 108
+      myofibroblast cell: 109
+      myometrial cell: 110
+      naive thymus-derived CD4-positive, alpha-beta T cell: 111
+      naive thymus-derived CD8-positive, alpha-beta T cell: 112
+      natural killer cell: 113
+      neuro-medullary thymic epithelial cell: 114
+      neuron: 115
+      neutrophil: 116
+      non-classical monocyte: 117
+      oocyte: 118
+      ovarian surface epithelial cell: 119
+      pancreatic A cell: 120
+      pancreatic D cell: 121
+      pancreatic PP cell: 122
+      pancreatic acinar cell: 123
+      pancreatic ductal cell: 124
+      pancreatic stellate cell: 125
+      paneth cell of colon: 126
+      paneth cell of epithelium of small intestine: 127
+      pericyte: 128
+      peritubular myoid cell: 129
+      plasma cell: 130
+      plasmacytoid dendritic cell: 131
+      platelet: 132
+      progenitor cell of mammary luminal epithelium: 133
+      pulmonary alveolar type 1 cell: 134
+      pulmonary alveolar type 2 cell: 135
+      pulmonary ionocyte: 136
+      radial glial cell: 137
+      regular atrial cardiac myocyte: 138
+      regulatory T cell: 139
+      respiratory tract goblet cell: 140
+      retina horizontal cell: 141
+      retinal bipolar neuron: 142
+      retinal blood vessel endothelial cell: 143
+      retinal ganglion cell: 144
+      retinal pigment epithelial cell: 145
+      salivary gland cell: 146
+      sebocyte: 147
+      serous cell of epithelium of bronchus: 148
+      serous cell of epithelium of trachea: 149
+      skeletal muscle satellite stem cell: 150
+      slow muscle cell: 151
+      small intestine goblet cell: 152
+      smooth muscle cell: 153
+      spermatid: 154
+      spermatocyte: 155
+      spermatogonium: 156
+      stratified squamous epithelial cell: 157
+      stromal cell: 158
+      stromal cell of ovary: 159
+      supporting cell of vestibular epithelium: 160
+      taste receptor cell: 161
+      tendon cell: 162
+      theca cell: 163
+      thymic fibroblast type 1: 164
+      thymic fibroblast type 2: 165
+      thymocyte: 166
+      tissue-resident macrophage: 167
+      tongue muscle cell: 168
+      tracheal goblet cell: 169
+      transit amplifying cell of colon: 170
+      transit amplifying cell of small intestine: 171
+      tuft cell of colon: 172
+      type B pancreatic cell: 173
+      type L enteroendocrine cell: 174
+      unknown: 175
+      vascular associated smooth muscle cell: 176
+      vein endothelial cell: 177
+      ventricular cardiac muscle cell: 178
+      vestibular dark cell: 179
+    viz: true
+    eval: true
+- type: annotation
+  skip: false
+  params:
+    label_key: cell_type
+    k: 15
+    metric: cosine
+    method: sklearn_knn
+    split_strategies:
+    - even
+    - random
+    - difficult
+    n_random_splits: 10
+    random_state: 42
+    min_cells_per_type: 2

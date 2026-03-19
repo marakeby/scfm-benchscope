@@ -1,0 +1,61 @@
+run_id: 
+dataset:
+    module: data.data_loader
+    class: H5ADLoader
+    path: mnt/DATA/luad_brca/luad/luad_analysis2.h5ad #path is relative to DATA_PATH in setup_path.py
+    load_raw: True
+    label_key: group_id
+    batch_key: sample_id
+    layer_name: X  #if data exist in another layer (e.g. adta.layers['counts']). The data will be copied to adata.X
+    train_test_split: data_splits/luad/luad2/train_test_split.json #path is relative to BASE_PATH in setup_path.py
+    cv_splits: data_splits/luad/luad2/cv_splits.json #path is relative to BASE_PATH in setup_path.py
+
+
+qc:
+    min_genes: 10
+    min_cells: 10
+
+hvg:
+    batch_key: batch
+    n_top_genes: 4096
+    flavor: seurat # expect logarithmized data
+    
+preprocessing:
+    normalize: True
+    target_sum: 10000
+    apply_log1p: True
+
+embedding:
+    method: scVI
+    module: extractors.scvi_extractor
+    class: scVIEmbeddingExtractor
+    viz: False
+    eval: False
+    params:
+        batch_key: sample_id
+        n_layers: 2
+        n_latent: 100
+        gene_likelihood: "nb"
+        max_epochs: 10
+        layer_name: #None 
+
+classification:
+    module: models.classify
+    class: ClassifierPipeline
+    params:
+        model: randomforest
+        n_estimators: 100
+        max_depth: 5
+        cv: True
+        train_funcs: 
+            - avg
+            - mil
+            - vote
+        label_map:
+              treatment_naive: 0
+              TKI: 1
+    viz: True
+    eval: True
+
+
+

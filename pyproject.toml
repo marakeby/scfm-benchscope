@@ -1,0 +1,39 @@
+[project]
+name = "scfm-eval"
+version = "0.1.0"
+description = "Evaluation framework for single-cell foundation models"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # Config and env
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+    "omegaconf>=2.3.0",
+    # Data and single-cell (core, matches SCFM_meta where applicable)
+    "anndata>=0.9.0",
+    "numpy>=1.24.0",
+    "pandas>=2.3.3",
+    "scanpy>=1.9.0",
+    "scipy>=1.10.0",
+    "h5py>=3.0",
+    # Viz
+    "matplotlib>=3.5",
+    "seaborn>=0.12",
+    # Evaluation and metrics (scib, batch/biological metrics)
+    "scib>=1.1.7",
+    "scib-metrics>=0.5.7",
+    "leidenalg>=0.11.0",
+    # Integration baselines (harmony, bbknn, scanorama, scVI)
+    "harmonypy>=0.2.0",
+    "bbknn>=1.6.0",
+    "scanorama>=1.7.4",
+    "scvi-tools>=1.0.0",
+    "torch>=2.0",
+    # Utils
+    "tqdm>=4.66.0",
+    "requests>=2.31.0",
+    "gdown>=5.2.1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.11"]

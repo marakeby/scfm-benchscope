@@ -1,0 +1,63 @@
+# TCGA Pan-Cancer survival (DSS) — scGPT embeddings
+# Data: TCGA_PANCAN_outcomes.h5ad (gene expr + survival outcomes)
+# Run (from repo root): python run/run_exp.py cancer_survival/scgpt/tcga_outcomes.yaml
+
+run_id: null
+
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: ${VCC_DATA}/DATASETS/SCFM_datasets/EvalDatasets/cancer_benchmarking/TCGA_outcomes/TCGA_PANCAN_outcomes.h5ad
+  load_raw: false
+  layer_name: X
+  label_key: cancer type abbreviation
+  batch_key: _PATIENT
+  filter: null
+  train_test_split: null
+  cv_splits: null
+  dataset_name: tcga_outcomes
+  task_name: cancer_survival
+
+qc:
+  skip: true
+
+preprocessing:
+  skip: false
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+  # Declare data state so heuristics don't misclassify (TCGA is log1p; max~21 can be detected as normalized)
+  data_state: log1p
+
+hvg:
+  skip: true
+
+embedding:
+  method: scgpt
+  module: extractors.scgpt.extract
+  class: scGPTExtractor
+  viz: false
+  eval: true
+  params:
+    model_dir: ${VCC_CHECKPOINTS_BASE}/scGPT
+    model_name: scGPT_human
+    batch_size: 32
+    n_bins: 51
+    max_seq_len: 1200
+    device: auto
+    gene_name_col: null
+
+evaluations:
+  - type: survival
+    skip: false
+    params:
+      event_col: DSS
+      time_col: DSS.time
+      cancer_type_col: cancer type abbreviation
+      n_folds: 3
+      min_samples: 50
+      min_events: 10
+      random_state: 42
+      alpha_min: 10
+      alpha_max: 100000
+      alpha_n: 25

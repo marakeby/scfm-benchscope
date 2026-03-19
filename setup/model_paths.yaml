@@ -1,0 +1,50 @@
+# Repos and checkpoints used by scripts/setup_download_all.
+# Repos are cloned into REPOS_DIR; checkpoints go under MODEL_CHECKPOINTS.
+
+repos:
+  - name: stack
+    url: https://github.com/ArcInstitute/stack.git
+  - name: state
+    url: https://github.com/ArcInstitute/state.git
+  - name: geneformer
+    url: https://github.com/jkobject/geneformer.git
+  - name: scGPT
+    url: https://github.com/bowang-lab/scGPT.git
+  - name: scConcept
+    url: https://github.com/theislab/scConcept.git
+  - name: scsimilarity
+    url: https://github.com/Genentech/scsimilarity.git
+
+# Checkpoint types: huggingface (full repo), huggingface_file (single file), url (direct download), gdrive (instructions only)
+checkpoints:
+  - name: Stack-Large
+    type: huggingface
+    repo_id: arcinstitute/Stack-Large
+    local_dir: Stack-Large
+
+  - name: state
+    type: huggingface_file
+    repo_id: arcinstitute/SE-600M
+    file: se600m_epoch16.ckpt
+    local_dir: state
+
+  - name: Geneformer
+    type: instructions_only
+    message: "Use BertForMaskedLM.from_pretrained('ctheodoris/Geneformer') (HF cache)."
+
+  - name: scGPT
+    type: gdrive
+    url: https://drive.google.com/drive/folders/1_GROJTzXiAV8HB4imruOTk6PEGuNOcgB
+    local_dir: scGPT
+    instructions_only: true
+
+  - name: scConcept
+    type: huggingface
+    repo_id: theislab/scConcept
+    local_dir: scConcept
+
+  - name: scSimilarity
+    type: url
+    url: https://zenodo.org/records/10685499/files/model_v1.1.tar.gz?download=1
+    local_dir: scSimilarity
+    extract: true

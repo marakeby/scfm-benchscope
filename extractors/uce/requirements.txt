@@ -1,0 +1,32 @@
+# UCE (Universal Cell Embeddings) extractor dependencies
+#
+# IMPORTANT: UCE is NOT a pip package - add it to PYTHONPATH
+# Install in a fresh environment:
+#
+#   python -m venv env
+#   source env/bin/activate
+#   pip install -r requirements.txt
+#   
+#   # Add UCE to PYTHONPATH before running:
+#   export PYTHONPATH="/lotterlab/users/riccardo/ML_BIO/Bio_FMs/RNA/UCE:$PYTHONPATH"
+
+# PyTorch
+torch>=2.0.0
+
+# Core dependencies
+numpy>=1.24.0
+scipy>=1.10.0
+pandas>=2.0.0
+scanpy>=1.9.0
+anndata>=0.9.0
+tqdm>=4.66.0
+
+# UCE dependencies
+accelerate>=0.20.0
+requests>=2.28.0
+
+# Survival analysis
+scikit-survival>=0.23.0
+
+# Note: UCE code is at /lotterlab/users/riccardo/ML_BIO/Bio_FMs/RNA/UCE
+# Add to PYTHONPATH before running extract.py

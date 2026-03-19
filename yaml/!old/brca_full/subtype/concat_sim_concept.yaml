@@ -1,0 +1,83 @@
+# =============================================================================
+# Subtype Classification (ER+ vs TNBC) using pre-computed embeddings
+# =============================================================================
+# REQUIRES: First run extract_embeddings.yaml to generate embeddings for all cells
+# =============================================================================
+
+run_id: 
+dataset:
+    module: data.data_loader
+    class: H5ADLoader
+    path: DATASETS/SCFM_datasets/Bassez_2021_processed/bassez_combined_preprocessed_prepared.h5ad
+    load_raw: False
+    label_key: Cancer_type
+    batch_key: donor_id
+    filter: 
+      - column: Cancer_type
+        values:
+          - ER+
+          - TNBC
+      - column: timepoint
+        values:
+          - Pre
+    layer_name: X
+    train_test_split: data_splits/brca_full/brca_subtype/train_test_split.json
+    cv_splits: data_splits/brca_full/brca_subtype/cv_splits.json
+
+qc:
+    skip: True
+
+preprocessing:
+    skip: True  # Not needed when using pre-computed embeddings
+
+embedding:
+  # Load from central embeddings file (extracted once for all cells)
+  embeddings_file: brca_full/extract_embeddings_embeddings/data.h5ad
+  embedding_key: X_concat_scConcept_scimilarity
+  viz: True
+  eval: True
+
+  # Methods listed for reference (embeddings already extracted)
+  methods:
+    - name: scConcept
+      module: extractors.scconcept_extractor
+      class: scConceptExtractor
+      params:
+        model_name: Corpus-30M
+        cache_dir: ${VCC_CHECKPOINTS_BASE}/scConcept
+        batch_size: 32
+        gene_id_column: gene_ids
+        repo_id: theislab/scConcept
+        use_gpu: True
+
+    - name: scimilarity
+      module: extractors.scimilarity_extractor
+      class: SCimilarityExtractor
+      params:
+        model_path: ${VCC_CHECKPOINTS_BASE}/SCSimilarity/model_v1.1
+        batch_size: 32
+        use_gpu: True
+
+# Evaluations section: configure which evaluations to run
+evaluations:
+    # Classification evaluation (cancer subtype classification)
+    - type: classification
+      skip: False
+      params:
+          module: models.classify
+          class: ClassifierPipeline
+          model: random_forest
+          n_estimators: 100
+          max_depth: 5
+          train_funcs: 
+              - avg
+              - mil
+              - vote
+          cv: True
+          cls_level: patient
+          label_map:
+              ER+: 0
+              TNBC: 1
+          viz: True
+          eval: True
+

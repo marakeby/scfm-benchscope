@@ -1,0 +1,54 @@
+run_id: null
+dataset:
+  dataset_name: perturbseq_k562
+  task_name: batch_bio_integration
+  module: data.data_loader
+  class: H5ADLoader
+  path: DATASETS/SC_PerturbSeq_datasets/k562.h5
+  load_raw: false
+  label_key: gene
+  batch_key: gem_group
+  layer_name: X
+  filter:
+  - column: gene
+    values:
+    - non-targeting
+  train_test_split: null
+  cv_splits: null
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  skip: false
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  skip: false
+  batch_key: gem_group
+  n_top_genes: 4096
+  flavor: seurat
+embedding:
+  method: scanorama
+  viz: true
+  eval: true
+  params:
+    integration_method: scanorama
+    batch_key: gem_group
+    label_key: gene
+    n_comps: 50
+    random_seed: 42
+evaluations:
+- type: batch_effects
+  skip: false
+  params:
+    batch_key: gem_group
+    label_key: gene
+    metric: euclidean
+    auto_subsample: true
+    n_neighbors: 90
+    run_baselines: false
+    baseline_methods:
+    - embed_cell_types
+    - embed_cell_types_jittered
+    run_integration_baselines: false

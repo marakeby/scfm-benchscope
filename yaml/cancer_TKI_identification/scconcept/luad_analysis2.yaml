@@ -1,0 +1,58 @@
+run_id: null
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: DATASETS/SCFM_datasets/EvalDatasets/cancer_benchmarking/luad_analysis2.h5ad
+  load_raw: False
+  label_key: group_id
+  batch_key: sample_id
+  layer_name: X  #if data exist in another layer (e.g. adta.layers['counts']). The data will be copied to adata.X
+  train_test_split: data_splits/luad/luad2/train_test_split.json #path is relative to BASE_PATH in setup_path.py
+  cv_splits: data_splits/luad/luad2/cv_splits.json #path is relative to BASE_PATH in setup_path.py
+  dataset_name: luad_analysis2
+  task_name: TKI_identification
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  skip: false
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  skip: false
+  n_top_genes: 4096
+  flavor: seurat
+  batch_key: sample_id
+embedding:
+  method: scConcept
+  module: extractors.scconcept.extract
+  class: scConceptExtractor
+  viz: true
+  eval: true
+  params:
+    model_name: Corpus-30M
+    cache_dir: ${VCC_CHECKPOINTS_BASE}/scConcept
+    batch_size: 32
+    gene_id_column: gene_id
+    repo_id: theislab/scConcept
+evaluations:
+- type: classification
+  skip: False
+  params:
+    module: models.classify
+    class: ClassifierPipeline
+    model: randomforest
+    n_estimators: 100
+    max_depth: 5
+    train_funcs: 
+      - avg
+      - mil
+      - vote
+    cv: True
+    cls_level: patient
+    label_map:
+      treatment_naive: 0
+      TKI: 1
+    viz: True
+    eval: True

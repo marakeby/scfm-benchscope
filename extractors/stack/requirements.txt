@@ -1,0 +1,31 @@
+# STACK extractor dependencies
+#
+# IMPORTANT: STACK requires scvi-tools which has complex dependencies
+# Install in a fresh environment:
+#
+#   python -m venv env
+#   source env/bin/activate
+#   pip install -r requirements.txt
+#   pip install -e /lotterlab/users/riccardo/ML_BIO/Bio_FMs/RNA/stack
+
+# PyTorch (install first)
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch>=2.0.0,<2.3.0
+
+# Core dependencies - pin numpy<2.0 for compatibility
+numpy>=1.24.0,<2.0.0
+scipy>=1.10.0,<1.14.0
+pandas>=2.0.0
+scanpy>=1.9.0
+anndata>=0.9.0
+tqdm>=4.66.0
+h5py>=3.0.0
+
+# scvi-tools (STACK dependency) - use older version for stability
+scvi-tools>=0.20.0,<1.0.0
+
+# Survival analysis
+scikit-survival>=0.23.0
+
+# Install STACK from local repo:
+# pip install -e /lotterlab/users/riccardo/ML_BIO/Bio_FMs/RNA/stack

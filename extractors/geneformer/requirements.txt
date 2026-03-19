@@ -1,0 +1,31 @@
+# Geneformer extractor dependencies
+#
+# IMPORTANT: Geneformer requires transformers with huggingface-hub<1.0
+# Install in a fresh environment:
+#
+#   python -m venv env
+#   source env/bin/activate
+#   pip install -r requirements.txt
+#   pip install -e /lotterlab/users/riccardo/ML_BIO/Bio_FMs/RNA/Geneformer
+
+# PyTorch
+torch>=2.0.0
+
+# Transformers - MUST use versions compatible with huggingface-hub<1.0
+transformers>=4.30.0,<4.52.0
+huggingface-hub>=0.14.1,<1.0
+
+# Core dependencies
+numpy>=1.24.0
+scipy>=1.10.0
+pandas>=2.0.0
+scanpy>=1.9.0
+anndata>=0.9.0
+tqdm>=4.66.0
+datasets>=2.0.0
+
+# Survival analysis
+scikit-survival>=0.23.0
+
+# Install Geneformer from local repo:
+# pip install -e /lotterlab/users/riccardo/ML_BIO/Bio_FMs/RNA/Geneformer

@@ -1,0 +1,123 @@
+run_id: null
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: DATASETS/SCFM_datasets/EvalDatasets/cell_identity_batch/mouse_pancreas_atlas.h5ad
+  load_raw: false
+  label_key: cell_type
+  batch_key: donor_id
+  layer_name: X
+  train_test_split: null
+  cv_splits: null
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  skip: false
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  skip: true
+  batch_key: donor_id
+  n_top_genes: 4096
+  flavor: seurat
+embedding:
+  load_cached: false
+  method: scimilarity
+  module: extractors.scimilarity_extractor
+  class: SCimilarityExtractor
+  viz: true
+  eval: true
+  params:
+    model_path: ${VCC_CHECKPOINTS_BASE}/SCSimilarity/model_v1.1
+    use_gpu: true
+evaluations:
+- type: biological_signal
+  skip: false
+  params:
+    label_key: cell_type
+    metric: cosine
+    auto_subsample: true
+    leiden_resolution: 0.3
+    n_neighbors: 15
+- type: batch_effects
+  skip: false
+  params:
+    batch_key: donor_id
+    label_key: cell_type
+    metric: cosine
+    auto_subsample: true
+    n_neighbors: 90
+    run_baselines: true
+    baseline_methods:
+    - no_integration
+    - no_integration_batch
+    - embed_cell_types
+    - embed_cell_types_jittered
+- type: classification
+  skip: false
+  params:
+    module: models.classify
+    class: ClassifierPipeline
+    model: random_forest
+    n_estimators: 100
+    max_depth: 5
+    train_funcs:
+    - avg
+    - mil
+    - vote
+    cv: true
+    cls_level: cell
+    label_map:
+      CD16-negative, CD56-bright natural killer cell, human: 0
+      CD16-positive, CD56-dim natural killer cell, human: 1
+      CD4-positive helper T cell: 2
+      CD8-positive, alpha-beta memory T cell: 3
+      CD8-positive, alpha-beta memory T cell, CD45RO-positive: 4
+      T follicular helper cell: 5
+      alpha-beta T cell: 6
+      alveolar macrophage: 7
+      classical monocyte: 8
+      conventional dendritic cell: 9
+      dendritic cell, human: 10
+      effector memory CD4-positive, alpha-beta T cell: 11
+      effector memory CD8-positive, alpha-beta T cell, terminally differentiated: 12
+      erythroid lineage cell: 13
+      gamma-delta T cell: 14
+      germinal center B cell: 15
+      group 3 innate lymphoid cell: 16
+      lymphocyte: 17
+      macrophage: 18
+      mast cell: 19
+      megakaryocyte: 20
+      memory B cell: 21
+      mucosal invariant T cell: 22
+      naive B cell: 23
+      naive thymus-derived CD4-positive, alpha-beta T cell: 24
+      naive thymus-derived CD8-positive, alpha-beta T cell: 25
+      non-classical monocyte: 26
+      plasma cell: 27
+      plasmablast: 28
+      plasmacytoid dendritic cell: 29
+      precursor B cell: 30
+      pro-B cell: 31
+      progenitor cell: 32
+      regulatory T cell: 33
+      unknown: 34
+    viz: true
+    eval: true
+- type: annotation
+  skip: false
+  params:
+    label_key: cell_type
+    k: 15
+    metric: cosine
+    method: sklearn_knn
+    split_strategies:
+    - even
+    - random
+    - difficult
+    n_random_splits: 10
+    random_state: 42
+    min_cells_per_type: 2

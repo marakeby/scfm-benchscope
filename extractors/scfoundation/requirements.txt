@@ -1,0 +1,21 @@
+# scFoundation extractor dependencies
+# Install with: pip install -r requirements.txt
+
+# Core
+numpy>=1.24.0
+scipy>=1.10.0
+pandas>=2.0.0
+scanpy>=1.9.0
+anndata>=0.9.0
+torch>=2.0.0
+tqdm>=4.66.0
+
+# scFoundation-specific
+local-attention>=1.11.0
+einops>=0.7.0
+
+# Survival analysis
+scikit-survival>=0.23.0
+
+# Note: scFoundation code is in the scFM_eval/features/scfoundation directory
+# No pip package needed - just ensure the features module is in PYTHONPATH

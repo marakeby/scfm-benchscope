@@ -1,0 +1,43 @@
+# Datasets used by scripts/setup_download_all. Paths are relative to DATASETS_PATH.
+# Full path = $DATASETS_PATH / path
+
+datasets:
+  - id: dkd
+    name: DKD
+    url: https://datasets.cellxgene.cziscience.com/46d8d92b-32e0-4ca5-9907-4dbf519c7fc3.h5ad
+    path: DATASETS/SCFM_datasets/EvalDatasets/cell_identity_batch/dkd.h5ad
+    paper: https://www.nature.com/articles/s41467-022-32972-z
+    openproblems: https://openproblems.bio/datasets/cellxgene_census/dkd
+
+  - id: tabula_sapiens
+    name: Tabula Sapiens
+    url: https://datasets.cellxgene.cziscience.com/5a495302-b7cd-4bf9-853e-95627b00bb03.h5ad
+    path: DATASETS/SCFM_datasets/EvalDatasets/cell_identity_batch/tabula_sapiens.h5ad
+    paper: https://www.science.org/doi/10.1126/science.abl4896
+    openproblems: https://openproblems.bio/datasets/cellxgene_census/tabula_sapiens
+
+  - id: lymph_node_atlas
+    name: Lymph Node Atlas
+    url: https://datasets.cellxgene.cziscience.com/560e2123-d4de-47ad-8f0c-92f8da6c00fe.h5ad
+    path: DATASETS/SCFM_datasets/EvalDatasets/cell_identity_batch/lymph_node_atlas.h5ad
+    paper: https://linkinghub.elsevier.com/retrieve/pii/S1535610825002284
+
+  - id: lung_atlas
+    name: Lung Atlas (LUCA)
+    url: https://datasets.cellxgene.cziscience.com/c1870f1f-ca36-4d96-b03b-7dc0e96d83ee.h5ad
+    path: DATASETS/SCFM_datasets/EvalDatasets/cell_identity_batch/lung_atlas.h5ad
+    paper: https://www.cell.com/cancer-cell/fulltext/S1535-6108(22)00499-8
+
+  - id: hypomap
+    name: Hypomap (Murine Hypothalamus)
+    url: https://datasets.cellxgene.cziscience.com/d3be7423-d664-4913-89a9-a506cae4c28f.h5ad
+    path: DATASETS/SCFM_datasets/EvalDatasets/cell_identity_batch/hypomap.h5ad
+    paper: https://www.nature.com/articles/s42255-022-00657-y
+    openproblems: https://openproblems.bio/datasets/cellxgene_census/hypomap
+
+  - id: gtex_v9
+    name: GTEx v9
+    url: https://datasets.cellxgene.cziscience.com/002308e1-0121-4aa1-b8f2-9d034cf44b0f.h5ad
+    path: DATASETS/SCFM_datasets/EvalDatasets/cell_identity_batch/gtex_v9.h5ad
+    paper: https://www.science.org/doi/10.1126/science.abl4290
+    openproblems: https://openproblems.bio/datasets/cellxgene_census/gtex_v9

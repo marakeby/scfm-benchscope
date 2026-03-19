@@ -1,0 +1,65 @@
+run_id: 
+dataset:
+    module: data.data_loader
+    class: H5ADLoader
+    path: DATASETS/SCFM_datasets/Bassez_2021_processed/bassez_combined_preprocessed_prepared.h5ad  # Combined Cohort 1 + Cohort 2
+    load_raw: False
+    label_key: cohort
+    batch_key: donor_id
+    filter: 
+      - column: timepoint
+        values:
+          - Pre
+      - column: cell_types
+        values:
+          - Cancer_cell
+    layer_name: X
+    train_test_split: data_splits/brca_full/brca_chemo/train_test_split_oversampled.json
+    cv_splits: data_splits/brca_full/brca_chemo/cv_splits_oversampled.json
+
+qc:
+    skip: True  # Data already preprocessed, skip QC
+    min_genes: 10
+    min_cells: 10
+
+preprocessing:
+    normalize: True
+    target_sum: 10000
+    apply_log1p: True
+
+embedding:
+    method: scConcept
+    module: extractors.scconcept_extractor
+    class: scConceptExtractor
+    viz: True
+    eval: True
+    params: 
+        model_name: Corpus-30M
+        cache_dir: ${VCC_CHECKPOINTS_BASE}/scConcept
+        batch_size: 32
+        gene_id_column: gene_ids
+        repo_id: theislab/scConcept
+
+# Evaluations section: configure which evaluations to run
+evaluations:
+    # Classification evaluation (treatment cohort classification)
+    - type: classification
+      skip: False
+      params:
+          module: models.classify
+          class: ClassifierPipeline
+          model: random_forest
+          n_estimators: 100
+          max_depth: 5
+          train_funcs: 
+              - avg
+              - mil
+              - vote
+          cv: True
+          cls_level: patient
+          label_map:
+              treatment_naive: 0
+              neoadjuvant_chemo: 1
+          viz: True
+          eval: True
+

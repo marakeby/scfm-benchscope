@@ -1,0 +1,107 @@
+run_id: 
+dataset:
+    module: data.data_loader
+    class: H5ADLoader
+    path: DATASETS/SCFM_datasets/Bassez_2021_processed/bassez_combined_preprocessed_prepared.h5ad  # Combined Cohort 1 + Cohort 2
+    load_raw: False
+    label_key: cell_types
+    batch_key: donor_id
+    filter: 
+      - column: timepoint
+        values:
+          - Pre
+    layer_name: X
+    train_test_split: data_splits/brca_full/brca_cell_type/train_test_split.json
+    cv_splits: data_splits/brca_full/brca_cell_type/cv_splits.json
+
+qc:
+    skip: True  # Data already preprocessed, skip QC
+    min_genes: 10
+    min_cells: 10
+
+preprocessing:
+    normalize: True
+    target_sum: 10000
+    apply_log1p: True
+
+embedding:
+  embedding_joining_method: concatenate
+  viz: True
+  eval: True
+
+  methods:
+    - name: scConcept
+      module: extractors.scconcept_extractor
+      class: scConceptExtractor
+      params:
+        model_name: Corpus-30M
+        cache_dir: ${VCC_CHECKPOINTS_BASE}/scConcept
+        batch_size: 32
+        gene_id_column: gene_ids
+        repo_id: theislab/scConcept
+        use_gpu: True
+
+    - name: scimilarity
+      module: extractors.scimilarity_extractor
+      class: SCimilarityExtractor
+      params:
+        model_path: ${VCC_CHECKPOINTS_BASE}/SCSimilarity/model_v1.1
+        batch_size: 32
+        use_gpu: True
+
+
+# Evaluations section: configure which evaluations to run
+evaluations:
+    # Biological signal evaluation (cell type preservation, clustering quality)
+    - type: biological_signal
+      skip: False
+      params:
+          label_key: cell_types
+          metric: cosine
+          auto_subsample: True
+          leiden_resolution: 0.3
+          n_neighbors: 15
+    
+    # Batch effects evaluation
+    - type: batch_effects
+      skip: False
+      params:
+          batch_key: donor_id
+          label_key: cell_types
+          metric: cosine
+          auto_subsample: True
+          n_neighbors: 90
+          run_baselines: True
+          baseline_methods:
+              - no_integration
+              - no_integration_batch
+              - embed_cell_types
+              - embed_cell_types_jittered
+    
+    # Classification evaluation (cell type classification)
+    - type: classification
+      skip: False
+      params:
+          module: models.classify
+          class: ClassifierPipeline
+          model: random_forest
+          n_estimators: 100
+          max_depth: 5
+          train_funcs: 
+              - avg
+              - mil
+              - vote
+          cv: True
+          cls_level: cell
+          label_map:
+              T_cell: 0
+              Cancer_cell: 1
+              Fibroblast: 2
+              Myeloid_cell: 3
+              B_cell: 4
+              Endothelial_cell: 5
+              Mast_cell: 6
+              pDC: 7
+          viz: True
+          eval: True
+

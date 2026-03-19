@@ -1,0 +1,58 @@
+run_id: 
+dataset:
+    module: data.data_loader
+    class: H5ADLoader
+    path: DATASETS/SCFM_datasets/Bassez_2021_processed/bassez_combined_preprocessed_prepared.h5ad  # Combined Cohort 1 + Cohort 2
+    load_raw: False
+    label_key: pre_post
+    batch_key: donor_id
+    layer_name: X
+    train_test_split: data_splits/brca_full/brca_pre_post/train_test_split.json
+    cv_splits: data_splits/brca_full/brca_pre_post/cv_splits.json
+
+qc:
+    skip: True  # Data already preprocessed, skip QC
+    min_genes: 10
+    min_cells: 10
+
+preprocessing:
+    normalize: True
+    target_sum: 10000
+    apply_log1p: True
+
+embedding:
+    method: scConcept
+    module: extractors.scconcept_extractor
+    class: scConceptExtractor
+    viz: True
+    eval: True
+    params: 
+        model_name: Corpus-30M
+        cache_dir: ${VCC_CHECKPOINTS_BASE}/scConcept
+        batch_size: 32
+        gene_id_column: gene_ids
+        repo_id: theislab/scConcept
+
+# Evaluations section: configure which evaluations to run
+evaluations:
+    # Classification evaluation (pre vs post chemo classification)
+    - type: classification
+      skip: False
+      params:
+          module: models.classify
+          class: ClassifierPipeline
+          model: random_forest
+          n_estimators: 100
+          max_depth: 5
+          train_funcs: 
+              - avg
+              - mil
+              - vote
+          cv: True
+          cls_level: patient
+          label_map:
+              Pre: 0
+              Post: 1
+          viz: True
+          eval: True
+

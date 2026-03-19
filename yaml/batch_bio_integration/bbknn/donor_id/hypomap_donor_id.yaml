@@ -1,0 +1,68 @@
+run_id: null
+dataset:
+  dataset_name: hypomap
+  task_name: batch_bio_integration
+  module: data.data_loader
+  class: H5ADLoader
+  path: DATASETS/SCFM_datasets/EvalDatasets/cell_identity_batch/hypomap.h5ad
+  load_raw: false
+  label_key: cell_type
+  batch_key: donor_id
+  layer_name: X
+  train_test_split: null
+  cv_splits: null
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  skip: false
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  skip: false
+  batch_key: donor_id
+  n_top_genes: 4096
+  flavor: seurat
+embedding:
+  method: bbknn
+  viz: true
+  eval: true
+  params:
+    integration_method: bbknn
+    batch_key: donor_id
+    label_key: cell_type
+    n_comps: 50
+    random_seed: 42
+evaluations:
+- type: batch_effects
+  skip: false
+  params:
+    batch_key: donor_id
+    label_key: cell_type
+    metric: euclidean
+    auto_subsample: true
+    n_neighbors: 90
+    run_baselines: false
+    baseline_methods:
+    - embed_cell_types
+    - embed_cell_types_jittered
+    run_integration_baselines: false
+- type: biological_signal
+  skip: false
+  params:
+    label_key: cell_type
+    metric: euclidean
+    auto_subsample: true
+    leiden_resolution: 0.3
+    n_neighbors: 15
+- type: annotation
+  skip: false
+  params:
+    label_key: cell_type
+    k: 15
+    metric: euclidean
+    method: sklearn_knn
+    split_strategies:
+    - round_robin
+    min_cells_per_type: 2

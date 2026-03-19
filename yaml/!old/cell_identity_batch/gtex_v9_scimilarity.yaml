@@ -1,0 +1,143 @@
+run_id: null
+dataset:
+  dataset_name: gtex_v9
+  task_name: cell_identity_batch
+  module: data.data_loader
+  class: H5ADLoader
+  path: DATASETS/SCFM_datasets/EvalDatasets/cell_identity_batch/gtex_v9.h5ad
+  load_raw: false
+  label_key: cell_type
+  batch_key: batch
+  layer_name: X
+  train_test_split: null
+  cv_splits: null
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  skip: false
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  skip: true
+  batch_key: batch
+  n_top_genes: 4096
+  flavor: seurat
+embedding:
+  load_cached: false
+  method: scimilarity
+  module: extractors.scimilarity_extractor
+  class: SCimilarityExtractor
+  viz: true
+  eval: true
+  params:
+    model_path: ${VCC_CHECKPOINTS_BASE}/SCSimilarity/model_v1.1
+    use_gpu: true
+evaluations:
+- type: biological_signal
+  skip: false
+  params:
+    label_key: cell_type
+    metric: cosine
+    auto_subsample: true
+    leiden_resolution: 0.3
+    n_neighbors: 15
+- type: batch_effects
+  skip: false
+  params:
+    batch_key: batch
+    label_key: cell_type
+    metric: cosine
+    auto_subsample: true
+    n_neighbors: 90
+    run_baselines: true
+    baseline_methods:
+    - no_integration
+    - no_integration_batch
+    - embed_cell_types
+    - embed_cell_types_jittered
+- type: classification
+  skip: false
+  params:
+    module: models.classify
+    class: ClassifierPipeline
+    model: random_forest
+    n_estimators: 100
+    max_depth: 5
+    train_funcs:
+    - avg
+    - mil
+    - vote
+    cv: true
+    cls_level: cell
+    label_map:
+      B cell: 0
+      Schwann cell: 1
+      T cell: 2
+      adipocyte: 3
+      alveolar macrophage: 4
+      basal cell: 5
+      basal cell of epidermis: 6
+      basal epithelial cell of prostatic duct: 7
+      basal epithelial cell of tracheobronchial tree: 8
+      basal-myoepithelial cell of mammary gland: 9
+      bronchial epithelial cell: 10
+      cardiac endothelial cell: 11
+      cardiac muscle cell: 12
+      contractile cell: 13
+      dendritic cell: 14
+      elicited macrophage: 15
+      endothelial cell of lymphatic vessel: 16
+      endothelial cell of vascular tree: 17
+      enteric smooth muscle cell: 18
+      epidermal Langerhans cell: 19
+      epidermal cell: 20
+      epithelial cell of prostate: 21
+      epithelial cell of sweat gland: 22
+      fast muscle cell: 23
+      fibroblast: 24
+      fibroblast of breast: 25
+      fibroblast of cardiac tissue: 26
+      glandular secretory epithelial cell: 27
+      interstitial cell of Cajal: 28
+      keratinocyte: 29
+      luminal cell of prostate epithelium: 30
+      luminal epithelial cell of mammary gland: 31
+      macrophage: 32
+      mast cell: 33
+      mature NK T cell: 34
+      melanocyte of skin: 35
+      myeloid dendritic cell: 36
+      neuroendocrine cell: 37
+      neuron: 38
+      neutrophil: 39
+      professional antigen presenting cell: 40
+      pulmonary alveolar epithelial cell: 41
+      respiratory basal cell: 42
+      sebaceous gland cell: 43
+      skeletal muscle fiber: 44
+      skeletal muscle fibroblast: 45
+      skeletal muscle satellite cell: 46
+      skin fibroblast: 47
+      slow muscle cell: 48
+      smooth muscle cell: 49
+      smooth muscle cell of prostate: 50
+      squamous epithelial cell: 51
+      subcutaneous adipocyte: 52
+    viz: true
+    eval: true
+- type: annotation
+  skip: false
+  params:
+    label_key: cell_type
+    k: 15
+    metric: cosine
+    method: sklearn_knn
+    split_strategies:
+    - even
+    - random
+    - difficult
+    n_random_splits: 10
+    random_state: 42
+    min_cells_per_type: 2

@@ -1,0 +1,101 @@
+run_id: null
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: DATASETS/SCFM_datasets/EvalDatasets/cell_identity_batch/hypomap.h5ad
+  load_raw: false
+  label_key: cell_type
+  batch_key: batch_integration
+  layer_name: X
+  train_test_split: null
+  cv_splits: null
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  skip: false
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  skip: true
+  batch_key: batch_integration
+  n_top_genes: 4096
+  flavor: seurat
+embedding:
+  load_cached: false
+  method: scimilarity
+  module: extractors.scimilarity_extractor
+  class: SCimilarityExtractor
+  viz: true
+  eval: true
+  params:
+    model_path: ${VCC_CHECKPOINTS_BASE}/SCSimilarity/model_v1.1
+    use_gpu: true
+evaluations:
+- type: biological_signal
+  skip: false
+  params:
+    label_key: cell_type
+    metric: cosine
+    auto_subsample: true
+    leiden_resolution: 0.3
+    n_neighbors: 15
+- type: batch_effects
+  skip: false
+  params:
+    batch_key: batch_integration
+    label_key: cell_type
+    metric: cosine
+    auto_subsample: true
+    n_neighbors: 90
+    run_baselines: true
+    baseline_methods:
+    - no_integration
+    - no_integration_batch
+    - embed_cell_types
+    - embed_cell_types_jittered
+- type: classification
+  skip: false
+  params:
+    module: models.classify
+    class: ClassifierPipeline
+    model: random_forest
+    n_estimators: 100
+    max_depth: 5
+    train_funcs:
+    - avg
+    - mil
+    - vote
+    cv: true
+    cls_level: cell
+    label_map:
+      Schwann cell: 0
+      cell: 1
+      endothelial cell: 2
+      hematopoietic cell: 3
+      pancreatic A cell: 4
+      pancreatic D cell: 5
+      pancreatic PP cell: 6
+      pancreatic acinar cell: 7
+      pancreatic ductal cell: 8
+      pancreatic endocrine cell: 9
+      pancreatic stellate cell: 10
+      type B pancreatic cell: 11
+      unknown: 12
+    viz: true
+    eval: true
+- type: annotation
+  skip: false
+  params:
+    label_key: cell_type
+    k: 15
+    metric: cosine
+    method: sklearn_knn
+    split_strategies:
+    - even
+    - random
+    - difficult
+    n_random_splits: 10
+    random_state: 42
+    min_cells_per_type: 2
