@@ -68,6 +68,23 @@ Notes:
 For many tasks, the class mapping is stored under `dataset.label_map` in the dataset fragment.
 At runtime, if `classification.params.label_map` is missing, `run/run_exp.py` will inherit it from `dataset.label_map`.
 
+### Unified extractor API (recommended)
+Extractors inherit from `features/extractor.py::EmbeddingExtractor` and expose an `output_key`.
+The runner now prefers `extractor.output_key` (or `extractor.get_output_key()`) instead of hard-coding
+the embedding key in `run/run_exp.py`.
+
+To override the output key in YAML, set:
+- `embedding.output_key: X_custom_key`
+
+### Standard run outputs (recommended)
+Each run directory now includes:
+- `resolved_config.yaml`: fully merged config used for the run
+- `run_summary.json`: high-level run metadata
+- `metrics.json`: embedding + classification metrics (best-effort)
+
+Additionally, the runner appends one row per run to:
+- `metrics_runs.csv` under `OUTPUT_PATH`
+
 ### Repository layout (high level)
 - `run/`: entrypoints and runner (`run_exp.py`)
 - `yaml/`: experiment configurations + fragments

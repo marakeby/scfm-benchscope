@@ -50,6 +50,7 @@ Handles configuration, data loading, preprocessing, feature extraction, model tr
 
 #-------good list --
 import copy
+import json
 import yaml
 from pathlib import Path
 import importlib
@@ -149,8 +150,9 @@ import anndata as ad
 
 # ------------
 
-# Mapping of embedding method names to their corresponding keys in AnnData
-embedding_method_map = dict(PCA='X_pca', HVG='X_hvg', scVI='X_scVI', geneformer='X_geneformer', scgpt='X_scGPT', scfoundation = 'X_scfoundation', scimilarity='X_scimilarity', cellplm='X_CellPLM')
+# Legacy mapping kept for backward compatibility only.
+# New code derives the key from the extractor (`extractor.output_key`).
+embedding_method_map = dict(PCA='X_pca', HVG='X_hvg', scVI='X_scVI', geneformer='X_geneformer', scgpt='X_scGPT', scfoundation='X_scfoundation', scimilarity='X_scimilarity', cellplm='X_CellPLM')
 
 # List to store timing records
 def _get_timing_log():
@@ -294,13 +296,16 @@ def get_configs(config_path):
     config = load_config_with_bases(config_path, visited=set())
 
     run_id = config.get("run_id", "")
+    # Optional: allow a dedicated `task` block for task metadata (label_key, label_map, etc.)
+    task_config = config.get("task", None)
+
     data_config = config["dataset"]
     qc_config = config["qc"]
     preproc_config = config["preprocessing"]
     feat_config = config["embedding"]
     classification_config = config["classification"]
     hvg_config = config.get("hvg", None)
-    return run_id, data_config, qc_config, preproc_config, hvg_config, feat_config, classification_config
+    return run_id, data_config, qc_config, preproc_config, hvg_config, feat_config, classification_config, config, task_config
 
 class Experiment:
     """
@@ -313,7 +318,17 @@ class Experiment:
         Sets up directories, logging, and loads configuration.
         """
         self.config_path = join(PARAMS_PATH, config_path)
-        self.run_id, self.data_config, self.qc_config, self.preproc_config, self.hvg, self.feat_config, self.classification_config = get_configs(self.config_path)
+        (
+            self.run_id,
+            self.data_config,
+            self.qc_config,
+            self.preproc_config,
+            self.hvg,
+            self.feat_config,
+            self.classification_config,
+            self.resolved_config,
+            self.task_config,
+        ) = get_configs(self.config_path)
 
         self.vis_embedding = bool(self.feat_config['viz'])
         self.eval_embedding = bool(self.feat_config['eval'])
@@ -327,8 +342,10 @@ class Experiment:
         if not exists(self.save_dir):
             os.makedirs(self.save_dir)
 
-        # Copy config_file.yaml to the saving directory
+        # Copy wrapper YAML and also save the fully resolved config
         shutil.copyfile(self.config_path, join(self.save_dir, config_filename))
+        with open(join(self.save_dir, "resolved_config.yaml"), "w") as f:
+            yaml.safe_dump(self.resolved_config, f, sort_keys=False)
 
         # Set logging format
         self.log = set_logging(self.save_dir)
@@ -339,6 +356,19 @@ class Experiment:
         self.embedding_key = None
         self.model = None
         self.results = {}
+        self.classification_metrics = None
+        self.embedding_metrics = None
+
+        # Lightweight run summary (finalized at end)
+        self.run_summary = dict(
+            run_id=self.run_id,
+            config_path=config_path,
+            save_dir=self.save_dir,
+            dataset_path=self.data_config.get("path") if isinstance(self.data_config, dict) else None,
+            label_key=self.data_config.get("label_key") if isinstance(self.data_config, dict) else None,
+            batch_key=self.data_config.get("batch_key") if isinstance(self.data_config, dict) else None,
+            embedding_method=self.feat_config.get("method") if isinstance(self.feat_config, dict) else None,
+        )
 
     @timing
     def run(self):
@@ -423,10 +453,17 @@ class Experiment:
         feat_config = self.feat_config
         if ('skip' in feat_config) and (feat_config['skip'] is True):
             return
-        self.embedding_key = embedding_method_map[feat_config['method']]
-        feat_config['params']['save_dir'] = self.save_dir
+        # Ensure params exists
+        feat_config.setdefault("params", {})
+        feat_config["params"]["save_dir"] = self.save_dir
         ExtractorClass = self.load_class(feat_config['module'], feat_config['class'])
         extractor = ExtractorClass(feat_config)
+        # Prefer extractor-defined key; fall back to legacy mapping.
+        self.embedding_key = getattr(extractor, "output_key", None) or (
+            extractor.get_output_key() if hasattr(extractor, "get_output_key") else None
+        )
+        if not self.embedding_key:
+            self.embedding_key = embedding_method_map.get(feat_config["method"], f"X_{feat_config['method']}")
         
         #loaded pre-calculated embeddings h5ad
         fname= join(self.save_dir, 'data.h5ad')
@@ -461,6 +498,9 @@ class Experiment:
                 dataset_label_map = None
                 if isinstance(self.data_config, dict):
                     dataset_label_map = self.data_config.get('label_map', None)
+                # Prefer explicit task label map if present
+                if isinstance(self.task_config, dict) and self.task_config.get("label_map") is not None:
+                    dataset_label_map = self.task_config.get("label_map")
                 if dataset_label_map is not None:
                     clf_config['params']['label_map'] = dataset_label_map
         clf_config['params']['save_dir'] = self.save_dir
@@ -472,6 +512,8 @@ class Experiment:
         ClfClass = self.load_class(clf_config['module'], clf_config['class'])
         clf = ClfClass(clf_config)
         clf.train(self.loader)
+        # Try to collect a compact summary from saved CSVs (if produced).
+        self.classification_metrics = self._collect_classification_metrics()
 
     def evaluate_model(self):
         """
@@ -497,7 +539,96 @@ class Experiment:
         Evaluate the quality of the learned embeddings using EmbeddingEvaluator.
         """
         evaluator = EmbeddingEvaluator(self.loader.adata, embedding_key=self.embedding_key, save_dir=self.save_dir)
-        evaluator.evaluate()
+        self.embedding_metrics = evaluator.evaluate()
+
+    def _collect_classification_metrics(self):
+        """
+        Best-effort parser for classifier metrics written by ClassifierPipeline.
+        Returns a dict (may be empty).
+        """
+        out = {}
+        try:
+            import pandas as pd
+        except Exception:
+            return out
+
+        # Prefer CV metrics if present
+        cv_dir = join(self.save_dir, "cv")
+        if os.path.isdir(cv_dir):
+            for fname in os.listdir(cv_dir):
+                if fname.endswith("_cv_metrics.csv"):
+                    df = pd.read_csv(join(cv_dir, fname), index_col=0)
+                    # expected columns: ['Metrics', <model_name>, 'fold'] or similar
+                    # try common patterns
+                    if "Metrics" in df.columns:
+                        # pivot-like format
+                        pass
+                    # If it's in a tidy format: Metrics, <model>, fold
+                    if "fold" in df.columns:
+                        metric_cols = [c for c in df.columns if c not in ("fold", "Metrics")]
+                        if metric_cols:
+                            model_col = metric_cols[0]
+                            # mean over folds
+                            means = df.groupby("Metrics")[model_col].mean().to_dict() if "Metrics" in df.columns else {}
+                            if means:
+                                out["cv_mean"] = means
+                                out["cv_file"] = join("cv", fname)
+                                return out
+
+        # Fall back to per-run metrics files in root save_dir
+        for fname in os.listdir(self.save_dir):
+            if fname.startswith("cls_metrics_") and fname.endswith(".csv"):
+                df = pd.read_csv(join(self.save_dir, fname), index_col=0)
+                # format: index Metrics, single model column
+                if df.shape[1] >= 1:
+                    col = df.columns[0]
+                    out[fname.replace(".csv", "")] = df[col].to_dict()
+        return out
+
+    def _write_standard_reports(self):
+        metrics = dict(
+            embedding_metrics=self.embedding_metrics,
+            classification_metrics=self.classification_metrics,
+        )
+        with open(join(self.save_dir, "metrics.json"), "w") as f:
+            json.dump(metrics, f, indent=2)
+
+        # Update run summary
+        self.run_summary["embedding_key"] = self.embedding_key
+        with open(join(self.save_dir, "run_summary.json"), "w") as f:
+            json.dump(self.run_summary, f, indent=2)
+
+        # Append one row to a global CSV in OUTPUT_PATH
+        try:
+            import pandas as pd
+            row = dict(
+                run_id=self.run_id,
+                config_path=self.run_summary.get("config_path"),
+                save_dir=self.save_dir,
+                dataset_path=self.run_summary.get("dataset_path"),
+                label_key=self.run_summary.get("label_key"),
+                embedding_method=self.run_summary.get("embedding_method"),
+                embedding_key=self.embedding_key,
+            )
+            # Add a few common metrics if available
+            if isinstance(self.embedding_metrics, dict):
+                for k, v in self.embedding_metrics.items():
+                    row[f"emb__{k}"] = v
+            if isinstance(self.classification_metrics, dict):
+                cv_mean = self.classification_metrics.get("cv_mean")
+                if isinstance(cv_mean, dict):
+                    for k, v in cv_mean.items():
+                        row[f"clf_cv__{k}"] = v
+            metrics_csv = join(OUTPUT_PATH, "metrics_runs.csv")
+            df_row = pd.DataFrame([row])
+            if os.path.exists(metrics_csv):
+                df_existing = pd.read_csv(metrics_csv)
+                df_out = pd.concat([df_existing, df_row], ignore_index=True)
+            else:
+                df_out = df_row
+            df_out.to_csv(metrics_csv, index=False)
+        except Exception:
+            pass
 
 
 def main():
@@ -509,6 +640,7 @@ def main():
     config_path = sys.argv[1] if len(sys.argv) > 1 else 'experiment.yaml'
     experiment = Experiment(config_path)
     experiment.run()
+    experiment._write_standard_reports()
     timing_df = pd.DataFrame(_timing_log)
     timing_df.to_csv(join(experiment.save_dir, 'timing.csv'))
 
