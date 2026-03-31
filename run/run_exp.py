@@ -49,6 +49,7 @@ Handles configuration, data loading, preprocessing, feature extraction, model tr
 # from setup_path import BASE_PATH, OUTPUT_PATH, PARAMS_PATH, DATA_PATH
 
 #-------good list --
+import copy
 import yaml
 from pathlib import Path
 import importlib
@@ -209,18 +210,96 @@ def get_configs(config_path):
     Returns:
         Tuple containing run_id, data_config, qc_config, preproc_config, hvg_config, feat_config, classification_config.
     """
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
+    def deep_merge_dicts(base: dict, override: dict) -> dict:
+        """
+        Recursively merge dictionaries.
+        - dict + dict -> recursive merge
+        - otherwise -> override wins (lists/scalars are replaced)
+        """
+        out = copy.deepcopy(base)
+        for k, v in override.items():
+            if k in out and isinstance(out[k], dict) and isinstance(v, dict):
+                out[k] = deep_merge_dicts(out[k], v)
+            else:
+                out[k] = copy.deepcopy(v)
+        return out
 
-    run_id = config['run_id']
-    data_config = config['dataset']
-    qc_config =  config['qc']
-    preproc_config = config['preprocessing']
-    feat_config = config['embedding']
-    classification_config = config['classification']
-    hvg_config = None
-    if 'hvg' in config:
-        hvg_config = config['hvg']
+    def resolve_base_path(base_path: str, cfg_path: str) -> str:
+        # Allow absolute paths, relative-to-config paths (./ or ../), or relative to PARAMS_PATH.
+        if os.path.isabs(base_path):
+            return base_path
+        if base_path.startswith("."):
+            return os.path.normpath(join(os.path.dirname(cfg_path), base_path))
+        return os.path.normpath(join(PARAMS_PATH, base_path))
+
+    def load_config_with_bases(cfg_path: str, visited: set[str]) -> dict:
+        cfg_path = os.path.abspath(cfg_path)
+        if cfg_path in visited:
+            raise ValueError(f"Cyclic YAML bases detected: {cfg_path}")
+        visited.add(cfg_path)
+
+        with open(cfg_path, "r") as file:
+            config = yaml.safe_load(file) or {}
+
+        # Optional, more readable composition keys:
+        # - dataset: list of dataset fragments (or single string)
+        # - classification: list of classifier fragments (or single string)
+        # Backward compatible with:
+        # - datasets / classifications
+        # - bases / defaults
+        dataset = config.get("dataset", None)
+        classification = config.get("classification", None)
+        datasets = config.pop("datasets", None)  # deprecated alias
+        classifications = config.pop("classifications", None)  # deprecated alias
+        bases = config.pop("bases", None)
+        if bases is None:
+            bases = config.pop("defaults", None)
+
+        def _as_list(x):
+            if x is None:
+                return []
+            if isinstance(x, list):
+                return x
+            return [x]
+
+        # Interpret singular keys as *include lists* only when they are paths (str/list),
+        # not when they are actual config dicts (which should remain in the merged config).
+        dataset_includes = None
+        if isinstance(dataset, (str, list)):
+            dataset_includes = config.pop("dataset", None)
+
+        classification_includes = None
+        if isinstance(classification, (str, list)):
+            classification_includes = config.pop("classification", None)
+
+        # Merge order: dataset includes -> classification includes -> bases -> local overrides
+        bases_list = (
+            _as_list(dataset_includes)
+            + _as_list(datasets)
+            + _as_list(classification_includes)
+            + _as_list(classifications)
+            + _as_list(bases)
+        )
+
+        merged: dict = {}
+        for base in bases_list:
+            base_cfg_path = resolve_base_path(str(base), cfg_path)
+            base_cfg = load_config_with_bases(base_cfg_path, visited)
+            merged = deep_merge_dicts(merged, base_cfg)
+
+        merged = deep_merge_dicts(merged, config)
+        visited.remove(cfg_path)
+        return merged
+
+    config = load_config_with_bases(config_path, visited=set())
+
+    run_id = config.get("run_id", "")
+    data_config = config["dataset"]
+    qc_config = config["qc"]
+    preproc_config = config["preprocessing"]
+    feat_config = config["embedding"]
+    classification_config = config["classification"]
+    hvg_config = config.get("hvg", None)
     return run_id, data_config, qc_config, preproc_config, hvg_config, feat_config, classification_config
 
 class Experiment:
@@ -375,6 +454,15 @@ class Experiment:
         if ('skip' in self.classification_config) and (self.classification_config['skip'] is True):
             return
         clf_config = self.classification_config
+        # Allow label maps to live under dataset config (shared per task/dataset).
+        # If not explicitly set in classifier params, inherit from dataset.label_map.
+        if 'params' in clf_config and isinstance(clf_config['params'], dict):
+            if 'label_map' not in clf_config['params']:
+                dataset_label_map = None
+                if isinstance(self.data_config, dict):
+                    dataset_label_map = self.data_config.get('label_map', None)
+                if dataset_label_map is not None:
+                    clf_config['params']['label_map'] = dataset_label_map
         clf_config['params']['save_dir'] = self.save_dir
         viz = bool(self.classification_config['viz'])
         eval_ = bool(self.classification_config['eval'])

@@ -196,6 +196,29 @@ class scGPT_Exractor(EmbeddingExtractor):
         with open(self.model_files['gene_name_id_path'], "rb") as f:
             self.gene_name_id = pickle.load(f)
 
+    def _prepare_scgpt_reader(self, scgpt_reader):
+        """
+        Inline the preparation logic that used to live in `data/scgpt_loader.py`.
+        This lets the dataset loader be a plain `H5ADLoader`.
+        """
+        from scgpt.preprocess import Preprocessor
+        from scipy.sparse import issparse
+
+        # scGPT expects gene names to be stored in `var['gene_name']`.
+        if "gene_name" not in scgpt_reader.adata.var.columns:
+            scgpt_reader.adata.var["gene_name"] = scgpt_reader.adata.var.index
+
+        # scGPT preprocessor expects dense X in our current pipeline.
+        if issparse(scgpt_reader.adata.X):
+            scgpt_reader.adata.X = scgpt_reader.adata.X.toarray()
+
+        preprocessor = Preprocessor(
+            binning=self.params["n_bins"],
+            result_binned_key="X_binned",
+        )
+        preprocessor(scgpt_reader.adata, batch_key=scgpt_reader.batch_key)
+        scgpt_reader.prepared = True
+
    
 
     def fit_transform(self, scgpt_reader, gene_col = 'gene_name', output_embedding_key= "X_scGPT", MVC=True, ECS=False, CLS=False, CCE=False, amp=True, use_batch_labels=False, pad_token="<pad>"):
@@ -205,11 +228,8 @@ class scGPT_Exractor(EmbeddingExtractor):
         if not self.loaded:
             self.load_pretrained_model()
                     
-        if not scgpt_reader.prepared:
-            print(self.params)
-            # print('making sure counts are included in adata.layers')
-            # scgpt_reader.adata.layers['counts'] = scgpt_reader.adata.X
-            scgpt_reader.prepare_data(n_bins=self.params['n_bins'])
+        if not getattr(scgpt_reader, "prepared", False):
+            self._prepare_scgpt_reader(scgpt_reader)
             
         vocab = self.vocab
         model = self.model

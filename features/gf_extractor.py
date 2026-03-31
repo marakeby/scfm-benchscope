@@ -188,6 +188,53 @@ class GeneformerExtractor(EmbeddingExtractor):
     def validate_config(params):
         assert 'params' in params and params is not None, "Missing 'params' in parameters"
 
+    def _map_ensembl_ids(self, geneformer_reader):
+        """
+        Convert gene symbols (adata.var.index) -> ensembl ids (adata.var['ensembl_id'])
+        and drop genes without an ensembl mapping.
+        """
+        gene_to_ensembl = self.gene_name_id
+        geneformer_reader.adata.var["ensembl_id"] = geneformer_reader.adata.var.index.map(gene_to_ensembl)
+        nan_idx = geneformer_reader.adata.var.ensembl_id.isna()
+        if nan_idx.any():
+            n_removed = int(nan_idx.sum())
+            geneformer_reader.adata = geneformer_reader.adata[:, ~nan_idx]
+            self.log.warning(f"warning: genes dont have ensembl IDs {n_removed}. Genes without ensembl ID are REMOVED")
+
+    def _prepare_geneformer_data(self, geneformer_reader, save_ext: str = "loom"):
+        """
+        Persist the AnnData into Geneformer-readable files inside a processed directory.
+        Previously this lived in `GFLoader.prepare_data`; we inline it so the dataset loader
+        can be a plain `H5ADLoader`.
+        """
+        adata = geneformer_reader.adata
+
+        # `total_counts` is normally produced by `qc_data()`; compute if missing for robustness.
+        if "total_counts" not in adata.obs.columns:
+            import scanpy as sc
+            sc.pp.calculate_qc_metrics(adata, percent_top=None, log1p=False, inplace=True)
+
+        adata.obs["n_counts"] = adata.obs["total_counts"]
+        adata.obs["adata_order"] = adata.obs.index.tolist()
+
+        geneformer_reader.processed_dir = join(self.save_dir, "processed_data")
+        if not os.path.exists(geneformer_reader.processed_dir):
+            os.makedirs(geneformer_reader.processed_dir)
+
+        dataset_name = geneformer_reader.dataset_name
+        if save_ext == "loom":
+            loom_path = os.path.join(geneformer_reader.processed_dir, f"{dataset_name}.loom")
+            adata.write_loom(loom_path)
+            geneformer_reader.procssed_file = loom_path  # kept for backward compatibility with older code
+            self.log.info(f"saving loom file to {loom_path}")
+        elif save_ext == "h5ad":
+            h5ad_path = os.path.join(geneformer_reader.processed_dir, f"{dataset_name}.h5ad")
+            adata.write_h5ad(h5ad_path)
+            geneformer_reader.procssed_file = h5ad_path
+            self.log.info(f"saving h5ad file to {h5ad_path}")
+        else:
+            raise ValueError(f"Unsupported save_ext: {save_ext}")
+
 
     def fit_transform(self, gf_data_loader):
 
@@ -198,10 +245,9 @@ class GeneformerExtractor(EmbeddingExtractor):
             self.load_vocab()
 
         if not hasattr(self, 'data_prepared'):
-            # add ensembl_id to the var variable (assume gene names are in the var.index). Also remove genes without ensembl_id
-            gf_data_loader.map_ensembl(self.gene_name_id)
-            # prepare data, save loom file,
-            gf_data_loader.prepare_data(self.save_dir, save_ext = 'loom')
+            # geneformer preparation step (inlined from `GFLoader`)
+            self._map_ensembl_ids(gf_data_loader)
+            self._prepare_geneformer_data(gf_data_loader, save_ext="loom")
             self.data_prepared = True
 
         # tokenize data

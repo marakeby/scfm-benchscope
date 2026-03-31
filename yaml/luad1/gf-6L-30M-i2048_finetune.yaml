@@ -1,50 +1,9 @@
 run_id: 
 dataset:
-    module: data.gf_loader
-    class: GFLoader
-    path: mnt/DATA/luad_brca/luad/luad_analysis1.h5ad #path is relative to DATA_PATH in setup_path.py
-    load_raw: True
-    label_key: group_id
-    batch_key: sample_id
-    layer_name: X  #if data exist in another layer (e.g. adta.layers['counts']). The data will be copied to adata.X
-    train_test_split: data_splits/luad/luad1/train_test_split.json #path is relative to BASE_PATH in setup_path.py
-    cv_splits: data_splits/luad/luad1/cv_splits.json #path is relative to BASE_PATH in setup_path.py
+    - luad1/dataset_shared.yaml
 
-qc:
-    min_genes: 10
-    min_cells: 10
-
-preprocessing:
-    normalize: True
-    target_sum: 10000
-    apply_log1p: True
-
-hvg:
-    batch_key: batch
-    n_top_genes: 2048
-    flavor: seurat # expect logarithmized data
-    
-    
 embedding:
     skip: True # dont excute this (embedding) step
     viz: False
     eval: False
 
-classification:
-    module: models.gf_finetune
-    class: GFFineTuneModel
-    params:
-        model: Geneformer-V1-10M
-        model_dir: /home/jupyter/mnt/MODELS
-        dict_dir: /home/jupyter/mnt/gf_dicts_v1 #genefromer 1
-        model_input_size: 2048
-        batch_size: 8
-        epoch: 5
-        train_funcs: 
-            - mil
-        cv: True
-        label_map:
-              early_stage: 0
-              late_stage: 1
-    viz: True
-    eval: True
