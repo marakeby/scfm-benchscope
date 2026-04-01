@@ -1,0 +1,24 @@
+# Mock embeddings on the fixed cancer subtyping task (ER+ vs TNBC, Pre timepoint).
+# Same dataset + classifier stack as `yaml/option_a1/subtype_Geneformer-V2-104M.yaml`,
+# but uses `MockEmbeddingExtractor` instead of a foundation model (no checkpoints).
+#
+# Run (from repo root, with DATA_PATH / OUTPUT_PATH in setup_path.py pointing at your data):
+#   python run/run_exp.py yaml/examples/mock_subtype_eval.yaml
+
+run_id: mock_subtype
+
+dataset:
+  - brca_full/subtype/dataset_shared.yaml
+
+classification:
+  - brca_full/subtype/classification_randomforest.yaml
+
+embedding:
+  method: mock
+  module: features.mock_extractor
+  class: MockEmbeddingExtractor
+  viz: true
+  eval: true
+  params:
+    out_dim: 64
+    seed: 0

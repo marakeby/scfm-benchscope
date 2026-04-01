@@ -28,6 +28,7 @@ class EmbeddingExtractor:
         "scfoundation": "X_scfoundation",
         "scimilarity": "X_scimilarity",
         "cellplm": "X_CellPLM",
+        "mock": "X_mock",
     }
 
     def __init__(self, params: Dict[str, Any]):

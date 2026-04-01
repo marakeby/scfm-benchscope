@@ -5,7 +5,7 @@ Evaluate single-cell foundation model (scFM) embeddings + downstream classificat
 ### What it does
 - **Load data** from an `.h5ad` file into an `AnnData`
 - **QC / preprocessing / HVG** (optional, driven by YAML)
-- **Extract embeddings** (PCA, HVG, scVI, Geneformer, scGPT, scFoundation, SCimilarity, CellPLM, …)
+- **Extract embeddings** (PCA, HVG, scVI, Geneformer, scGPT, scFoundation, SCimilarity, CellPLM, mock linear projector for tests, …)
 - **Train & evaluate a classifier** on the embeddings (commonly RandomForest)
 - **Save outputs** under `OUTPUT_PATH` (see `setup_path.py`)
 
@@ -20,6 +20,20 @@ python run/run_exp.py luad1/scgpt.yaml
 There are helper scripts with example runs:
 - `run/run_brca.sh`
 - `run/run_luad.sh`
+
+### Mock embedding example (cancer subtyping)
+To exercise the full pipeline (QC, HVG, embeddings, visualization, embedding metrics, and downstream classification) **without** loading a foundation model, use the mock linear projector:
+
+```bash
+python run/run_exp.py yaml/examples/mock_subtype_eval.yaml
+```
+
+This config is the **cancer subtyping** task (ER+ vs TNBC, Pre), reusing the same dataset and classifier fragments as the real subtype runs:
+
+- `yaml/brca_full/subtype/dataset_shared.yaml`
+- `yaml/brca_full/subtype/classification_randomforest.yaml`
+
+The `embedding` block points at `features.mock_extractor.MockEmbeddingExtractor` and `models/mock_embedding_model.py`. Swap that block for a real extractor + params to match production experiments.
 
 ### Paths & outputs
 Key paths are defined in `setup_path.py`:

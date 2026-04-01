@@ -141,6 +141,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Pixi (keep pixi.toml + pixi.lock in git; ignore local env cache)
+.pixi/
+
 # Spyder project settings
 .spyderproject
 .spyproject

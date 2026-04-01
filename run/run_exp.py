@@ -152,7 +152,7 @@ import anndata as ad
 
 # Legacy mapping kept for backward compatibility only.
 # New code derives the key from the extractor (`extractor.output_key`).
-embedding_method_map = dict(PCA='X_pca', HVG='X_hvg', scVI='X_scVI', geneformer='X_geneformer', scgpt='X_scGPT', scfoundation='X_scfoundation', scimilarity='X_scimilarity', cellplm='X_CellPLM')
+embedding_method_map = dict(PCA='X_pca', HVG='X_hvg', scVI='X_scVI', geneformer='X_geneformer', scgpt='X_scGPT', scfoundation='X_scfoundation', scimilarity='X_scimilarity', cellplm='X_CellPLM', mock='X_mock')
 
 # List to store timing records
 def _get_timing_log():

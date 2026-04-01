@@ -1,0 +1,127 @@
+# Pixi workspace: shared base + one environment per foundation-model stack.
+# Usage:
+#   pixi install
+#   pixi run -e geneformer run-exp yaml/brca_full/cell_type/Geneformer-V2-104M.yaml
+#   pixi shell -e scvi
+#
+# Lockfile (commit pixi.lock for reproducible installs):
+#   pixi lock
+#
+# scFoundation is not on PyPI as a single package — use `scf` env and install
+# the Biomap repo into that env, or follow their README inside `pixi shell -e scf`.
+
+[workspace]
+name = "scfm_eval"
+authors = ["scFM_eval contributors"]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64"]
+
+[tasks]
+# Pass a YAML under yaml/… as the first argument (see run/run_exp.py main()).
+run-exp = { cmd = "python run/run_exp.py" }
+# Quick sanity check that imports resolve in the active environment.
+check-imports = { cmd = "python -c \"import yaml, numpy, pandas, anndata, scanpy, torch; print('ok')\"" }
+
+# ---------------------------------------------------------------------------
+# Default feature: core harness for run_exp.py (PCA/HVG, viz, eval, classifiers).
+# PyTorch from conda-forge (CPU). Add a CUDA overlay locally if needed.
+# ---------------------------------------------------------------------------
+[dependencies]
+python = "3.11.*"
+pip = "*"
+numpy = ">=1.24"
+pandas = ">=2"
+pyyaml = ">=6"
+scipy = ">=1.10"
+scikit-learn = ">=1.3"
+matplotlib-base = ">=3.8"
+tqdm = "*"
+einops = "*"
+anndata = ">=0.10"
+scanpy = ">=1.9"
+h5py = "*"
+# CPU PyTorch — sufficient for many extractors; GPU users typically add nvidia/pytorch channels.
+pytorch = ">=2.1"
+torchvision = ">=0.16"
+
+# --- Model-specific features (each environment below selects one stack on top of default) ---
+
+[feature.scvi.dependencies]
+scvi-tools = ">=1.1"
+
+[feature.geneformer.pypi-dependencies]
+transformers = ">=4.36"
+datasets = ">=2.16"
+geneformer = ">=0.1.0"
+
+[feature.scgpt.pypi-dependencies]
+scgpt = { git = "https://github.com/bowang-lab/scGPT.git" }
+
+[feature.scimilarity.pypi-dependencies]
+scimilarity = ">=0.2"
+
+[feature.cellplm.pypi-dependencies]
+cellplm = ">=0.1"
+mygene = "*"
+
+[feature.nicheformer.pypi-dependencies]
+nicheformer = ">=0.1"
+
+[feature.scconcept.pypi-dependencies]
+scconcept = "*"
+
+[feature.state.pypi-dependencies]
+arc-state = ">=0.10"
+
+# scFoundation: no stable PyPI package — install Biomap repo into this env manually.
+[feature.scf.pypi-dependencies]
+# Install from https://github.com/biomap-research/scFoundation when you use this env:
+#   pixi run -e scf pip install -e path/to/scFoundation
+protobuf = "*"
+
+# ---------------------------------------------------------------------------
+# Legacy scBERT stack (torch 1.8 / transformers 4.6) — isolated from default.
+# PyPI has no torch 1.8.1 wheel for osx-arm64 — use Linux, Intel macOS, or Docker.
+# ---------------------------------------------------------------------------
+[feature.scbert]
+platforms = ["linux-64", "osx-64"]
+
+[feature.scbert.dependencies]
+python = "3.9.*"
+pip = "*"
+
+[feature.scbert.pypi-dependencies]
+torch = "==1.8.1"
+torchvision = "==0.9.1"
+transformers = "==4.6.1"
+scanpy = "==1.7.2"
+scikit-learn = "==0.24.2"
+scipy = "==1.5.4"
+numpy = "==1.20.0"
+pandas = "==1.1.5"
+einops = "==0.6.0"
+matplotlib = "<3.7"
+tqdm = "*"
+h5py = "*"
+anndata = ">=0.7,<0.9"
+pyyaml = ">=5"
+
+# ---------------------------------------------------------------------------
+# Named environments (each = default + listed features, except `scbert`).
+# ---------------------------------------------------------------------------
+# Each environment is solved independently (no shared solve-group) so conflicting
+# stacks (e.g. scgpt vs scvi-tools) do not pin each other.
+[environments]
+default = []
+scvi = ["scvi"]
+geneformer = ["geneformer"]
+scgpt = ["scgpt"]
+scimilarity = ["scimilarity"]
+cellplm = ["cellplm"]
+nicheformer = ["nicheformer"]
+scconcept = ["scconcept"]
+state = ["state"]
+scf = ["scf"]
+
+# Legacy stack — no shared base with modern torch (pins in feature.scbert).
+scbert = { features = ["scbert"], no-default-feature = true }
