@@ -144,6 +144,13 @@ venv.bak/
 # Pixi (keep pixi.toml + pixi.lock in git; ignore local env cache)
 .pixi/
 
+# Geneformer HF clone (scripts/install_packages.sh)
+third_party/Geneformer/
+
+# Local download configs (copy from *.example)
+scripts/config/model_weights.env
+scripts/config/data_download.env
+
 # Spyder project settings
 .spyderproject
 .spyproject

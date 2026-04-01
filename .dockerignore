@@ -1,0 +1,9 @@
+.pixi
+__pycache__
+*.py[cod]
+.git
+.idea
+*.h5ad
+__output
+**/wandb
+third_party/Geneformer

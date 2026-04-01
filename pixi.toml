@@ -1,4 +1,14 @@
-# Pixi workspace: shared base + one environment per foundation-model stack.
+# Pixi workspace: multiple environments — one install prefix per `pixi run -e <name>`.
+#
+# “One env per model” here means separate named environments (geneformer, scvi, …),
+# not one conda env for the whole repo. Each [environments] entry is solved and
+# installed independently under `.pixi/envs/<name>/`.
+#
+# Most stacks reuse [dependencies] as the shared evaluation harness (Python, torch,
+# scanpy, anndata, sklearn, …) plus one [feature.*] for that model. If a model needs
+# incompatible pins (old pandas/torch, git-only deps), give it `no-default-feature = true`
+# and list a full dependency set in that feature only — see `scbert`.
+#
 # Usage:
 #   pixi install
 #   pixi run -e geneformer run-exp yaml/brca_full/cell_type/Geneformer-V2-104M.yaml
@@ -21,6 +31,12 @@ platforms = ["linux-64", "osx-arm64"]
 run-exp = { cmd = "python run/run_exp.py" }
 # Quick sanity check that imports resolve in the active environment.
 check-imports = { cmd = "python -c \"import yaml, numpy, pandas, anndata, scanpy, torch; print('ok')\"" }
+# VM / Docker: clone Hugging Face Geneformer + pip install -e into the `geneformer` env.
+install-packages = { cmd = "bash scripts/install_packages.sh" }
+download-models = { cmd = "bash scripts/download_model_weights.sh" }
+download-data = { cmd = "bash scripts/download_data.sh" }
+verify-gpu = { cmd = "python -c \"import torch; print('cuda_available=', torch.cuda.is_available()); print('torch_cuda=', getattr(torch.version, 'cuda', None))\"" }
+bootstrap-vm = { cmd = "bash scripts/bootstrap_vm.sh" }
 
 # ---------------------------------------------------------------------------
 # Default feature: core harness for run_exp.py (PCA/HVG, viz, eval, classifiers).
@@ -40,9 +56,15 @@ einops = "*"
 anndata = ">=0.10"
 scanpy = ">=1.9"
 h5py = "*"
-# CPU PyTorch — sufficient for many extractors; GPU users typically add nvidia/pytorch channels.
+# Keep below conda-forge’s upper bound so `datasets` (Geneformer) is not pinned against fsspec==2026.3.0.
+fsspec = ">=2023.12.0,<2026.3"
+# PyTorch from conda-forge (often CPU-only wheel on some platforms). On a CUDA VM, run
+# `pixi run verify-gpu`; if CUDA is False, add a Linux+CUDA PyTorch channel override or use Docker — see README.
 pytorch = ">=2.1"
 torchvision = ">=0.16"
+
+[pypi-dependencies]
+huggingface_hub = ">=0.20"
 
 # --- Model-specific features (each environment below selects one stack on top of default) ---
 
@@ -52,7 +74,7 @@ scvi-tools = ">=1.1"
 [feature.geneformer.pypi-dependencies]
 transformers = ">=4.36"
 datasets = ">=2.16"
-geneformer = ">=0.1.0"
+# The `geneformer` library is installed by scripts/install_packages.sh (clone + pip install -e).
 
 [feature.scgpt.pypi-dependencies]
 scgpt = { git = "https://github.com/bowang-lab/scGPT.git" }
@@ -64,11 +86,42 @@ scimilarity = ">=0.2"
 cellplm = ">=0.1"
 mygene = "*"
 
-[feature.nicheformer.pypi-dependencies]
-nicheformer = ">=0.1"
+# --- Isolated stacks (no shared [dependencies]): git install + harness for run_exp / scib ---
+# Use: pixi run -e nicheformer ...  |  pixi run -e scconcept ...
+# Nicheformer pulls dask-cuda / Merlin — expect install/runtime issues on macOS; use Linux + CUDA for training.
 
-[feature.scconcept.pypi-dependencies]
-scconcept = "*"
+[feature.nicheformer_isolated.dependencies]
+python = "3.11.*"
+pip = "*"
+
+[feature.nicheformer_isolated.pypi-dependencies]
+# Installs upstream pins (pandas 1.5.3, numpy 1.26.4, torch>=2.5.1, …).
+nicheformer = { git = "https://github.com/theislab/nicheformer.git" }
+# scFM_eval pipeline + embedding metrics (run_exp / evaluation/eval.py)
+pyyaml = ">=6"
+matplotlib = "*"
+scikit-learn = ">=1.3"
+scipy = ">=1.10"
+tqdm = "*"
+h5py = "*"
+scanpy = ">=1.9,<2"
+anndata = ">=0.10"
+scib = "*"
+
+[feature.scconcept_isolated.dependencies]
+python = "3.11.*"
+pip = "*"
+
+[feature.scconcept_isolated.pypi-dependencies]
+# torch==2.6.0 and stack from upstream pyproject.
+scConcept = { git = "https://github.com/theislab/scConcept.git" }
+pyyaml = ">=6"
+matplotlib = "*"
+scikit-learn = ">=1.3"
+scipy = ">=1.10"
+tqdm = "*"
+h5py = "*"
+scib = "*"
 
 [feature.state.pypi-dependencies]
 arc-state = ">=0.10"
@@ -118,10 +171,12 @@ geneformer = ["geneformer"]
 scgpt = ["scgpt"]
 scimilarity = ["scimilarity"]
 cellplm = ["cellplm"]
-nicheformer = ["nicheformer"]
-scconcept = ["scconcept"]
 state = ["state"]
 scf = ["scf"]
 
 # Legacy stack — no shared base with modern torch (pins in feature.scbert).
 scbert = { features = ["scbert"], no-default-feature = true }
+
+# GitHub-only models + incompatible pins vs default — fully isolated features.
+nicheformer = { features = ["nicheformer_isolated"], no-default-feature = true }
+scconcept = { features = ["scconcept_isolated"], no-default-feature = true }
