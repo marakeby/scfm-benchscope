@@ -1,13 +1,55 @@
 # cellplm_extractor.py
 
-import scanpy as sc
-import numpy as np
+import json
+import os
+
 import anndata as ad
-from CellPLM.pipeline.cell_type_annotation import CellTypeAnnotationPipeline
-from CellPLM.pipeline.cell_embedding import CellEmbeddingPipeline
+import numpy as np
+import scanpy as sc
+import torch
+from CellPLM.model import OmicsFormer
+
+import CellPLM.pipeline as _cellplm_pipeline
 from utils.logs_ import get_logger
 from features.extractor import EmbeddingExtractor
 import mygene
+
+
+def _load_pretrain_map_location(
+    pretrain_prefix: str,
+    overwrite_config: dict | None = None,
+    pretrain_directory: str = "./ckpt",
+):
+    """Mirror of CellPLM.pipeline.load_pretrain with ``map_location=cpu`` for ``torch.load``.
+
+    Upstream loads checkpoints without ``map_location``, so CUDA-saved weights raise
+    ``RuntimeError`` when ``torch.cuda.is_available()`` is false. Loading to CPU first
+    is safe; ``CellEmbeddingPipeline.predict`` then moves the model with ``.to(device)``.
+    """
+    config_path = os.path.join(pretrain_directory, f"{pretrain_prefix}.config.json")
+    ckpt_path = os.path.join(pretrain_directory, f"{pretrain_prefix}.best.ckpt")
+    with open(config_path, "r") as openfile:
+        config = json.load(openfile)
+    if overwrite_config:
+        config.update(overwrite_config)
+    model = OmicsFormer(**config)
+    pretrained_model_dict = torch.load(
+        ckpt_path, map_location=torch.device("cpu")
+    )["model_state_dict"]
+    model_dict = model.state_dict()
+    pretrained_dict = {
+        k: v
+        for k, v in pretrained_model_dict.items()
+        if k in model_dict and v.shape == model_dict[k].shape
+    }
+    model_dict.update(pretrained_dict)
+    model.load_state_dict(model_dict)
+    return model
+
+
+_cellplm_pipeline.load_pretrain = _load_pretrain_map_location
+
+from CellPLM.pipeline.cell_embedding import CellEmbeddingPipeline
 
 def convert_symbols_to_ensembl(adata: ad.AnnData, symbol_col: str = None, new_col: str = "ensembl_id") -> ad.AnnData:
     """
@@ -94,13 +136,12 @@ class CellPLMExtractor(EmbeddingExtractor):
         Returns:
             embeddings: NumPy array (n_cells, embedding_dim)
         """
-        DEVICE = 'cuda'
-        embedding = self.pipeline.predict(adata, # An AnnData object
-                device=DEVICE) # Specify a gpu or cpu for model inference
-
-        # adata.obsm['emb'] = embedding.cpu().numpy()
-
-        # embeddings = self.pipeline.transform(adata)
+        use_gpu = bool(self.params.get("use_gpu", True))
+        if use_gpu and torch.cuda.is_available():
+            device: str | torch.device = "cuda"
+        else:
+            device = "cpu"
+        embedding = self.pipeline.predict(adata, device=device)
         return embedding.cpu().numpy()
     
     def fit_transform(self, data_loader):

@@ -19,7 +19,7 @@ embedding:
     viz: True
     eval: True
     params: 
-        pretrain_directory: /home/jupyter/mnt/MODELS/CellPLM
+        pretrain_directory: /home/haitham/mnt/MODELS/CellPLM
         # pretrain_prefix: 20230926_85M
         pretrain_prefix: 20231027_85M
 

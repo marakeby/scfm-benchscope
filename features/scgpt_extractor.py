@@ -140,14 +140,17 @@ class scGPT_Exractor(EmbeddingExtractor):
         
         model = self._build_model()
 
+        map_location = self.device
         try:
-            model.load_state_dict(torch.load(model_file))
+            model.load_state_dict(
+                torch.load(model_file, map_location=map_location)
+            )
             self.logger.info(f"Loading all model params from {model_file}")
-        except:
+        except Exception:
             self.logger.info('Failed to load params')
             # only load params that are in the model and match the size
             model_dict = model.state_dict()
-            pretrained_dict = torch.load(model_file)
+            pretrained_dict = torch.load(model_file, map_location=map_location)
             pretrained_dict = {
                 k: v
                 for k, v in pretrained_dict.items()

@@ -70,6 +70,7 @@ from viz.visualization import EmbeddingVisualizer
 from evaluation.eval import EmbeddingEvaluator
 from utils.logs_ import set_logging, get_logger
 from setup_path import BASE_PATH, OUTPUT_PATH, PARAMS_PATH, DATA_PATH
+from utils.sampling import sample_adata
 
 embedding_method_map= dict(PCA='X_pca', HVG='X_hvg', scVI='X_scVI', geneformer='X_geneformer', scgpt='X_scGPT')
 
@@ -152,7 +153,7 @@ import anndata as ad
 
 # Legacy mapping kept for backward compatibility only.
 # New code derives the key from the extractor (`extractor.output_key`).
-embedding_method_map = dict(PCA='X_pca', HVG='X_hvg', scVI='X_scVI', geneformer='X_geneformer', scgpt='X_scGPT', scfoundation='X_scfoundation', scimilarity='X_scimilarity', cellplm='X_CellPLM', mock='X_mock')
+embedding_method_map = dict(PCA='X_pca', HVG='X_hvg', scVI='X_scVI', geneformer='X_geneformer', scgpt='X_scGPT', scfoundation='X_scfoundation', scimilarity='X_scimilarity', cellplm='X_CellPLM', nicheformer='X_nicheformer', mock='X_mock')
 
 # List to store timing records
 def _get_timing_log():
@@ -163,6 +164,18 @@ def _get_timing_log():
     return _timing_log
 
 _timing_log = _get_timing_log()
+
+
+def _json_default(o):
+    """Serialize numpy scalars/arrays and pathlib paths for json.dump."""
+    if isinstance(o, np.generic):
+        return o.item()
+    if isinstance(o, np.ndarray):
+        return o.tolist()
+    if isinstance(o, Path):
+        return str(o)
+    raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+
 
 def timing(func):
     """
@@ -338,7 +351,7 @@ class Experiment:
         config_filename = os.path.basename(config_path)
         save_dir = join(OUTPUT_PATH, relative_sav_dir)
         self.save_dir = save_dir + f'_{self.run_id}' if self.run_id else save_dir
-
+        print(f'save_dir: {self.save_dir}')
         if not exists(self.save_dir):
             os.makedirs(self.save_dir)
 
@@ -405,6 +418,7 @@ class Experiment:
     def load_data(self):
         """
         Load the dataset using the loader specified in the config.
+        Optional: set ``max_cells`` (and optionally ``max_cells_stratify``) on the dataset YAML block.
         """
         loader_config = self.data_config
         loader_config['path'] = join(DATA_PATH, loader_config['path'])
@@ -412,6 +426,32 @@ class Experiment:
         self.log.info(f'Data Loader config: {loader_config}')
         self.loader = LoaderClass(loader_config)
         self.data = self.loader.load()
+
+        max_cells = loader_config.get('max_cells')
+        if max_cells is not None and int(max_cells) > 0:
+            max_cells = int(max_cells)
+            n_obs = self.loader.adata.n_obs
+            if n_obs > max_cells:
+                stratify = loader_config.get('max_cells_stratify')
+                rs = int(loader_config.get('max_cells_random_state', 42))
+                self.log.info(
+                    "Subsampling cells: n_obs=%s -> max_cells=%s, stratify_by=%s, random_state=%s",
+                    n_obs,
+                    max_cells,
+                    stratify,
+                    rs,
+                )
+                self.loader.adata = sample_adata(
+                    self.loader.adata,
+                    sample_size=max_cells,
+                    stratify_by=stratify,
+                    random_state=rs,
+                )
+                self.data = self.loader.adata
+                self.run_summary['max_cells'] = max_cells
+                self.run_summary['max_cells_stratify'] = stratify
+            else:
+                self.log.info("max_cells=%s not applied (n_obs=%s).", max_cells, n_obs)
 
     @timing
     def qc_data(self):
@@ -591,12 +631,12 @@ class Experiment:
             classification_metrics=self.classification_metrics,
         )
         with open(join(self.save_dir, "metrics.json"), "w") as f:
-            json.dump(metrics, f, indent=2)
+            json.dump(metrics, f, indent=2, default=_json_default)
 
         # Update run summary
         self.run_summary["embedding_key"] = self.embedding_key
         with open(join(self.save_dir, "run_summary.json"), "w") as f:
-            json.dump(self.run_summary, f, indent=2)
+            json.dump(self.run_summary, f, indent=2, default=_json_default)
 
         # Append one row to a global CSV in OUTPUT_PATH
         try:

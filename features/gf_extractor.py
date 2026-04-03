@@ -68,7 +68,9 @@ class GeneformerExtractor(EmbeddingExtractor):
         self.model_dir = self.params.get('model_dir', '.')
         self.model_dir = join(self.model_dir,self.model_name )
         self.dict_dir = self.params.get('dict_dir', '.')
-        self.model_input_size = self.params.get('model_input_size', 4096)
+        self.model_input_size = self.params.get(
+            'model_input_size', self.params.get('input_size', 4096)
+        )
         self.batch_size = self.params.get('batch_size', 16)
         self.save_dir = self.params.get('save_dir', '.')
         self.layer = self.params.get('layer', -2)
@@ -168,12 +170,23 @@ class GeneformerExtractor(EmbeddingExtractor):
         ####
         
         
-        self.tokenizer = TranscriptomeTokenizer(cols_to_keep, nproc=nproc, 
-                                                model_input_size=self.model_input_size,
-                                                model_version = self.model_version, 
-                                                token_dictionary_file=self.model_files['model_vocab'], 
-                                                gene_mapping_file=self.model_files['gene_mapping_file'],
-                                                gene_median_file=self.model_files['gene_median_file'])
+        # Upstream Geneformer: if model_version=="V1", TranscriptomeTokenizer ignores
+        # custom gene_* paths and loads bundled files (often Git LFS pointers), causing
+        # pickle errors (e.g. invalid load key 'v' from "version https://git-lfs...").
+        # Pass model_version="V2" so the tokenizer keeps our dict_dir paths; set
+        # special_token / model_input_size to match the real model series.
+        tokenizer_mv = "V2" if self.model_version == "V1" else self.model_version
+        special_token = self.model_version == "V2"
+        self.tokenizer = TranscriptomeTokenizer(
+            cols_to_keep,
+            nproc=nproc,
+            model_input_size=self.model_input_size,
+            model_version=tokenizer_mv,
+            special_token=special_token,
+            token_dictionary_file=self.model_files['model_vocab'],
+            gene_mapping_file=self.model_files['gene_mapping_file'],
+            gene_median_file=self.model_files['gene_median_file'],
+        )
         
         self.tokenizer.tokenize_data(processed_dir,
                                                 output_directory,

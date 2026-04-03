@@ -1,0 +1,16 @@
+run_id: 
+dataset:
+    - brca_full/subtype/dataset_shared.yaml
+
+embedding:
+    load_cached: True
+    method: cellplm
+    module: features.cellplm_extractor
+    class: CellPLMExtractor
+    viz: True
+    eval: True
+    params: 
+        pretrain_directory: /home/jupyter/mnt/MODELS/CellPLM
+        # pretrain_prefix: 20230926_85M
+        pretrain_prefix: 20231027_85M
+

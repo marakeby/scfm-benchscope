@@ -1,0 +1,26 @@
+numpy<2
+# keep anndata stable for scanpy/scvi compatibility
+anndata==0.10.8
+
+# scGPT often expects older scvi-tools (<1.0)
+scvi-tools<1.0
+
+# common runtime extras
+scanpy
+pandas
+scikit-learn
+tqdm
+wandb
+
+# scGPT itself
+scgpt
+
+# metrics / clustering
+scib==1.1.5
+igraph
+leidenalg
+
+# JAX stack used indirectly by scvi-tools; pin to avoid API/ABI churn
+jax==0.4.23
+jaxlib==0.4.23
+scipy<1.12

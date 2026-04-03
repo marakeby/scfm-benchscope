@@ -24,7 +24,8 @@
 name = "scfm_eval"
 authors = ["scFM_eval contributors"]
 channels = ["conda-forge"]
-platforms = ["linux-64", "osx-arm64"]
+# Linux-only workspace (GCP / training VMs). Drop osx-arm64 if you need macOS lockfiles again.
+platforms = ["linux-64"]
 
 [tasks]
 # Pass a YAML under yaml/… as the first argument (see run/run_exp.py main()).
@@ -65,6 +66,8 @@ torchvision = ">=0.16"
 
 [pypi-dependencies]
 huggingface_hub = ">=0.20"
+# Benchmarking metrics (NMI, ARI, silhouette, …) used by evaluation/eval.py for all experiments.
+scib = "*"
 
 # --- Model-specific features (each environment below selects one stack on top of default) ---
 
@@ -72,15 +75,77 @@ huggingface_hub = ">=0.20"
 scvi-tools = ">=1.1"
 
 [feature.geneformer.pypi-dependencies]
-transformers = ">=4.36"
+# Geneformer imports SpecialTokensMixin (removed in transformers v5).
+transformers = ">=4.36,<5"
 datasets = ">=2.16"
-# The `geneformer` library is installed by scripts/install_packages.sh (clone + pip install -e).
+# Hugging Face repo (not on PyPI). Weights: scripts/download_model_weights.sh or install_packages.sh.
+geneformer = { git = "https://huggingface.co/ctheodoris/Geneformer" }
+
+# CUDA PyTorch for Geneformer (`cuda = "12"` satisfies conda `__cuda` for GPU builds).
+[feature.geneformer.system-requirements]
+cuda = "12"
+
+[feature.geneformer.dependencies]
+pytorch = { version = ">=2.1", build = "*cuda*" }
+torchvision = { version = ">=0.16", build = "*cuda*" }
+
+# scGPT imports torchtext (C++ ext linked to libtorch). Use conda-forge `torchtext` + matching
+# `pytorch` — PyPI torchtext wheels target pip torch and break against conda-forge libtorch.
+# conda-forge torchtext is linux-only in practice; this feature is linux-64 only.
+# GPU: matchspec `*cuda*` selects CUDA-enabled pytorch/torchvision builds (CPU builds are `cpu_mkl`).
+[feature.scgpt]
+platforms = ["linux-64"]
+
+# PyTorch CUDA builds depend on the conda virtual package `__cuda`; declare a driver/CUDA
+# generation so `pixi lock` / install can resolve GPU stacks (see pixi workspace docs).
+[feature.scgpt.system-requirements]
+cuda = "12"
+
+[feature.scgpt.activation]
+scripts = ["scripts/scgpt_env.sh"]
+
+[feature.scgpt.dependencies]
+pytorch = { version = "2.6.*", build = "*cuda*" }
+torchvision = { version = "0.21.*", build = "*cuda*" }
+torchtext = "0.18.*"
+# Align with pyarrow / pandas wheels pulled in by scGPT stack (NumPy 2 breaks older pyarrow bindings).
+numpy = ">=1.26.0,<2.0.0"
 
 [feature.scgpt.pypi-dependencies]
 scgpt = { git = "https://github.com/bowang-lab/scGPT.git" }
+# scgpt.utils.util imports IPython at import time; not listed in upstream deps.
+ipython = "*"
+
+# scimilarity moves models to GPU; need CUDA-enabled PyTorch (default feature is CPU).
+[feature.scimilarity.system-requirements]
+cuda = "12"
+
+[feature.scimilarity.dependencies]
+pytorch = { version = ">=2.1", build = "*cuda*" }
+torchvision = { version = ">=0.16", build = "*cuda*" }
+# scimilarity cell_embedding.py checks isinstance(..., zarr.core.Array); zarr 3 removed that API.
+zarr = ">=2.18,<3"
+
+[feature.scimilarity.activation]
+scripts = ["scripts/scgpt_env.sh"]
 
 [feature.scimilarity.pypi-dependencies]
 scimilarity = ">=0.2"
+
+# pydance (cellplm dep) lists `louvain`; pip otherwise resolves louvain==0.7.1 sdist and builds
+# igraph via CMake. conda-forge supplies binary louvain + python-igraph.
+[feature.cellplm.system-requirements]
+cuda = "12"
+
+[feature.cellplm.dependencies]
+pytorch = { version = ">=2.1", build = "*cuda*" }
+torchvision = { version = ">=0.16", build = "*cuda*" }
+louvain = ">=0.8.2"
+# conda-forge louvain imports pkg_resources; setuptools>=82 no longer provides it by default.
+setuptools = ">=70,<82"
+
+[feature.cellplm.activation]
+scripts = ["scripts/scgpt_env.sh"]
 
 [feature.cellplm.pypi-dependencies]
 cellplm = ">=0.1"
@@ -88,7 +153,7 @@ mygene = "*"
 
 # --- Isolated stacks (no shared [dependencies]): git install + harness for run_exp / scib ---
 # Use: pixi run -e nicheformer ...  |  pixi run -e scconcept ...
-# Nicheformer pulls dask-cuda / Merlin — expect install/runtime issues on macOS; use Linux + CUDA for training.
+# Nicheformer pulls dask-cuda / Merlin — use Linux + CUDA for training.
 
 [feature.nicheformer_isolated.dependencies]
 python = "3.11.*"
@@ -127,17 +192,29 @@ scib = "*"
 arc-state = ">=0.10"
 
 # scFoundation: no stable PyPI package — install Biomap repo into this env manually.
+# CUDA PyTorch (same pattern as geneformer); `pip install -e` scFoundation uses this torch.
+[feature.scf.system-requirements]
+cuda = "12"
+
+[feature.scf.dependencies]
+pytorch = { version = ">=2.1", build = "*cuda*" }
+torchvision = { version = ">=0.16", build = "*cuda*" }
+
+[feature.scf.activation]
+scripts = ["scripts/scgpt_env.sh"]
+
 [feature.scf.pypi-dependencies]
 # Install from https://github.com/biomap-research/scFoundation when you use this env:
 #   pixi run -e scf pip install -e path/to/scFoundation
 protobuf = "*"
+# Used by features/scfoundation/pretrainmodels/performer.py (`from local_attention import LocalAttention`).
+"local-attention" = "*"
 
 # ---------------------------------------------------------------------------
 # Legacy scBERT stack (torch 1.8 / transformers 4.6) — isolated from default.
-# PyPI has no torch 1.8.1 wheel for osx-arm64 — use Linux, Intel macOS, or Docker.
 # ---------------------------------------------------------------------------
 [feature.scbert]
-platforms = ["linux-64", "osx-64"]
+platforms = ["linux-64"]
 
 [feature.scbert.dependencies]
 python = "3.9.*"

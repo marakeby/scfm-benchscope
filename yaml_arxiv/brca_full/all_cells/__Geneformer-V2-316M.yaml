@@ -1,0 +1,58 @@
+run_id: 
+dataset:
+    module: data.gf_loader
+    class: GFLoader
+    path: DATA/brca_full/brca_cells_only_3000cell_4096gene.h5ad #path is relative to DATA_PATH in setup_path.py
+    load_raw: False
+    label_key: pre_post
+    batch_key: donor_id
+    layer_name: X  #if data exist in another layer (e.g. adta.layers['counts']). The data will be copied to adata.X
+    train_test_split: data_splits/brca_full/brca_pre_post/train_test_split.json #path is relative to BASE_PATH in setup_path.py
+    cv_splits: data_splits/brca_full/brca_pre_post/cv_splits.json #path is relative to BASE_PATH in setup_path.py
+
+qc:
+    # skip: True
+    min_genes: 10
+    min_cells: 10
+
+preprocessing:
+    # skip: True
+    normalize: True
+    target_sum: 10000
+    apply_log1p: True
+
+hvg:
+    batch_key: batch
+    n_top_genes: 4096
+    flavor: seurat # expect logarithmized data
+    
+embedding:
+    method: geneformer
+    module: features.gf_extractor
+    class: GeneformerExtractor
+    viz: True
+    eval: True
+    params: 
+
+#         # 5-Geneformer 2 326M
+        model: Geneformer-V2-316M
+        version: V2
+        model_dir: /home/jupyter/MODELS/Geneformer
+        dict_dir: /home/jupyter/MODELS/Geneformer/geneformer #genefromer 2
+        input_size: 4096
+        # batch_size: 8
+
+classification:
+    skip: True
+    module: models.classify
+    class: ClassifierPipeline
+    params:
+        model: randomforest
+        n_estimators: 100
+        max_depth: 5
+        cv: True
+        label_map:
+              Pre: 0
+              Post: 1
+    viz: True
+    eval: True

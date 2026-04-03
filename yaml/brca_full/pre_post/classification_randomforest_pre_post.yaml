@@ -8,8 +8,8 @@ classification:
     max_depth: 5
     train_funcs:
       - avg
-      - mil
-      - vote
+      # - mil
+      # - vote
     cv: True
   viz: True
   eval: True

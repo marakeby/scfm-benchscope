@@ -28,6 +28,7 @@ class EmbeddingExtractor:
         "scfoundation": "X_scfoundation",
         "scimilarity": "X_scimilarity",
         "cellplm": "X_CellPLM",
+        "nicheformer": "X_nicheformer",
         "mock": "X_mock",
     }
 

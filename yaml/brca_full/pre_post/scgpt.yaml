@@ -15,7 +15,7 @@ embedding:
     params: 
         #Human
         model: scGPT_human
-        model_dir: /home/jupyter/MODELS_old/scGPT
+        model_dir: /home/haitham/mnt/MODELS/scGPT
         batch_size: 16
         n_bins: 51
         max_seq_len: 2048

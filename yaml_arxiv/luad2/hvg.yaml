@@ -1,0 +1,14 @@
+run_id: loocv
+dataset:
+    - luad2/dataset_shared.yaml
+
+embedding:
+    method: HVG
+    module: features.hvg_extractor
+    class: HVGExtractor
+    viz: False
+    eval: False
+    params:
+        n_top_genes: 4096
+        flavor: seurat
+

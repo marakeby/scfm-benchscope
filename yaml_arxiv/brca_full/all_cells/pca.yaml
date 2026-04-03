@@ -1,0 +1,58 @@
+run_id: 
+dataset:
+    module: data.data_loader
+    class: H5ADLoader
+    path: mnt/DATA/brca_full/cells_only_13gigs.h5ad #path is relative to DATA_PATH in setup_path.py
+    load_raw: False
+    label_key: cell_types
+    batch_key: donor_id
+    filter: 
+      - column: timepoint
+        values:
+          - Pre
+    layer_name: X  #if data exist in another layer (e.g. adta.layers['counts']). The data will be copied to adata.X
+    train_test_split: data_splits/brca_full/brca_cell_type/train_test_split.json #path is relative to BASE_PATH in setup_path.py
+    cv_splits: data_splits/brca_full/brca_cell_type/cv_splits.json #path is relative to BASE_PATH in setup_path.py
+
+qc:
+    # skip: True
+    min_genes: 10
+    min_cells: 10
+
+preprocessing:
+    skip: True
+    normalize: True
+    target_sum: 10000
+    apply_log1p: True
+
+embedding:
+    method: PCA
+    module: features.pca_extractor
+    class: PCAEmbeddingExtractor
+    viz: True
+    eval: True
+    params: 
+        n_components: 100
+        embedding_col: X_pca
+
+classification:
+    skip: True
+    module: models.classify
+    class: ClassifierPipeline
+    params:
+        model: randomforest
+        n_estimators: 100
+        max_depth: 5
+        cv: True
+        cls_level: cell #or patient
+        label_map:
+            T_cell: 0
+            Cancer_cell: 1
+            Fibroblast: 2
+            Myeloid_cell: 3
+            B_cell: 4
+            Endothelial_cell: 5
+            Mast_cell: 6
+            pDC: 7
+    viz: True
+    eval: True

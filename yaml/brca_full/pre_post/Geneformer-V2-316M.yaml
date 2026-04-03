@@ -36,8 +36,8 @@ embedding:
 #         # 5-Geneformer 2 326M
         model: Geneformer-V2-316M
         version: V2
-        model_dir: /home/jupyter/mnt/MODELS
-        dict_dir: /home/jupyter/mnt/gf_dicts_v2 #genefromer 2
+        model_dir: /home/haitham/mnt/MODELS
+        dict_dir: /home/haitham/mnt/gf_dicts_v2 #genefromer 2
         input_size: 4096
         # batch_size: 8
 

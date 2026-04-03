@@ -15,8 +15,8 @@ embedding:
         #1- Genefromer 1
         model: Geneformer-V1-10M 
         version: V1
-        model_dir: /home/jupyter/mnt/MODELS/
-        dict_dir: /home/jupyter/mnt/gf_dicts_v1 #genefromer 1
+        model_dir: /home/haitham/mnt/MODELS/
+        dict_dir: /home/haitham/mnt/gf_dicts_v1 #genefromer 1
         input_size: 4096
         batch_size: 8
         

@@ -71,7 +71,7 @@ def eval_scib_metrics(
     results_dict = dict()
     
 
-    print('louvain')
+    logger.info('leiden')
     sc.pp.neighbors(
     adata,
     use_rep=embedding_key,
@@ -80,11 +80,11 @@ def eval_scib_metrics(
     random_state=0
     )
         
-    sc.tl.louvain(
+    sc.tl.leiden(
         adata,
         key_added="cluster",
         random_state=0,
-        resolution=0.3
+        resolution=0.3,
     )
     
 #     sc.pp.neighbors(adata, use_rep=embedding_key)  # or your embedding

@@ -83,8 +83,8 @@ Pixi shortcuts: `pixi run install-packages`, `pixi run download-models`, `pixi r
 Key paths are defined in `setup_path.py`:
 
 - `PARAMS_PATH`: points at `yaml/` (where experiment configs live)
-- `DATA_PATH`: prefix for dataset paths in YAML (default `/home/jupyter`)
-- `OUTPUT_PATH`: where run artifacts are written (default `/home/jupyter/mnt/__output_clean`)
+- `DATA_PATH`: prefix for dataset paths in YAML (default: repo root; override with `SCFM_DATA_PATH`)
+- `OUTPUT_PATH`: where run artifacts are written (default: `__output/` under the repo; override with `SCFM_OUTPUT_PATH`)
 
 ### YAML experiment configs
 

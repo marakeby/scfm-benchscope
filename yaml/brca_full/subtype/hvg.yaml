@@ -2,6 +2,11 @@ run_id:
 dataset:
     - brca_full/subtype/dataset_shared.yaml
 
+classification:
+    - brca_full/subtype/classification_randomforest.yaml
+hvg:
+    skip: True
+    
 embedding:
     skip: False
     method: HVG

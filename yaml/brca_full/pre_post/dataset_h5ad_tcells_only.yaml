@@ -14,6 +14,10 @@ dataset:
     Pre: 0
     Post: 1
 
+  # sample smaller set of cells for testing and development
+  max_cells: 2000
+  max_cells_stratify: label
+
 qc:
   # skip: True
   min_genes: 10

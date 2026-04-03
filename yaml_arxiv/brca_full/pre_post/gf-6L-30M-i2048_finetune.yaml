@@ -1,0 +1,32 @@
+run_id: original
+bases:
+    - brca_full/pre_post/dataset_h5ad_tcells_only.yaml
+
+hvg:
+    n_top_genes: 2048
+
+embedding:
+    skip: True # dont excute this (embedding) step
+    viz: False
+    eval: False
+
+classification:
+    module: models.gf_finetune
+    class: GFFineTuneModel
+    params:
+        model: Geneformer-V1-10M
+        model_dir: /home/jupyter/mnt/MODELS/
+        dict_dir: /home/jupyter/mnt/gf_dicts_v1 #genefromer 1
+        model_input_size: 2048
+        batch_size: 64
+        epoch: 3
+        # freeze_layers: 2
+        # learning_rate: 0.00001
+        train_funcs: 
+            # - avg
+            # - mil
+            - vote
+        cv: True
+        # onesplit: True
+    viz: True
+    eval: True

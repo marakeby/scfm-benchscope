@@ -23,6 +23,7 @@ model_name_map={
 'scfoundation':'scFoundation',
 'scimilarity':'SCimilarity',
 'cellplm':'CellPLM',
+'nicheformer': 'Nicheformer',
 'gf-6L-30M-i2048': 'GF-V1',
 'gf-6L-30M-i2048_continue': 'GF-V1 [continue]',
 'Geneformer-V2-104M_CLcancer': 'GF-V2 [cancer]',

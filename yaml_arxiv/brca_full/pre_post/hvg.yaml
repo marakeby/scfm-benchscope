@@ -1,0 +1,21 @@
+run_id: 
+dataset:
+    - brca_full/pre_post/dataset_h5ad_tcells_only.yaml
+
+classification:
+    - brca_full/pre_post/classification_randomforest_pre_post.yaml
+
+hvg:
+    skip: True
+
+embedding:
+    # skip: False
+    method: HVG
+    module: features.hvg_extractor
+    class: HVGExtractor
+    viz: False
+    eval: False
+    params:
+        n_top_genes: 4096
+        flavor: seurat
+
