@@ -158,6 +158,8 @@ class MILExperiment:
         torch.manual_seed(seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(seed)
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
 
         self.model: Optional[AttentionMIL] = None
         self.input_dim: Optional[int] = None
@@ -243,7 +245,7 @@ class MILExperiment:
             hidden_dim=self.hidden_dim,
             dropout=self.dropout,
             attention_dim=self.attention_dim,
-            temperature=1.0
+            temperature=self.temperature,
         ).to(self.device)
 
 
@@ -395,25 +397,19 @@ class MILExperiment:
         plt.tight_layout()
         plt.show()
         return summary
-    import math
 
-    def _softmax0(self, x: torch.Tensor) -> torch.Tensor:
-        # x: [N,1] -> softmax over instances (dim=0)
-        return torch.softmax(x, dim=0)
-
-    @torch.no_grad()
     def collect_attention_frame(self, adata, top_k: int = 10):
         """
         Returns a long DataFrame with one row per cell/instance:
           columns: ['patient_id','outcome','cell_type','attn','score','contrib',
                     'rank_within_patient','bag_logit','bag_prob','bag_entropy','n_cells']
         where:
-          - attn      = attention weight A_i (sum to 1 per patient)
-          - score     = w_cls · H_i  (cell's latent score before attention)
-          - contrib   = attn * score (cell's contribution to bag logit, up to +bias)
-          - bag_logit = sum_i contrib + bias
-          - bag_prob  = sigmoid(bag_logit)
-          - bag_entropy = -sum_i A_i log(A_i) / log(N)  (normalized: 0..1; 1 = very diffuse)
+          - attn       = attention A_i from the same forward as ``evaluate()`` (temperature-scaled softmax).
+          - bag_logit  = scalar logit from the full ``AttentionMIL`` forward (MLP head on pooled M).
+          - bag_prob   = sigmoid(bag_logit).
+          - score      = (d bag_logit / d x_i) · x_i  (input–gradient dot product per cell; local sensitivity).
+          - contrib    = attn * score  (heuristic; NOT a linear decomposition of the MLP logit).
+          - bag_entropy = -sum_i A_i log(A_i) / log(N)  (normalized: 0..1; 1 = very diffuse).
         """
         assert self.model is not None, "Train model first."
         self.model.eval()
@@ -421,41 +417,39 @@ class MILExperiment:
         pids, bags, labels, metas = self.prepare_bags(adata, include_meta=True)
         rows = []
 
-        W = self.model.classifier.weight.squeeze(0)      # [H]
-        b = float(self.model.classifier.bias.squeeze())  # scalar
-
         for pid, x, y, meta in zip(pids, bags, labels, metas):
-            x = x.to(self.device)                        # [N,D]
-            # reuse model parts for efficiency
-            H = self.model.feature_extractor(x)          # [N,H]
-            A_logits = self.model.attention(H)           # [N,1]
-            A = self._softmax0(A_logits).squeeze(1)      # [N]
-            score = (H * W).sum(dim=1)                   # [N]  = H @ W
-            contrib = A * score                          # [N]
+            x = x.to(self.device)
+            xg = x.detach().clone().requires_grad_(True)
+            out, A = self.model(xg)
+            logit = out.squeeze()
+            grad_x = torch.autograd.grad(
+                logit, xg, retain_graph=False, create_graph=False
+            )[0]
 
-            bag_logit = contrib.sum().item() + b
-            bag_prob  = torch.sigmoid(torch.tensor(bag_logit)).item()
-            n = A.shape[0]
-            # normalized entropy: 0 (peaky) ... 1 (uniform)
-            entropy = -(A * (A.clamp_min(1e-12)).log()).sum().item()
+            A_1d = A.squeeze(1).detach()
+            score = (grad_x * xg).sum(dim=1).detach()
+            contrib = A_1d * score
+
+            bag_logit = float(logit.detach())
+            bag_prob = float(torch.sigmoid(logit.detach()))
+            n = int(A_1d.shape[0])
+            entropy = -(A_1d * (A_1d.clamp_min(1e-12)).log()).sum().item()
             norm_entropy = entropy / (math.log(n) if n > 1 else 1.0)
 
-            # rank cells by attention (high->low)
-            order = torch.argsort(A, descending=True).cpu().numpy()
+            order = torch.argsort(A_1d, descending=True).cpu().numpy()
             rank = np.empty_like(order)
             rank[order] = np.arange(1, n + 1)
 
-            # prepare columns
             cell_type = meta if meta is not None else np.array(["NA"] * n)
 
             df = pd.DataFrame({
                 "patient_id": pid,
                 "outcome": float(y.item()),
                 "cell_type": cell_type,
-                "attn": A.detach().cpu().numpy(),
-                "score": score.detach().cpu().numpy(),
-                "contrib": contrib.detach().cpu().numpy(),
-                "rank_within_patient": rank
+                "attn": A_1d.cpu().numpy(),
+                "score": score.cpu().numpy(),
+                "contrib": contrib.cpu().numpy(),
+                "rank_within_patient": rank,
             })
             df["bag_logit"] = bag_logit
             df["bag_prob"] = bag_prob
@@ -473,7 +467,8 @@ class MILExperiment:
         """
         Two plots:
           (1) Mean attention by cell_type (positives vs negatives).
-          (2) Mean *contribution* (attn * score) by cell_type (positives vs negatives).
+          (2) Mean ``contrib`` (attn × input-gradient saliency) by cell_type — heuristic from
+              ``collect_attention_frame``, not an exact logit decomposition.
         """
         # aggregate
         g_attn = (attn_df
