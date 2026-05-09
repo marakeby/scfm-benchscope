@@ -1,11 +1,14 @@
 import pandas as pd
 from os.path import join
+from typing import Optional
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, learning_curve, StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 import os
+import warnings
 import seaborn as sns
 from matplotlib import pyplot as plt
 
@@ -19,6 +22,23 @@ import numpy as np
 
 
 logger = get_logger()
+
+_MIL_YAML_MODEL_KEYS = frozenset({
+    "hidden_dim",
+    "attention_dim",
+    "epochs",
+    "lr",
+    "weight_decay",
+    "dropout",
+    "patience",
+    "temperature",
+    "min_delta",
+    "monitor",
+    "mode",
+    "device",
+    "celltype_key",
+    "pos_weight",
+})
 
 MODEL_REGISTRY = {
     'random_forest': RandomForestClassifier,
@@ -48,10 +68,29 @@ def save_results(pred_df, metrics_df, cls_report, saving_dir, postfix, viz=False
         fig.savefig(fname, dpi=100, bbox_inches="tight")
         plt.close()
 
-def train_classifier(X_train, y_train, X_test, y_test, model_name='random_forest'):
-    """Train a classifier and return predictions"""
+def make_classifier_estimator(model_name: str = "random_forest", *, random_state: int = 42):
+    """Unfitted sklearn classifier used by ``train_classifier`` and learning-curve plots."""
     model_cls = MODEL_REGISTRY.get(model_name, RandomForestClassifier)
-    model = model_cls(probability=True) if model_name == 'svc' else model_cls()
+    if model_name == "svc":
+        return model_cls(probability=True, random_state=random_state)
+    if model_name == "logistic_regression":
+        return model_cls(random_state=random_state, max_iter=5000)
+    if model_name == "random_forest":
+        return model_cls(random_state=random_state)
+    return model_cls(random_state=random_state)
+
+
+def train_classifier(
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+    model_name='random_forest',
+    *,
+    random_state: int = 42,
+):
+    """Train a classifier and return predictions (fixed ``random_state`` for reproducible fits)."""
+    model = make_classifier_estimator(model_name, random_state=random_state)
     model.fit(X_train, y_train)
     y_pred_test = model.predict(X_test)
     y_pred_score_test = model.predict_proba(X_test)
@@ -81,6 +120,167 @@ class ClassifierPipeline:
         self.model = None
         # self.label_encoder = LabelEncoder()
         self.label_names = None
+        self.random_state = int(self.params.get('random_state', 42))
+
+        mil_raw = self.params.get("mil")
+        if mil_raw is None:
+            mil_raw = {}
+        elif not isinstance(mil_raw, dict):
+            logger.warning("classification.params['mil'] should be a dict; ignoring.")
+            mil_raw = {}
+        mil_raw = dict(mil_raw)
+        self.mil_debug = bool(mil_raw.pop("debug", False))
+        self.mil_top_k = int(mil_raw.pop("top_k", 20))
+        self.mil_holdout_fraction = float(mil_raw.pop("holdout_fraction", 0.0))
+        self.mil_model_kwargs = mil_raw
+        self._cv_fold = None  # set during CV for per-fold artifact names
+
+    @staticmethod
+    def _mil_patient_pos_weight(adata, patient_key: str, label_key: str):
+        y = adata.obs.groupby(patient_key, observed=False)[label_key].first()
+        n_pos = int((y == 1).sum())
+        n_neg = int((y == 0).sum())
+        if n_pos <= 0:
+            return None
+        return float(n_neg / max(n_pos, 1))
+
+    def _split_mil_train_val(self, adata, patient_key: str, label_key: str, fraction: float, seed: int):
+        """Hold out a fraction of patients for MIL early stopping (monitor val_loss)."""
+        if fraction <= 0:
+            return adata, None
+        try:
+            from sklearn.model_selection import train_test_split
+        except ImportError:
+            logger.warning("sklearn unavailable; mil holdout_fraction ignored.")
+            return adata, None
+        obs = adata.obs
+        pids = obs[patient_key].unique()
+        y_p = obs.groupby(patient_key, observed=False)[label_key].first().reindex(pids)
+        try:
+            tr, va = train_test_split(
+                np.asarray(pids), test_size=fraction, random_state=seed, stratify=np.asarray(y_p)
+            )
+        except ValueError:
+            tr, va = train_test_split(np.asarray(pids), test_size=fraction, random_state=seed)
+        mtr = obs[patient_key].isin(set(tr)).to_numpy()
+        mva = obs[patient_key].isin(set(va)).to_numpy()
+        return adata[mtr].copy(), adata[mva].copy()
+
+    def _training_diagnostics_path(self, method: str, filename: str) -> str:
+        """Stable path for loss / learning-curve plots (single split vs CV fold)."""
+        fold = getattr(self, "_cv_fold", None)
+        if fold is not None:
+            d = join(self.saving_dir, "cv")
+            os.makedirs(d, exist_ok=True)
+            stem, ext = os.path.splitext(filename)
+            return join(d, f"{method}_fold_{fold}_{stem}{ext}")
+        os.makedirs(self.saving_dir, exist_ok=True)
+        return join(self.saving_dir, f"{method}_{filename}")
+
+    def _plot_sklearn_learning_curve_log_loss(
+        self,
+        X_train,
+        y_train,
+        out_png: str,
+        *,
+        title: str,
+        max_train_samples: Optional[int] = None,
+    ) -> None:
+        """
+        Sklearn classifiers have no training epochs; plot **log loss** vs. training-set size
+        with internal stratified CV (train score vs. CV validation score). Complements MIL
+        per-epoch BCE curves for side-by-side diagnostics.
+        """
+        if isinstance(X_train, pd.DataFrame):
+            X_use = X_train
+        else:
+            X_use = pd.DataFrame(np.asarray(X_train))
+        if isinstance(y_train, pd.Series):
+            y_use = y_train
+        else:
+            y_use = pd.Series(np.asarray(y_train).ravel())
+
+        n = len(y_use)
+        if n < 4:
+            logger.warning("Skipping sklearn learning curve: need >= 4 training points (got %d).", n)
+            return
+
+        if max_train_samples is not None and n > max_train_samples:
+            rng = np.random.RandomState(self.random_state)
+            idx = rng.choice(n, size=max_train_samples, replace=False)
+            X_use = X_use.iloc[idx]
+            y_use = y_use.iloc[idx].reset_index(drop=True)
+            n = len(y_use)
+
+        y_np = y_use.to_numpy()
+        if len(np.unique(y_np)) < 2:
+            logger.warning("Skipping sklearn learning curve: single class in training slice.")
+            return
+
+        counts = y_use.value_counts()
+        min_class = int(counts.min())
+        n_splits = min(5, max(2, min_class, n // 3))
+        n_splits = min(n_splits, n // 2)
+        if n_splits < 2:
+            logger.warning("Skipping sklearn learning curve: insufficient samples per class.")
+            return
+
+        cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=self.random_state)
+        n_ticks = min(12, max(3, n - 1))
+        train_sizes = np.unique(np.clip((np.linspace(0.12, 1.0, n_ticks) * n).astype(int), 2, n))
+
+        est = make_classifier_estimator(self.model_name, random_state=self.random_state)
+        try:
+            sizes, train_neg_ll, test_neg_ll = learning_curve(
+                est,
+                X_use,
+                y_use,
+                train_sizes=train_sizes,
+                cv=cv,
+                scoring="neg_log_loss",
+                n_jobs=1,
+            )
+        except Exception as exc:
+            logger.warning("sklearn learning_curve failed (%s); skipping plot.", exc)
+            return
+
+        train_loss = -np.mean(train_neg_ll, axis=1)
+        val_loss = -np.mean(test_neg_ll, axis=1)
+        train_std = np.std(-train_neg_ll, axis=1, ddof=0)
+        val_std = np.std(-test_neg_ll, axis=1, ddof=0)
+
+        hist = pd.DataFrame(
+            {
+                "n_train_samples": sizes,
+                "train_log_loss_mean": train_loss,
+                "train_log_loss_std": train_std,
+                "cv_val_log_loss_mean": val_loss,
+                "cv_val_log_loss_std": val_std,
+            }
+        )
+        stem = out_png[:-4] if out_png.lower().endswith(".png") else out_png
+        hist.to_csv(f"{stem}_history.csv", index=False)
+
+        plt.figure(figsize=(7, 4.5))
+        plt.plot(sizes, train_loss, "o-", label="train log loss (CV fit)", linewidth=1.5)
+        plt.fill_between(sizes, train_loss - train_std, train_loss + train_std, alpha=0.2)
+        plt.plot(sizes, val_loss, "o-", label="val log loss (CV held-out)", linewidth=1.5)
+        plt.fill_between(sizes, val_loss - val_std, val_loss + val_std, alpha=0.2)
+        plt.xlabel("Training samples")
+        plt.ylabel("Log loss (lower is better)")
+        plt.title(title)
+        plt.suptitle(
+            "Sklearn: no per-epoch loss — curves show learning vs. train size (internal CV).",
+            fontsize=9,
+            y=0.02,
+        )
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.tight_layout(rect=(0, 0.06, 1, 1))
+        d = os.path.dirname(out_png) or "."
+        os.makedirs(d, exist_ok=True)
+        plt.savefig(out_png, dpi=150, bbox_inches="tight")
+        plt.close()
 
     def encode_labels(self):
         """Encode labels using LabelEncoder"""
@@ -144,6 +344,8 @@ class ClassifierPipeline:
 
     def prepare_data(self, adata_train, adata_test, id_column):
         """Prepare data for training"""
+        adata_train = adata_train.copy()
+        adata_test = adata_test.copy()
         adata_train.obs['sample_id'] = adata_train.obs[id_column]
         adata_test.obs['sample_id'] = adata_test.obs[id_column]
         return adata_train, adata_test
@@ -163,7 +365,7 @@ class ClassifierPipeline:
         
     def train_sample(self, loader):
         """Main training pipeline"""
-        
+        self._cv_fold = None
         self.label_key = loader.label_key
         self.encode_labels()
         train_func_map = {'vote': self.__train_vote, 'avg': self.__train_avg_expression, 'mil': self.__train_mil}
@@ -207,7 +409,7 @@ class ClassifierPipeline:
             train_ids, test_ids = train_ids_list[i], test_ids_list[i]
             adata_train, adata_test = self.split_data(id_column, train_ids, test_ids)
             adata_train, adata_test = self.prepare_data(adata_train, adata_test, id_column)
-            
+            self._cv_fold = i + 1
             # pred_df, metric_df = train_fnc(adata_train, adata_test, f'fold_{i+1}_')
             # pred_df_train, pred_df_test, metrics_df_train, metrics_df_test = train_fnc(adata_train, adata_test, f'fold_{i+1}_True
             pred_df_train, pred_df_test, metrics_df_train, metrics_df_test = train_fnc(adata_train, adata_test, evaluate=True, viz=False)
@@ -223,7 +425,8 @@ class ClassifierPipeline:
             
             pred_list_train.append(pred_df_train)
             metrics_list_train.append(metrics_df_train)
-        
+            self._cv_fold = None
+
         preds = pd.concat(pred_list)
         metrics = pd.concat(metrics_list)
         
@@ -239,10 +442,17 @@ class ClassifierPipeline:
         preds_train.to_csv(join(save_dir, f'{prefix}_cv_predictions_train.csv'))
         metrics_train.to_csv(join(save_dir, f'{prefix}_cv_metrics_train.csv'))
         
-        # Plot metrics
+        # Plot metrics (suppress seaborn/matplotlib bxp `vert` PendingDeprecationWarning)
         metrics.fillna(0, inplace=True)
         plt.figure(figsize=(10, 6))
-        sns.boxplot(x='Metrics', y=self.model_name, data=metrics)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=PendingDeprecationWarning)
+            sns.boxplot(
+                data=metrics,
+                x='Metrics',
+                y=self.model_name,
+                orient='v',
+            )
         plt.title('Cross-Validation Metric Distribution')
         plt.ylim(0, 1.05)
         plt.xticks(rotation=45)
@@ -252,7 +462,14 @@ class ClassifierPipeline:
         
         metrics_train.fillna(0, inplace=True)
         plt.figure(figsize=(10, 6))
-        sns.boxplot(x='Metrics', y=self.model_name, data=metrics_train)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=PendingDeprecationWarning)
+            sns.boxplot(
+                data=metrics_train,
+                x='Metrics',
+                y=self.model_name,
+                orient='v',
+            )
         plt.title('Cross-Validation Metric Distribution on Training set')
         plt.ylim(0, 1.05)
         plt.xticks(rotation=45)
@@ -294,7 +511,7 @@ class ClassifierPipeline:
                 emb = emb.toarray()
                 
             # Validate sample-label consistency
-            label_counts = adata.obs.groupby('sample_id')['label'].nunique()
+            label_counts = adata.obs.groupby('sample_id', observed=False)['label'].nunique()
             if (label_counts > 1).any():
                 raise ValueError(f"Samples with multiple labels found: {label_counts[label_counts > 1].index.tolist()}")
 
@@ -315,7 +532,14 @@ class ClassifierPipeline:
         
 
         # Train classifier
-        self.model, y_train, y_test, y_pred_train, y_pred_test, y_pred_score_train, y_pred_score_test = train_classifier(X_train, y_train, X_test, y_test, model_name=self.model_name)
+        self.model, y_train, y_test, y_pred_train, y_pred_test, y_pred_score_train, y_pred_score_test = train_classifier(
+            X_train,
+            y_train,
+            X_test,
+            y_test,
+            model_name=self.model_name,
+            random_state=self.random_state,
+        )
 
         pred_df_test = pd.DataFrame({ 'label': y_test,'pred': y_pred_test,
                                 'pred_score': y_pred_score_test[:, 1]  # Assuming binary classification
@@ -339,18 +563,60 @@ class ClassifierPipeline:
             postfix = "avg_expr_train"
             save_results(pred_df_train, metrics_df_train, cls_report_train, self.saving_dir, postfix, viz, self.model_name, self.label_names)
 
+        avg_png = self._training_diagnostics_path("avg", "learning_logloss_curve.png")
+        self._plot_sklearn_learning_curve_log_loss(
+            X_train,
+            y_train,
+            avg_png,
+            title="Mean embedding + classifier (log loss vs. train size)",
+            max_train_samples=None,
+        )
+
         return pred_df_train, pred_df_test, metrics_df_train, metrics_df_test
 
     def __train_mil(self, adata_train, adata_test, evaluate=False, viz=False):
         """Multi-instance learning training"""
         logger.info('Training model (Multi instance Learning (MIL))')
-        
-        exp = MILExperiment(embedding_col=self.embedding_col, label_key='label', 
-                          patient_key="sample_id", celltype_key="cell_type")
-        exp.train(adata_train)
-        
-        
-        
+
+        patient_key = "sample_id"
+        label_key = "label"
+
+        adata_mil_train = adata_train
+        adata_mil_val = None
+        if self.mil_holdout_fraction > 0:
+            adata_mil_train, adata_mil_val = self._split_mil_train_val(
+                adata_train,
+                patient_key,
+                label_key,
+                self.mil_holdout_fraction,
+                self.random_state,
+            )
+            if adata_mil_val is None:
+                adata_mil_train = adata_train
+            elif adata_mil_val.obs[patient_key].nunique() < 1:
+                adata_mil_train, adata_mil_val = adata_train, None
+
+        mk = dict(self.mil_model_kwargs)
+        pw = mk.get("pos_weight", None)
+        if isinstance(pw, str) and pw.strip().lower() == "auto":
+            mk["pos_weight"] = self._mil_patient_pos_weight(adata_mil_train, patient_key, label_key)
+        for key in list(mk.keys()):
+            if key not in _MIL_YAML_MODEL_KEYS:
+                logger.warning("Ignoring unknown MIL config key (not passed to MILExperiment): %s", key)
+                mk.pop(key)
+
+        exp = MILExperiment(
+            embedding_col=self.embedding_col,
+            label_key=label_key,
+            patient_key=patient_key,
+            seed=self.random_state,
+            **mk,
+        )
+        exp.train(adata_mil_train, adata_val=adata_mil_val)
+
+        mil_png = self._training_diagnostics_path("mil", "train_val_loss.png")
+        exp.plot_training_loss_curves(mil_png)
+
         #test
         pids, y_true, preds, pred_scores, metrics_test = exp.evaluate(adata_test)
         # pids, y_true, preds, pred_scores, metrics
@@ -373,29 +639,44 @@ class ClassifierPipeline:
             
             save_results(pred_df_train, metrics_df_train, cls_report_train, self.saving_dir, postfix='mil_train', viz=viz, model_name=self.model_name, label_names=self.label_names)
             
-        if viz:
-            from models.attention_viz import print_attention_summary, visualize_attention_comprehensive, export_top_cells_table
-            results = visualize_attention_comprehensive(
-                exp, 
-                adata_test, 
-                top_k=20,
-                save_path=join(self.saving_dir,"attention_analysis.png")
-            )
-            
-            # Print summary
-            print_attention_summary(results)
+        if self.mil_debug:
+            dbg_root = join(self.saving_dir, "mil_debug")
+            if self._cv_fold is not None:
+                dbg_root = join(dbg_root, f"fold_{self._cv_fold}")
+            os.makedirs(dbg_root, exist_ok=True)
+            logger.info("MIL debug: writing attention diagnostics to %s", dbg_root)
+            exp.export_attention_debug(adata_test, dbg_root, top_k=self.mil_top_k)
 
-            # Export top cells for further analysis
-            top_cells_df = export_top_cells_table(
-                results['attention_df'], 
-                top_k=20,
-                save_path=join(self.saving_dir, "top_attention_cells.csv")
-            )
-          
+        if viz:
+            try:
+                from models.attention_viz import (
+                    print_attention_summary,
+                    visualize_attention_comprehensive,
+                    export_top_cells_table,
+                )
+            except ImportError:
+                logger.warning(
+                    "viz=True but models.attention_viz is not available; "
+                    "skip legacy attention viz (use classification.params.mil.debug for built-in exports)."
+                )
+            else:
+                results = visualize_attention_comprehensive(
+                    exp,
+                    adata_test,
+                    top_k=20,
+                    save_path=join(self.saving_dir, "attention_analysis.png"),
+                )
+                print_attention_summary(results)
+                export_top_cells_table(
+                    results["attention_df"],
+                    top_k=20,
+                    save_path=join(self.saving_dir, "top_attention_cells.csv"),
+                )
+
         # return pred_df, metrics_df if evaluate else None
         return pred_df_train, pred_df_test, metrics_df_train, metrics_df_test
 
-    def __train_cell(self, adata_train, adata_test, evaluate=False, viz=False):
+    def __train_cell(self, adata_train, adata_test, evaluate=False, viz=False, plot_vote_learning_curve=False):
         """Cell-level predictions training"""
         logger.info('Training model')
         X_train, y_train = adata_train.obsm[self.embedding_col], adata_train.obs['label']
@@ -403,11 +684,25 @@ class ClassifierPipeline:
 
         # self.model, y_test, y_pred, y_pred_score = train_classifier(X_train, y_train, X_test, y_test, 
         #                                                           model_name=self.model_name)
-        self.model, y_train, y_test, y_pred_train, y_pred_test, y_pred_score_train, y_pred_score_test = train_classifier(X_train, y_train, X_test, y_test, 
-                                                                  model_name=self.model_name)
-        
-        
-        
+        self.model, y_train, y_test, y_pred_train, y_pred_test, y_pred_score_train, y_pred_score_test = train_classifier(
+            X_train,
+            y_train,
+            X_test,
+            y_test,
+            model_name=self.model_name,
+            random_state=self.random_state,
+        )
+
+        if plot_vote_learning_curve:
+            vote_png = self._training_diagnostics_path("vote", "learning_logloss_curve.png")
+            self._plot_sklearn_learning_curve_log_loss(
+                X_train,
+                y_train,
+                vote_png,
+                title="Vote: cell-level classifier (log loss vs. train size)",
+                max_train_samples=8000,
+            )
+
         adata_test.obs['pred'] = y_pred_test
         adata_test.obs['pred_score'] = y_pred_score_test[:, 1] #assume binary classification
         
@@ -438,8 +733,13 @@ class ClassifierPipeline:
         """Majority vote predictions training"""
         logger.info('Training model (Majority Vote)')
         
-        cell_pred_train, cell_pred_test, metrics_df_train, metrics_df_test = self.__train_cell(adata_train, adata_test, 
-                                                             evaluate=evaluate, viz=viz)
+        cell_pred_train, cell_pred_test, metrics_df_train, metrics_df_test = self.__train_cell(
+            adata_train,
+            adata_test,
+            evaluate=evaluate,
+            viz=viz,
+            plot_vote_learning_curve=True,
+        )
         
         pred_df_test, metrics_df_test = self.save_patient_level(cell_pred_test, 
                                                                             evaluate, viz, 
@@ -464,12 +764,18 @@ class ClassifierPipeline:
             majority_class = x.value_counts().idxmax()
             return (x == majority_class).sum() / len(x)
 
-        y_pred_score_p = obs.groupby('sample_id')['pred_score'].mean()
+        y_pred_score_p = obs.groupby('sample_id', observed=False)['pred_score'].mean()
         
         # y_pred_score_p = obs.groupby('sample_id')['pred'].agg(majority_vote_score)
         
-        y_pred_p = obs.groupby('sample_id')['pred'].agg(lambda x: x.value_counts().idxmax())
-        y_test_p = obs.groupby('sample_id')['label'].first().reindex(y_pred_score_p.index)
+        y_pred_p = obs.groupby('sample_id', observed=False)['pred'].agg(
+            lambda x: x.value_counts().idxmax()
+        )
+        y_test_p = (
+            obs.groupby('sample_id', observed=False)['label']
+            .first()
+            .reindex(y_pred_score_p.index)
+        )
         
         pred_df = pd.concat([y_test_p, y_pred_p, y_pred_score_p], axis=1)
         pred_df.columns = ['label', 'pred', 'pred_score']

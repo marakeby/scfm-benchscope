@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import random
 from typing import List, Tuple, Optional
 
@@ -163,6 +164,8 @@ class MILExperiment:
 
         self.model: Optional[AttentionMIL] = None
         self.input_dim: Optional[int] = None
+        # Filled during ``train()``: list of dicts with epoch, train_loss, val_loss (None if no val set)
+        self.loss_history_: List[dict] = []
 
     # -----------------------
     # Data utilities
@@ -248,6 +251,7 @@ class MILExperiment:
             temperature=self.temperature,
         ).to(self.device)
 
+        self.loss_history_ = []
 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         criterion = self._make_criterion()
@@ -286,13 +290,23 @@ class MILExperiment:
 
             train_loss = total_loss / len(bags_train)
 
-            # Monitored metric
+            val_loss_epoch: Optional[float] = None
+            if adata_val is not None:
+                val_loss_epoch = self._dataset_loss(adata_val)
+
+            # Monitored metric (for early stopping)
             if self.monitor == "val_loss" and adata_val is not None:
-                monitored = self._dataset_loss(adata_val)
+                monitored = val_loss_epoch if val_loss_epoch is not None else train_loss
                 mon_name = "val_loss"
             else:
                 monitored = train_loss
                 mon_name = "train_loss"
+
+            self.loss_history_.append({
+                "epoch": epoch + 1,
+                "train_loss": float(train_loss),
+                "val_loss": float(val_loss_epoch) if val_loss_epoch is not None else None,
+            })
 
             # Early stopping bookkeeping
             improved = is_better(monitored, best_score)
@@ -303,8 +317,9 @@ class MILExperiment:
             else:
                 epochs_no_improve += 1
 
-            print(f"Epoch {epoch+1:03d} | train_loss={train_loss:.4f} | {mon_name}={monitored:.4f} "
-                  f"| no_improve={epochs_no_improve}/{self.patience}")
+            val_disp = f"{val_loss_epoch:.4f}" if val_loss_epoch is not None else "n/a"
+            print(f"Epoch {epoch+1:03d} | train_loss={train_loss:.4f} | val_loss={val_disp} | "
+                  f"{mon_name}={monitored:.4f} | no_improve={epochs_no_improve}/{self.patience}")
 
             if epochs_no_improve >= self.patience:
                 print(f"Early stopping at epoch {epoch+1}. Best {mon_name}={best_score:.4f}")
@@ -314,6 +329,39 @@ class MILExperiment:
         if best_state is not None:
             self.model.load_state_dict(best_state)
             self.model.to(self.device)
+
+    def training_loss_history_dataframe(self) -> pd.DataFrame:
+        """Per-epoch bag-averaged BCE-with-logits from the last ``train()`` run."""
+        return pd.DataFrame(self.loss_history_)
+
+    def plot_training_loss_curves(self, save_path: str) -> None:
+        """
+        Plot ``train_loss`` and ``val_loss`` (when present) vs epoch from ``loss_history_``.
+        Also writes ``<save_path_without_ext>_history.csv`` next to the figure if ``save_path`` ends in ``.png``.
+        """
+        if not self.loss_history_:
+            return
+        df = self.training_loss_history_dataframe()
+        if save_path.lower().endswith(".png"):
+            csv_path = save_path[:-4] + "_history.csv"
+        else:
+            csv_path = save_path + "_history.csv"
+        df.to_csv(csv_path, index=False)
+
+        epochs = df["epoch"].to_numpy()
+        plt.figure(figsize=(7, 4.5))
+        plt.plot(epochs, df["train_loss"], label="train_loss (BCE)", marker="o", markersize=2, linewidth=1.5)
+        if df["val_loss"].notna().any():
+            plt.plot(epochs, df["val_loss"], label="val_loss (BCE)", marker="o", markersize=2, linewidth=1.5)
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.title("MIL training / validation loss")
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.tight_layout()
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
+        plt.savefig(save_path, dpi=150, bbox_inches="tight")
+        plt.close()
 
     # -----------------------
     # Evaluation
@@ -366,10 +414,11 @@ class MILExperiment:
     # -----------------------
     # Attention visualization
     # -----------------------
-    def visualize_attention(self, adata):
+    def visualize_attention(self, adata, save_path: Optional[str] = None):
         """
         Aggregates attention by cell type for each bag, then returns overall mean.
         Requires `celltype_key` to exist in adata.obs.
+        If ``save_path`` is set, writes a PNG instead of calling ``plt.show()``.
         """
         assert self.model is not None, "Train the model before visualizing attention."
         pids, bags, _, metas = self.prepare_bags(adata, include_meta=True)
@@ -395,7 +444,12 @@ class MILExperiment:
         ax = summary.plot(kind="bar", title="Average Attention by Cell Type")
         ax.set_ylabel("Average Attention Weight")
         plt.tight_layout()
-        plt.show()
+        if save_path:
+            os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
+            plt.savefig(save_path, dpi=150, bbox_inches="tight")
+            plt.close()
+        else:
+            plt.show()
         return summary
 
     def collect_attention_frame(self, adata, top_k: int = 10):
@@ -462,13 +516,15 @@ class MILExperiment:
         full["is_topk"] = full["rank_within_patient"] <= top_k
         return full
 
-
-    def plot_attention_by_celltype(self, attn_df: pd.DataFrame):
+    def plot_attention_by_celltype(
+        self, attn_df: pd.DataFrame, save_path_prefix: Optional[str] = None
+    ):
         """
         Two plots:
           (1) Mean attention by cell_type (positives vs negatives).
           (2) Mean ``contrib`` (attn × input-gradient saliency) by cell_type — heuristic from
               ``collect_attention_frame``, not an exact logit decomposition.
+        If ``save_path_prefix`` is set, writes ``{prefix}_attention.png`` and ``{prefix}_contrib.png``.
         """
         # aggregate
         g_attn = (attn_df
@@ -493,7 +549,13 @@ class MILExperiment:
         plt.title("Mean Attention by Cell Type (split by outcome)")
         plt.legend()
         plt.tight_layout()
-        plt.show()
+        if save_path_prefix:
+            d = os.path.dirname(save_path_prefix) or "."
+            os.makedirs(d, exist_ok=True)
+            plt.savefig(f"{save_path_prefix}_attention.png", dpi=150, bbox_inches="tight")
+            plt.close()
+        else:
+            plt.show()
 
         # Plot 2: contribution
         plt.figure(figsize=(10, 4))
@@ -504,13 +566,19 @@ class MILExperiment:
         plt.title("Mean Contribution by Cell Type (split by outcome)")
         plt.legend()
         plt.tight_layout()
-        plt.show()
+        if save_path_prefix:
+            plt.savefig(f"{save_path_prefix}_contrib.png", dpi=150, bbox_inches="tight")
+            plt.close()
+        else:
+            plt.show()
 
-
-    def plot_entropy_vs_prob(self, attn_df: pd.DataFrame):
+    def plot_entropy_vs_prob(
+        self, attn_df: pd.DataFrame, save_path: Optional[str] = None
+    ):
         """
         Patient-level scatter: attention entropy (diffuseness) vs bag probability.
         Often, underperformance comes from very *diffuse* attention (high entropy).
+        If ``save_path`` is set, writes a PNG instead of ``plt.show()``.
         """
         per_patient = (attn_df
                        .groupby(["patient_id", "outcome"], as_index=False)
@@ -531,9 +599,39 @@ class MILExperiment:
         plt.legend()
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
-        plt.show()
+        if save_path:
+            d = os.path.dirname(save_path) or "."
+            os.makedirs(d, exist_ok=True)
+            plt.savefig(save_path, dpi=150, bbox_inches="tight")
+            plt.close()
+        else:
+            plt.show()
 
         return per_patient
+
+    def export_attention_debug(self, adata, out_dir: str, top_k: int = 20) -> Optional[pd.DataFrame]:
+        """
+        Save attention diagnostics under ``out_dir`` (non-interactive / batch runs):
+          - ``mil_attn_mean_by_celltype.png`` — from ``visualize_attention``
+          - ``mil_attention_per_cell.csv`` — from ``collect_attention_frame``
+          - ``mil_celltype_by_outcome_{attention,contrib}.png`` — from ``plot_attention_by_celltype``
+          - ``mil_entropy_vs_prob.png`` — from ``plot_entropy_vs_prob``
+          - ``mil_top_celltype_per_patient.csv`` — from ``topk_table``
+        Returns the long per-cell attention frame, or None if cell types are missing for the mean plot only
+        (CSV and entropy plot are still written when possible).
+        """
+        os.makedirs(out_dir, exist_ok=True)
+        prefix = os.path.join(out_dir, "mil_celltype_by_outcome")
+        self.visualize_attention(adata, save_path=os.path.join(out_dir, "mil_attn_mean_by_celltype.png"))
+
+        attn_df = self.collect_attention_frame(adata, top_k=top_k)
+        attn_df.to_csv(os.path.join(out_dir, "mil_attention_per_cell.csv"), index=False)
+        self.plot_attention_by_celltype(attn_df, save_path_prefix=prefix)
+        self.plot_entropy_vs_prob(attn_df, save_path=os.path.join(out_dir, "mil_entropy_vs_prob.png"))
+
+        top_tbl = self.topk_table(attn_df, k=top_k)
+        top_tbl.to_csv(os.path.join(out_dir, "mil_top_celltype_per_patient.csv"), index=False)
+        return attn_df
 
 
     def topk_table(self, attn_df: pd.DataFrame, k: int = 5):

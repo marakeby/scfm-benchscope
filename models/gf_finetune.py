@@ -11,6 +11,7 @@ import pickle
 from geneformer import TranscriptomeTokenizer
 logger = get_logger()
 import os
+import warnings
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -141,10 +142,13 @@ class GFFineTuneModel:
                                                 token_dictionary_file=self.model_files['model_vocab'], 
                                                 gene_mapping_file=self.model_files['gene_mapping_file'],
                                                 gene_median_file=self.model_files['gene_median_file'])
-        self.tokenizer.tokenize_data(processed_dir,
-                                     output_directory,
-                                     dataset_name,
-                                     file_format=file_format)
+        self.tokenizer.tokenize_data(
+            processed_dir,
+            output_directory,
+            dataset_name,
+            file_format=file_format,
+            input_identifier=dataset_name,
+        )
         
         datase_fname = os.path.join(output_directory, f"{dataset_name}.dataset")
         tokenized_dataset = load_from_disk(datase_fname)
@@ -295,9 +299,13 @@ class GFFineTuneModel:
                                 'pred_score': y_pred_score,  # Assuming binary classification
                                'sample_id':  sample_ids})
             
-        y_pred_score_p = pred_df.groupby('sample_id')['pred_score'].mean()
-        y_pred_p = pred_df.groupby('sample_id')['pred'].agg(lambda x: x.value_counts().idxmax())
-        y_test_p = pred_df.groupby('sample_id')['label'].first().reindex(y_pred_score_p.index)
+        y_pred_score_p = pred_df.groupby('sample_id', observed=False)['pred_score'].mean()
+        y_pred_p = pred_df.groupby('sample_id', observed=False)['pred'].agg(
+            lambda x: x.value_counts().idxmax()
+        )
+        y_test_p = pred_df.groupby('sample_id', observed=False)['label'].first().reindex(
+            y_pred_score_p.index
+        )
 
         pred_df = pd.concat([y_test_p, y_pred_p, y_pred_score_p], axis=1)
         
@@ -337,9 +345,9 @@ class GFFineTuneModel:
         cell_pred_test_df, _ = self.__train_cell(train_ids, test_ids, split_col, evaluate=True, viz=False, postfix=postfix)
 
         obs = cell_pred_test_df
-        y_score_p = obs.groupby(self.sample_id)["pred_score"].mean()
+        y_score_p = obs.groupby(self.sample_id, observed=False)["pred_score"].mean()
         y_pred_p = (y_score_p > 0.5).astype(int)
-        y_true_p = obs.groupby(self.sample_id)["label"].first().reindex(y_score_p.index)
+        y_true_p = obs.groupby(self.sample_id, observed=False)["label"].first().reindex(y_score_p.index)
 
         pred_df = pd.DataFrame({"label": y_true_p, "pred": y_pred_p, "pred_score": y_score_p})
 
@@ -357,9 +365,13 @@ class GFFineTuneModel:
         logger.info('Saving sample level performance')
         
         obs = adata_subset
-        y_pred_score_p = obs.groupby(self.sample_id)['pred_score'].mean()
-        y_pred_p = obs.groupby(self.sample_id)['pred'].agg(lambda x: x.value_counts().idxmax())
-        y_test_p = obs.groupby(self.sample_id)['label'].first().reindex(y_pred_score_p.index)
+        y_pred_score_p = obs.groupby(self.sample_id, observed=False)['pred_score'].mean()
+        y_pred_p = obs.groupby(self.sample_id, observed=False)['pred'].agg(
+            lambda x: x.value_counts().idxmax()
+        )
+        y_test_p = obs.groupby(self.sample_id, observed=False)['label'].first().reindex(
+            y_pred_score_p.index
+        )
         
         pred_df = pd.concat([y_test_p, y_pred_p, y_pred_score_p], axis=1)
         pred_df.columns = ['label', 'pred', 'pred_score']
@@ -396,17 +408,24 @@ class GFFineTuneModel:
         
         preds.to_csv(join(save_dir, f'{prefix}cv_predictions.csv'))
         metrics.to_csv(join(save_dir, f'{prefix}cv_metrics.csv'))
-        mteric_mean = metrics.groupby(['Metrics']).mean(numeric_only=True)
-        mteric_std = metrics.groupby(['Metrics']).std(numeric_only=True)
+        mteric_mean = metrics.groupby(['Metrics'], observed=False).mean(numeric_only=True)
+        mteric_std = metrics.groupby(['Metrics'], observed=False).std(numeric_only=True)
 
         mteric_mean.to_csv(join(save_dir, f'{prefix}cv_metrics_mean.csv'))
         mteric_std.to_csv(join(save_dir, f'{prefix}cv_metrics_std.csv'))
 
         
-        # Plot metrics
+        # Plot metrics (suppress seaborn/matplotlib bxp `vert` PendingDeprecationWarning)
         metrics.fillna(0, inplace=True)
         plt.figure(figsize=(10, 6))
-        sns.boxplot(x='Metrics', y=self.model_name, data=metrics)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=PendingDeprecationWarning)
+            sns.boxplot(
+                data=metrics,
+                x='Metrics',
+                y=self.model_name,
+                orient='v',
+            )
         plt.title('Cross-Validation Metric Distribution')
         plt.ylim(0, 1.05)
         plt.xticks(rotation=45)
