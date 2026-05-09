@@ -1,0 +1,1 @@
+{"train_ids": ["Pre_P1", "Pre_P2", "Pre_P3", "Pre_P4", "Pre_P7", "Pre_P12", "Pre_P20", "Pre_P24", "Pre_P25", "Pre_P26", "Pre_P27", "Pre_P28", "Pre_P31", "Pre_P33", "Pre_P35"], "test_ids": ["Pre_P6", "Pre_P8", "Pre_P15", "Pre_P29"], "train_labels": ["R", "NR", "NR", "NR", "R", "NR", "NR", "R", "NR", "R", "NR", "R", "NR", "R", "R"], "test_labels": ["NR", "R", "NR", "R"]}

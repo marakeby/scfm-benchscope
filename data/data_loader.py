@@ -5,8 +5,10 @@ Data loading utilities for single-cell data, supporting CSV and H5AD formats wit
 """
 
 import os
+import re
 import json
 import logging
+import pickle
 
 import pandas as pd
 import anndata as ad
@@ -15,6 +17,23 @@ import scanpy as sc
 from utils.logs_ import get_logger
 from setup_path import BASE_PATH
 import numpy as np
+
+# GENCODE / Cell Ranger-style names, e.g. ENSG00000237491.8_4 → ENSG00000237491
+_ENSEMBL_IN_VAR = re.compile(r"(ENS[A-Z]{0,10}G\d{6,})", re.IGNORECASE)
+
+
+def _stable_ensembl_from_var_label(label) -> str | None:
+    """Extract Ensembl gene stable ID from var names that embed ENSG… (with version / suffix)."""
+    if label is None:
+        return None
+    s = str(label).strip()
+    if not s:
+        return None
+    m = _ENSEMBL_IN_VAR.search(s)
+    if not m:
+        return None
+    return m.group(1).upper()
+
 
 class DataLoader:
     """Base class for loading and preprocessing single-cell data."""
@@ -29,8 +48,8 @@ class DataLoader:
         self.layer = params['layer_name']
         self.label_key = params['label_key']
         self.batch_key = params['batch_key']
-        self.train_test_split = params['train_test_split']
-        self.cv_splits = params['cv_splits']
+        self.train_test_split = params['train_test_split'] if 'train_test_split' in params else None
+        self.cv_splits = params['cv_splits'] if 'cv_splits' in params else None
         self.log = get_logger()
         self.adata = None
 
@@ -77,6 +96,10 @@ class DataLoader:
         """
         for col, values in filter_dict.items():
             adata = adata[adata.obs[col].isin(values)]
+        # AnnData slicing returns a *view*; downstream steps (e.g. HVG) write to .uns/.var
+        # and will emit ImplicitModificationWarning if run on a view.
+        if getattr(adata, "is_view", False):
+            adata = adata.copy()
         return adata
 
     def qc(self, min_genes, min_cells):
@@ -121,17 +144,105 @@ class DataLoader:
         self.log.info(f"Applied LogScalerPreprocessor normalization to data.X, apply_log1p = {self.apply_log1p}, target_sum = {self.target_sum}")
         self.log.info(f'obs shape after scaling, {self.adata.X.shape}')
 
-    def hvg(self, n_top_genes, flavor, batch_key=None):
+    def hvg(
+        self,
+        n_top_genes: int,
+        flavor: str,
+        batch_key: str | None = None,
+        subset: bool = True,
+        layer: str | None = None,
+        preserve_counts: bool = False,
+        counts_layer: str = "counts",
+        normalize_before_hvg: bool = False,
+        normalize_target_sum: float = 1e4,
+        log1p_before_hvg: bool = True,
+        hvg_working_layer: str = "hvg_working",
+        **scanpy_kwargs,
+    ):
         """Select highly variable genes (HVGs).
 
+        By default, Scanpy can subset the AnnData in-place (dropping non-HVG genes).
+        This method supports:
+
+        - Computing HVGs from a specific `adata.layers[layer]`
+        - Avoiding in-place subsetting (`subset=False`)
+        - Preserving the original counts currently in `adata.X` by copying them to a layer
+
         Args:
-            n_top_genes (int): Number of top HVGs to select.
-            flavor (str): Method for HVG selection (e.g., 'seurat').
-            batch_key (str, optional): Batch key for batch-aware HVG selection.
+            n_top_genes: Number of top HVGs to select.
+            flavor: HVG selection method (e.g., "seurat", "seurat_v3").
+            batch_key: Optional batch key for batch-aware HVG selection.
+            subset: If True, subset the AnnData to HVGs (drops non-HVG genes).
+            layer: If provided, compute HVGs using this layer instead of `X`.
+            preserve_counts: If True, copy the current `X` into `layers[counts_layer]`
+                before HVG selection. Useful when `X` contains raw counts and you
+                later normalize/log1p `X` or compute HVGs from counts.
+            counts_layer: Name of layer to store preserved counts when `preserve_counts=True`.
         """
-        sc.pp.highly_variable_genes(self.adata, batch_key=batch_key, flavor=flavor, subset=True, n_top_genes=n_top_genes)
-        self.log.info(f"Applied HVG to data.X, n_top_genes = {n_top_genes}, flavor = {flavor}, batch_key = {batch_key}")
-        self.log.info(f'Data shape after HVG, {self.adata.X.shape}')
+        if preserve_counts:
+            if counts_layer not in self.adata.layers:
+                # Keep a snapshot of the current X (assumed counts) before any downstream transforms.
+                self.adata.layers[counts_layer] = self.adata.X.copy()
+                self.log.info("Preserved counts: copied adata.X -> adata.layers[%r].", counts_layer)
+            else:
+                self.log.info(
+                    "Preserve counts requested, but adata.layers[%r] already exists; leaving it unchanged.",
+                    counts_layer,
+                )
+
+        # Optionally normalize/log1p into a working layer for HVG computation.
+        # This is especially useful for `flavor="seurat"` which expects log1p-normalized values.
+        # We do this in a separate layer to avoid mutating raw counts.
+        hvg_layer = layer
+        if normalize_before_hvg:
+            source_layer = layer or "X"
+            if source_layer == "X":
+                self.adata.layers[hvg_working_layer] = self.adata.X.copy()
+            else:
+                if source_layer not in self.adata.layers:
+                    raise KeyError(
+                        f"hvg: layer={source_layer!r} not found in adata.layers; "
+                        f"available={list(self.adata.layers.keys())}"
+                    )
+                self.adata.layers[hvg_working_layer] = self.adata.layers[source_layer].copy()
+
+            sc.pp.normalize_total(
+                self.adata,
+                target_sum=float(normalize_target_sum),
+                layer=hvg_working_layer,
+            )
+            if log1p_before_hvg:
+                sc.pp.log1p(self.adata, layer=hvg_working_layer)
+
+            hvg_layer = hvg_working_layer
+            self.log.info(
+                "HVG: normalized/log1p into layers[%r] from %s (target_sum=%s, log1p=%s).",
+                hvg_working_layer,
+                source_layer,
+                normalize_target_sum,
+                log1p_before_hvg,
+            )
+
+        sc.pp.highly_variable_genes(
+            self.adata,
+            batch_key=batch_key,
+            flavor=flavor,
+            subset=bool(subset),
+            n_top_genes=int(n_top_genes),
+            layer=hvg_layer,
+            **scanpy_kwargs,
+        )
+        self.log.info(
+            "Applied HVG: n_top_genes=%s flavor=%s batch_key=%s subset=%s layer=%s preserve_counts=%s counts_layer=%s",
+            n_top_genes,
+            flavor,
+            batch_key,
+            subset,
+            hvg_layer,
+            preserve_counts,
+            counts_layer,
+        )
+        self.log.info("Data shape after HVG, %s", self.adata.X.shape)
 
 
 class CSVDataLoader(DataLoader):
@@ -204,10 +315,107 @@ class H5ADLoader(DataLoader):
 
         if self.train_test_split:
             fname = os.path.join(BASE_PATH, self.train_test_split)
-            self.train_test_split_dict = json.load(open(fname))
+            with open(fname, "r", encoding="utf-8") as f:
+                self.train_test_split_dict = json.load(f)
             fname = os.path.join(BASE_PATH, self.cv_splits)
-            self.cv_split_dict = json.load(open(fname))
+            with open(fname, "r", encoding="utf-8") as f:
+                self.cv_split_dict = json.load(f)
+        else:
+            self.train_test_split_dict = None
+            self.cv_split_dict = None
 
         return adata
 
+    def map_ensembl(self, gene_to_ensembl_dict):
+        """Map ``var`` index to Ensembl IDs and drop genes with no mapping (Geneformer / CellPLM).
+
+        ``gene_to_ensembl_dict`` may be:
+
+        - ``dict``: keys = gene symbols (as in ``adata.var_names``), values = Ensembl gene IDs.
+        - ``str`` path to a ``.pkl`` file containing such a dict (e.g. Geneformer
+          ``gene_name_id_dict_gc104M.pkl``).
+        - ``str`` path to a **directory** that contains ``gene_name_id_dict.pkl`` in the
+          layout expected by :func:`data.gf_loader.get_gene_name_ensembl_map`.
+        """
+        from data.gf_loader import get_gene_name_ensembl_map
+
+        if isinstance(gene_to_ensembl_dict, str):
+            path = gene_to_ensembl_dict
+            if os.path.isfile(path) and path.lower().endswith(".pkl"):
+                with open(path, "rb") as f:
+                    gene_to_ensembl_dict = pickle.load(f)
+                if not isinstance(gene_to_ensembl_dict, dict):
+                    raise TypeError(
+                        "map_ensembl: pickle %r must load to a dict (symbol -> Ensembl ID)."
+                        % (path,)
+                    )
+            else:
+                _, gene_to_ensembl_dict = get_gene_name_ensembl_map(path)
+
+        # Use Series (not Index): Index.fillna rejects a non-scalar fill value in recent pandas.
+        vm = pd.Series(
+            self.adata.var_names.astype(str).str.strip(),
+            index=self.adata.var_names,
+        )
+        ens_direct = vm.map(gene_to_ensembl_dict)
+        # Geneformer-style dicts use uppercase symbols; many h5ads use mixed case.
+        upper_map = {
+            str(k).strip().upper(): v
+            for k, v in gene_to_ensembl_dict.items()
+            if k is not None
+        }
+        ens_upper = vm.str.upper().map(upper_map)
+        ens_from_symbols = ens_direct.fillna(ens_upper)
+        # var_names may already be Ensembl IDs with version / extra tags (not in symbol dict).
+        parsed = vm.map(_stable_ensembl_from_var_label)
+        ens = ens_from_symbols.fillna(parsed)
+        n_upper = int(ens_from_symbols.notna().sum() - ens_direct.notna().sum())
+        if n_upper > 0:
+            self.log.info(
+                "map_ensembl: matched %d genes via uppercase symbol keys (after direct lookup).",
+                n_upper,
+            )
+        n_parse = int((parsed.notna() & ens_from_symbols.isna()).sum())
+        if n_parse > 0:
+            self.log.info(
+                "map_ensembl: matched %d genes by parsing Ensembl IDs from var_names (e.g. GENCODE suffixes).",
+                n_parse,
+            )
+
+        self.adata.var["ensembl_id"] = ens
+        nan_idx = self.adata.var.ensembl_id.isna()
+        n = int(nan_idx.sum())
+        sample_vars = list(self.adata.var_names[: min(8, self.adata.n_vars)])
+        sample_keys = list(gene_to_ensembl_dict.keys())[:8]
+        self.adata = self.adata[:, ~nan_idx]
+        if self.adata.n_vars == 0:
+            raise ValueError(
+                "map_ensembl: every gene was dropped (no symbol→Ensembl match and no parseable ENSG… in var_names). "
+                "If var_names are already Ensembl IDs, remove gene_name_id_dict from the CellPLM YAML or use "
+                "ensembl_auto_conversion: false. Example var_names=%r, example dict keys=%r"
+                % (sample_vars, sample_keys)
+            )
+        self.log.warning(
+            "Genes without Ensembl IDs: %s (removed). Remaining shape %s", n, self.adata.shape
+        )
+        self.log.info(self.adata.var.head())
+
+    def prepare_data(self, save_dir=None, save_ext="loom"):
+        """Write processed AnnData to loom or h5ad for Geneformer ``TranscriptomeTokenizer`` (was ``GFLoader``-only)."""
+        self.processed_dir = os.path.join(save_dir, "processed_data")
+        self.adata.obs["n_counts"] = self.adata.obs["total_counts"]
+        self.adata.obs["adata_order"] = self.adata.obs.index.tolist()
+        self.log.info(self.adata.shape)
+
+        if not os.path.exists(self.processed_dir):
+            os.makedirs(self.processed_dir)
+
+        if save_ext == "loom":
+            self.procssed_file = os.path.join(self.processed_dir, f"{self.dataset_name}.loom")
+            self.adata.write_loom(self.procssed_file)
+            self.log.info("Saving loom file to %s", self.procssed_file)
+        elif save_ext == "h5ad":
+            self.procssed_file = os.path.join(self.processed_dir, f"{self.dataset_name}.h5ad")
+            self.adata.write_h5ad(self.procssed_file)
+            self.log.info("Saving h5ad file to %s", self.procssed_file)
 
