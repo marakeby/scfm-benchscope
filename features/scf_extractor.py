@@ -14,6 +14,8 @@ from features.extractor import EmbeddingExtractor
 
 
 class scfoundationExtractor(EmbeddingExtractor):
+    MODELS_PATH_KEYS = frozenset({"model_path", "gene_index_path"})
+
     """
     A class for extracting embeddings from single-cell or bulk RNA-seq data using pre-trained models.
     """

@@ -33,6 +33,8 @@ def _ensure_counts_layer(adata, *, counts_layer: str | None = None):
 
 
 class SCimilarityExtractor(EmbeddingExtractor):
+    MODELS_PATH_KEYS = frozenset({"model_path"})
+
     """
     Extracts single-cell embeddings using SCimilarity.
 

@@ -2,9 +2,10 @@
 
 import json
 import os
+import re
 
-import anndata as ad
 import numpy as np
+import pandas as pd
 import scanpy as sc
 import torch
 from CellPLM.model import OmicsFormer
@@ -12,7 +13,6 @@ from CellPLM.model import OmicsFormer
 import CellPLM.pipeline as _cellplm_pipeline
 from utils.logs_ import get_logger
 from features.extractor import EmbeddingExtractor
-import mygene
 
 
 def _load_pretrain_map_location(
@@ -51,60 +51,64 @@ _cellplm_pipeline.load_pretrain = _load_pretrain_map_location
 
 from CellPLM.pipeline.cell_embedding import CellEmbeddingPipeline
 
-def convert_symbols_to_ensembl(adata: ad.AnnData, symbol_col: str = None, new_col: str = "ensembl_id") -> ad.AnnData:
-    """
-    Convert gene symbols in an AnnData object to Ensembl IDs using mygene.
-    
-    Parameters
-    ----------
-    adata : AnnData
-        Input AnnData object.
-    symbol_col : str, optional
-        Column in `adata.var` that contains gene symbols. 
-        If None, uses `adata.var_names`.
-    new_col : str, optional
-        Column name to store Ensembl IDs. Default is 'ensembl_id'.
-    
-    Returns
-    -------
-    AnnData
-        AnnData object with new column `new_col` containing Ensembl IDs.
-    """
-    mg = mygene.MyGeneInfo()
-    
-    # Extract symbols
-    if symbol_col is None:
-        symbols = adata.var_names.tolist()
-    else:
-        symbols = adata.var[symbol_col].tolist()
-    
-    # Query mygene for mapping
-    query_res = mg.querymany(
-        symbols,
-        scopes="symbol",
-        fields="ensembl.gene",
-        species="human"
+
+def _ensembl_stable_gene_id(s: str) -> str | None:
+    """Return version-stripped ID if ``s`` looks like an Ensembl gene stable ID (ENS…G…)."""
+    if not isinstance(s, str) or not s.strip():
+        return None
+    u = s.strip().upper().split(".", 1)[0]
+    if re.match(r"^ENS[A-Z]{0,10}G\d{6,}$", u):
+        return u
+    return None
+
+
+_ENSEMBL_VAR = re.compile(r"^ENS[A-Z]{0,10}G\d{6,}(\.\d+)?$", re.IGNORECASE)
+
+
+def _var_index_majority_ensembl(var_names) -> bool:
+    """True if most ``var_names`` look like Ensembl gene stable IDs (human/mouse/…)."""
+    s = pd.Index(var_names).astype(str)
+    if len(s) == 0:
+        return False
+    return bool(s.str.match(_ENSEMBL_VAR, na=False).mean() > 0.5)
+
+
+def _adata_ensembl_var_index_from_column(
+    adata: sc.AnnData, col: str, log
+) -> sc.AnnData | None:
+    """If ``adata.var[col]`` has Ensembl IDs, use them as ``var_names``."""
+    if col not in adata.var.columns:
+        return None
+    series = adata.var[col].astype(str)
+    mask = series.map(lambda x: _ensembl_stable_gene_id(str(x)) is not None).fillna(False)
+    if not bool(mask.any()):
+        return None
+    out = adata[:, mask].copy()
+    out.var_names = series[mask].str.split(".").str[0].values
+    out.var_names_make_unique()
+    log.info("CellPLM: using existing %s column for Ensembl gene IDs (%d genes).", col, out.n_vars)
+    return out
+
+
+def _adata_with_ensembl_var_index(adata: sc.AnnData, params: dict, log) -> sc.AnnData:
+    """Subset to genes with Ensembl IDs and set ``var_names`` from ``ensembl_id_col``."""
+    ens_col = params.get("ensembl_id_col", "ensembl_id")
+    from_col = _adata_ensembl_var_index_from_column(adata, ens_col, log)
+    if from_col is not None:
+        return from_col
+
+    raise ValueError(
+        "CellPLM: no Ensembl gene IDs in AnnData.var[%r]. "
+        "Use embedding.params gene_name_id_dict (see H5ADLoader.map_ensembl) so symbols are "
+        "mapped before inference, or set var_names / ensembl_id_col to Ensembl IDs, or set "
+        "ensembl_auto_conversion: false if var_names are already Ensembl."
+        % (ens_col,)
     )
-    
-    # Convert results into mapping dict
-    mapping = {}
-    for r in query_res:
-        if "notfound" in r and r["notfound"]:
-            continue
-        if "ensembl" in r:
-            if isinstance(r["ensembl"], list):
-                mapping[r["query"]] = r["ensembl"][0]["gene"]  # take first
-            else:
-                mapping[r["query"]] = r["ensembl"]["gene"]
-    
-    # Map back to AnnData
-    ensembl_ids = [mapping.get(sym, None) for sym in symbols]
-    adata.var[new_col] = ensembl_ids
-    # print('ensembl_ids', ensembl_ids)
-    return adata
 
 
 class CellPLMExtractor(EmbeddingExtractor):
+    MODELS_PATH_KEYS = frozenset({"pretrain_directory", "gene_name_id_dict"})
+
     """
     Extract single-cell embeddings using a pretrained CellPLM model.
 
@@ -127,8 +131,6 @@ class CellPLMExtractor(EmbeddingExtractor):
 
     def preprocess(self, adata: sc.AnnData) -> sc.AnnData:
         sc.pp.normalize_total(adata, target_sum=1e4)
-        # sc.pp.log1p(adata)
-        # adata = convert_symbols_to_ensembl(adata)
         return adata
 
     def extract_embeddings(self, adata: sc.AnnData) -> np.ndarray:
@@ -141,13 +143,42 @@ class CellPLMExtractor(EmbeddingExtractor):
             device: str | torch.device = "cuda"
         else:
             device = "cpu"
-        embedding = self.pipeline.predict(adata, device=device)
+
+        # CellPLM's built-in symbol→Ensembl uses a fragile mygene dataframe path; we never
+        # use it. When var_names are not in the model vocab, require Ensembl in var or map first.
+        auto = bool(self.params.get("ensembl_auto_conversion", True))
+        adata_work = adata.copy()
+        model_genes = self.pipeline.model.gene_set
+        in_vocab = pd.Index(adata_work.var_names.astype(str)).isin(model_genes)
+        ensembl_auto_cellplm = auto
+        if (not bool(in_vocab.any())) and auto:
+            if _var_index_majority_ensembl(adata_work.var_names):
+                ensembl_auto_cellplm = False
+            else:
+                self.log.info(
+                    "CellPLM: var_names not in model vocab — using Ensembl from var columns "
+                    "(e.g. after map_ensembl)."
+                )
+                adata_work = _adata_with_ensembl_var_index(
+                    adata_work, self.params, self.log
+                )
+                ensembl_auto_cellplm = False
+
+        embedding = self.pipeline.predict(
+            adata_work,
+            device=device,
+            ensembl_auto_conversion=ensembl_auto_cellplm,
+        )
         return embedding.cpu().numpy()
     
     def fit_transform(self, data_loader):
         self.data_loader = data_loader
+        mapping = self.params.get("gene_name_id_dict")
+        if mapping and hasattr(data_loader, "map_ensembl"):
+            self.log.info("CellPLM: gene_name_id_dict set — mapping via data_loader.map_ensembl")
+            data_loader.map_ensembl(mapping)
         adata = data_loader.adata
-        adata = self.preprocess( adata)
+        adata = self.preprocess(adata)
         embeddings = self.extract_embeddings(adata)
         self.data_loader.adata.obsm['X_CellPLM'] = embeddings
         return embeddings

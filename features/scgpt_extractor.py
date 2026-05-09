@@ -1,4 +1,5 @@
 from utils.logs_ import get_logger
+import contextlib
 import torch
 import os
 from scgpt.model import TransformerModel
@@ -13,7 +14,8 @@ import numpy as np
 from features.features_scgpt import scGPT_Processor
 
 class scGPT_Exractor(EmbeddingExtractor):
-    
+    MODELS_PATH_KEYS = frozenset({"model_dir"})
+
     # def __init__(self, model_dir):
     def __init__(self, params):
         super().__init__(params)
@@ -256,7 +258,12 @@ class scGPT_Exractor(EmbeddingExtractor):
 
             src_key_padding_mask = input_gene_ids.eq(vocab[pad_token])
 
-            with torch.no_grad() and torch.cuda.amp.autocast(enabled=amp):
+            amp_enabled = bool(amp) and getattr(device, "type", str(device)) == "cuda" and torch.cuda.is_available()
+            autocast_ctx = (
+                torch.amp.autocast(device_type="cuda", enabled=True) if amp_enabled else contextlib.nullcontext()
+            )
+
+            with torch.no_grad(), autocast_ctx:
                     output_dict = model(
                         input_gene_ids,
                         input_values,

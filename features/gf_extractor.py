@@ -11,6 +11,7 @@ from features.extractor import EmbeddingExtractor
 from transformers import BertForMaskedLM, BertForSequenceClassification
 from datasets import Dataset, load_from_disk
 from utils.logs_ import get_logger
+from data.data_loader import _stable_ensembl_from_var_label
 import os
 from tqdm import trange
 import torch.nn.functional as F
@@ -56,6 +57,8 @@ def mean_nonpadding_embs(embs, original_lens, device='cuda'):
     return mean_embs
 
 class GeneformerExtractor(EmbeddingExtractor):
+    MODELS_PATH_KEYS = frozenset({"model_dir", "dict_dir"})
+
     def __init__(self, params):
         super().__init__(params)
         self.log = get_logger()
@@ -188,10 +191,15 @@ class GeneformerExtractor(EmbeddingExtractor):
             gene_median_file=self.model_files['gene_median_file'],
         )
         
-        self.tokenizer.tokenize_data(processed_dir,
-                                                output_directory,
-                                                dataset_name,
-                                                file_format=file_format)
+        # Restrict to this dataset's loom only; default glob "*.loom" would merge
+        # every .loom in processed_dir (e.g. stale full runs) and break obs alignment.
+        self.tokenizer.tokenize_data(
+            processed_dir,
+            output_directory,
+            dataset_name,
+            file_format=file_format,
+            input_identifier=dataset_name,
+        )
         datase_fname = os.path.join(output_directory, f"{dataset_name}.dataset")
         tokenized_dataset = load_from_disk(datase_fname)
 
@@ -201,13 +209,58 @@ class GeneformerExtractor(EmbeddingExtractor):
     def validate_config(params):
         assert 'params' in params and params is not None, "Missing 'params' in parameters"
 
+    @staticmethod
+    def _fraction_ensembl_like(values) -> float:
+        """Share of entries that contain a parseable Ensembl gene stable ID (ENS…G…)."""
+        vals = list(values)
+        if not vals:
+            return 0.0
+        ok = sum(_stable_ensembl_from_var_label(v) is not None for v in vals)
+        return ok / len(vals)
+
     def _map_ensembl_ids(self, geneformer_reader):
         """
-        Convert gene symbols (adata.var.index) -> ensembl ids (adata.var['ensembl_id'])
-        and drop genes without an ensembl mapping.
+        Set ``adata.var['ensembl_id']`` and drop genes without a usable ID.
+
+        If ``var['ensembl_id']`` already holds Ensembl-like IDs for a majority of genes,
+        those values are used (after stable-ID extraction). Else if ``var_names`` are
+        mostly Ensembl-like, IDs are taken from the index. Otherwise symbols in
+        ``var_names`` are mapped via Geneformer's ``gene_name_id`` pickle.
         """
+        adata = geneformer_reader.adata
+        var = adata.var
         gene_to_ensembl = self.gene_name_id
-        geneformer_reader.adata.var["ensembl_id"] = geneformer_reader.adata.var.index.map(gene_to_ensembl)
+
+        use_column = None
+        col_frac = 0.0
+        if "ensembl_id" in var.columns:
+            col_vals = var["ensembl_id"].tolist()
+            col_frac = self._fraction_ensembl_like(col_vals)
+            if col_frac > 0.5:
+                use_column = "ensembl_id"
+
+        index_vals = list(adata.var_names.astype(str))
+        index_frac = self._fraction_ensembl_like(index_vals)
+
+        if use_column is not None:
+            parsed = [_stable_ensembl_from_var_label(v) for v in var[use_column].tolist()]
+            geneformer_reader.adata.var["ensembl_id"] = parsed
+            self.log.info(
+                "Geneformer: using var[%r] for Ensembl IDs (%.1f%% of genes match ENS*G* stable-id pattern).",
+                use_column,
+                100.0 * col_frac,
+            )
+        elif index_frac > 0.5:
+            parsed = [_stable_ensembl_from_var_label(v) for v in index_vals]
+            geneformer_reader.adata.var["ensembl_id"] = parsed
+            self.log.info(
+                "Geneformer: var_names look like Ensembl (%.1f%% parseable); skipping gene_name_id map.",
+                100.0 * index_frac,
+            )
+        else:
+            geneformer_reader.adata.var["ensembl_id"] = var.index.map(gene_to_ensembl)
+            self.log.info("Geneformer: mapping gene symbols → Ensembl via gene_name_id dict.")
+
         nan_idx = geneformer_reader.adata.var.ensembl_id.isna()
         if nan_idx.any():
             n_removed = int(nan_idx.sum())
@@ -352,6 +405,44 @@ class GeneformerExtractor(EmbeddingExtractor):
             from os.path import join
             from datasets import Dataset, load_from_disk
 
+            # Patch for 🤗 Transformers Trainer API changes:
+            # Newer versions call `_get_train_sampler(dataset)` while older Geneformer
+            # pretrainer implementations may define `_get_train_sampler(self)` only.
+            class _PatchedGeneformerPretrainer(GeneformerPretrainer):
+                def _get_train_sampler(self, *args, **kwargs):  # dataset may be passed
+                    return super()._get_train_sampler()
+
+                def _get_eval_sampler(self, *args, **kwargs):  # dataset may be passed
+                    return super()._get_eval_sampler()
+
+                def _get_test_sampler(self, *args, **kwargs):  # dataset may be passed
+                    return super()._get_test_sampler()
+
+                def _save(self, output_dir: str | None = None, state_dict=None):
+                    """
+                    Transformers>=4.4x may try to call `self.data_collator.tokenizer.save_pretrained(...)`.
+                    Geneformer uses a custom collator where `.tokenizer` is not a HF tokenizer, which breaks
+                    checkpoint saving. We temporarily provide a no-op `save_pretrained` to keep training going.
+                    """
+                    collator = getattr(self, "data_collator", None)
+                    had_tokenizer = False
+                    orig_tokenizer = None
+
+                    class _NoOpTokenizer:
+                        def save_pretrained(self, *args, **kwargs):
+                            return None
+
+                    try:
+                        if collator is not None and hasattr(collator, "tokenizer"):
+                            had_tokenizer = True
+                            orig_tokenizer = collator.tokenizer
+                            if not hasattr(orig_tokenizer, "save_pretrained"):
+                                collator.tokenizer = _NoOpTokenizer()
+                        return super()._save(output_dir=output_dir, state_dict=state_dict)
+                    finally:
+                        if had_tokenizer and collator is not None:
+                            collator.tokenizer = orig_tokenizer
+
             # self.load_model()
             # self.load_vocab()
 
@@ -409,11 +500,18 @@ class GeneformerExtractor(EmbeddingExtractor):
             for f in train_ds.features:
                 self.log.info(train_ds[f][0])
                 
-            # trying to solve error: return_dict_in_generate` is NOT set to `True`, but `output_hidden_states` is. When `return_dict_in_generate` is not `True`, `output_hidden_states` is ignored.'
+            # Ensure a GenerationConfig exists before tweaking generation flags.
+            # Some HF models set `generation_config=None` until first initialized.
+            from transformers import GenerationConfig
+            if getattr(self.model, "generation_config", None) is None:
+                self.model.generation_config = GenerationConfig()
+
+            # trying to solve error: return_dict_in_generate` is NOT set to `True`, but `output_hidden_states` is.
+            # When `return_dict_in_generate` is not `True`, `output_hidden_states` is ignored.
             self.model.generation_config.return_dict_in_generate = True
 
     
-            trainer = GeneformerPretrainer(
+            trainer = _PatchedGeneformerPretrainer(
                     model=self.model,
                     args=training_args,
                     train_dataset=train_ds,
@@ -422,8 +520,7 @@ class GeneformerExtractor(EmbeddingExtractor):
                     # device = self.device
                 )
             
-            from transformers import GenerationConfig
-            
+            # Keep trainer + model generation configs consistent.
             trainer.model.generation_config = trainer.model.generation_config or GenerationConfig()
 
 

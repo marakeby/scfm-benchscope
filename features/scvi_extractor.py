@@ -1,7 +1,6 @@
 import scanpy as sc
 import logging
 import scvi
-scvi.settings.seed = 9627
 
 from features.extractor import EmbeddingExtractor
 from utils.logs_ import get_logger
@@ -22,7 +21,9 @@ class scVIEmbeddingExtractor(EmbeddingExtractor):
         # self.njobs = self.params.get('njobs', 0)
         self.batch_size = self.params.get('batch_size', 16)
         self.hvg_params = self.params.get('hvg_params', False)
-        
+        # Default 9627 matches historical import-time scVI seed; override via ``params.seed`` in YAML.
+        self._scvi_seed = int(self.params.get('seed', 9627))
+
     @staticmethod
     def validate_config(params):
         assert 'params' in params and params is not None, "Missing 'params' in parameters"
@@ -33,6 +34,7 @@ class scVIEmbeddingExtractor(EmbeddingExtractor):
 
     def fit_transform(self, data_loader):
         data = data_loader.adata
+        scvi.settings.seed = self._scvi_seed
 
         if self.hvg_params:
             self.n_top_genes = self.hvg_params.get('n_top_genes', 2000)

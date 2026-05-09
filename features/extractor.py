@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, ClassVar, Dict, FrozenSet, Optional
 
 from utils.logs_ import get_logger
 
@@ -29,12 +29,22 @@ class EmbeddingExtractor:
         "scimilarity": "X_scimilarity",
         "cellplm": "X_CellPLM",
         "nicheformer": "X_nicheformer",
+        "scconcept": "X_scconcept",
+        "state": "X_state",
         "mock": "X_mock",
     }
+
+    # Subclasses set which ``params`` keys hold filesystem paths relative to ``MODELS_PATH``
+    # (see ``setup_path.resolve_under_models_path``). Empty = no automatic resolution.
+    MODELS_PATH_KEYS: ClassVar[FrozenSet[str]] = frozenset()
 
     def __init__(self, params: Dict[str, Any]):
         self.method: str = params.get("method", "")
         self.params: Dict[str, Any] = params.get("params", {}) or {}
+        if self.MODELS_PATH_KEYS:
+            from setup_path import resolve_models_path_params
+
+            resolve_models_path_params(self.params, self.MODELS_PATH_KEYS, recurse=True)
         # Optional explicit key override in YAML:
         # embedding.output_key: X_something
         self.output_key: str = (
