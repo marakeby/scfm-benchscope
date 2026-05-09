@@ -1,0 +1,7 @@
+run_id: 'geneformer_V2-104M_CLcancer-i4096_brca_cell_type'
+dataset:
+  - datasets/brca/cell_type/dataset_shared.yaml
+model:
+  - models/geneformer/V2-104M_CLcancer-i4096.yaml
+classification:
+  - tasks/classification.yaml

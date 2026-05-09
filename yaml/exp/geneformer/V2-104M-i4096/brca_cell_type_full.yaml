@@ -1,0 +1,23 @@
+run_id: 'geneformer_V2-104M-i4096_brca_cell_type_full_hvg4'
+bases:
+  - datasets/brca/cell_type/dataset_full.yaml
+  - models/geneformer/V2-104M-i4096.yaml
+
+# dataset:
+#   max_cells: 10000
+#   max_cells_stratify: donor_id
+  
+preprocessing:
+  skip: true
+  
+hvg:
+  flavor: seurat
+  layer: counts
+  normalize_before_hvg: True
+  n_top_genes: 4096
+  batch_key: batch
+  subset: True
+  preserve_counts: true
+  
+classification:
+  skip: true

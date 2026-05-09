@@ -1,0 +1,7 @@
+run_id: 'pca_n100_brca_pre_post'
+dataset:
+  - datasets/brca/immunotherapy_pre_post/tcells.yaml
+model:
+  - models/pca/n100.yaml
+classification:
+  - tasks/classification.yaml

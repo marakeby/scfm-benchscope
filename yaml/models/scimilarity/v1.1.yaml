@@ -1,0 +1,10 @@
+embedding:
+  load_cached: false
+  method: scimilarity
+  module: features.scimilarity_extractor
+  class: SCimilarityExtractor
+  viz: true
+  eval: true
+  params:
+    model_path: SCimilarity/model_v1.1
+    use_gpu: true

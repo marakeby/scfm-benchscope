@@ -185,3 +185,5 @@ cython_debug/
 **/*.png
 **/*.csv
 **/*.xlsx
+*arxiv*
+cache/

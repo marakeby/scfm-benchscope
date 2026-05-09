@@ -1,0 +1,5 @@
+run_id: 'geneformer_V2-104M-i4096_finetune_brca_pre_post'
+dataset:
+  - datasets/brca/immunotherapy_pre_post/tcells.yaml
+model:
+  - models/geneformer/V2-104M-i4096_finetune.yaml

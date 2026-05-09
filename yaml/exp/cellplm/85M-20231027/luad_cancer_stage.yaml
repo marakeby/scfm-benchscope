@@ -1,0 +1,7 @@
+run_id: 'cellplm_85M-20231027_luad_cancer_stage'
+dataset:
+  - datasets/luad/cancer_stage.yaml
+model:
+  - models/cellplm/85M-20231027.yaml
+classification:
+  - tasks/classification.yaml

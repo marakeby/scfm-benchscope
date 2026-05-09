@@ -1,0 +1,5 @@
+run_id: 'geneformer_V1-10M-i2048_finetune_brca_chemo'
+dataset:
+  - datasets/brca/chemo/cancer_cells.yaml
+model:
+  - models/geneformer/V1-10M-i2048_finetune.yaml

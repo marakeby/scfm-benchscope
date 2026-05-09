@@ -1,0 +1,9 @@
+embedding:
+  method: state
+  module: features.state_extractor
+  class: StateExtractor
+  viz: true
+  eval: true
+  params:
+    # PyTorch Lightning checkpoint containing cfg_yaml (or pass config_path).
+    checkpoint_path: state/SE-600M/se600m_epoch16.ckpt

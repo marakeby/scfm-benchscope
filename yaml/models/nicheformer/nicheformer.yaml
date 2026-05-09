@@ -1,0 +1,20 @@
+embedding:
+  method: nicheformer
+  module: features.nicheformer_extractor
+  class: NicheformerExtractor
+  viz: true
+  eval: true
+  params:
+    checkpoint_path: nicheformer/model.ckpt
+    technology_mean_path: nicheformer/dissociated_mean_script.npy
+    # model_init_params: auto-loaded from ``config.yaml`` next to the checkpoint when present.
+    # Reference panel is Ensembl; typical Scanpy objects use gene symbols in var_names:
+    map_symbols_to_ensembl: true
+    # HVG subset: need full vocabulary order. Either copy ``data/model_means/model.h5ad`` from
+    # github.com/theislab/nicheformer into the same folder as the .npy (auto-detected), or set:
+    # technology_gene_reference_h5ad: /path/to/model.h5ad
+    # optional: long context (e.g. 5k) needs a small batch — default is auto; use 1 if OOM.
+    # batch_size: 2
+    # use_gpu: true
+    # embedding_layer: -1
+    # split_value: train

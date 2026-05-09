@@ -1,0 +1,14 @@
+run_id: 'scimilarity_v1.1_brca_pre_post'
+dataset:
+  - datasets/brca/immunotherapy_pre_post/tcells.yaml
+
+preprocessing:
+    skip: True
+
+hvg:
+    skip: True
+    
+model:
+  - models/scimilarity/v1.1.yaml
+classification:
+  - tasks/classification.yaml

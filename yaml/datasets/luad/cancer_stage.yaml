@@ -1,0 +1,30 @@
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: luad_brca/luad/luad_analysis1.h5ad
+  load_raw: true
+  label_key: group_id
+  batch_key: sample_id
+  layer_name: X
+  train_test_split: data_splits/luad/luad1/train_test_split.json
+  cv_splits: data_splits/luad/luad1/cv_splits.json
+  label_map:
+    early_stage: 0
+    late_stage: 1
+
+  #subsample for development purposes only
+  # max_cells: 2000
+  # max_cells_stratify: donor_id
+qc:
+  skip: true
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  skip: true
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  batch_key: null
+  n_top_genes: 2048
+  flavor: seurat

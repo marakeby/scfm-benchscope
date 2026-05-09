@@ -1,0 +1,34 @@
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: melanoma/GSE120575_melanoma_tpm_annotated_final.h5ad
+  load_raw: False
+  label_key: lesion_response
+  batch_key: sample_id
+  layer_name: X
+  train_test_split: data_splits/melanoma_response/train_test_split.json
+  cv_splits: data_splits/melanoma_response/cv_splits.json
+  filter: 
+  - column: timepoint
+    values:
+    - Pre
+  label_map:
+    NR: 0
+    R: 1
+    
+  #subsample for development purposes only
+  # max_cells: 2000
+  # max_cells_stratify: donor_id
+qc:
+  min_genes: 10
+  min_cells: 10
+  
+preprocessing:
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+  
+hvg:
+  batch_key: batch
+  n_top_genes: 4096
+  flavor: seurat

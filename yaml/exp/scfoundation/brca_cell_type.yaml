@@ -1,0 +1,7 @@
+run_id: 'scfoundation_brca_cell_type'
+dataset:
+  - datasets/brca/cell_type/dataset_shared.yaml
+model:
+  - models/scfoundation/brca_cancer_cells.yaml
+classification:
+  skip: true

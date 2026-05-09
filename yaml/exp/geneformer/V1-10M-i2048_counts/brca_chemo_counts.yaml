@@ -1,0 +1,23 @@
+# Geneformer-aligned chemo run: raw counts in X (via adata.raw), no normalize/log1p, no HVG.
+# Requires cancer_cells_only.h5ad to store raw counts in .raw (standard AnnData layout).
+run_id: geneformer_V1-10M-i2048_brca_chemo
+bases:
+  - datasets/brca/chemo/cancer_cells.yaml
+  - models/geneformer/V1-10M-i2048.yaml
+  - tasks/classification.yaml
+  
+# dataset:
+#   load_raw: False
+#   max_cells: 10000
+#   max_cells_stratify: donor_id
+  
+preprocessing:
+  skip: true
+hvg:
+  flavor: seurat
+  layer: counts
+  normalize_before_hvg: True
+  n_top_genes: 4096
+  batch_key: batch
+  subset: True
+  preserve_counts: true

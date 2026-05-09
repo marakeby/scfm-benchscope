@@ -1,0 +1,9 @@
+embedding:
+  method: PCA
+  module: features.pca_extractor
+  class: PCAEmbeddingExtractor
+  viz: true
+  eval: true
+  params:
+    n_components: 20
+    embedding_col: X_pca

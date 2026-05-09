@@ -1,0 +1,7 @@
+run_id: 'scconcept_corpus30m_brca_pre_post'
+dataset:
+  - datasets/brca/immunotherapy_pre_post/tcells.yaml
+model:
+  - models/scconcept/corpus30m.yaml
+classification:
+  - tasks/classification.yaml

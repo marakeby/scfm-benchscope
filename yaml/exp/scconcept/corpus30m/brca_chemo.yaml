@@ -1,0 +1,7 @@
+run_id: 'scconcept_corpus30m_brca_chemo'
+dataset:
+  - datasets/brca/chemo/cancer_cells.yaml
+model:
+  - models/scconcept/corpus30m.yaml
+classification:
+  - tasks/classification.yaml

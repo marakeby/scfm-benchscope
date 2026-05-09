@@ -1,0 +1,7 @@
+run_id: 'scconcept_corpus30m_brca_outcome'
+dataset:
+  - datasets/brca/outcome/tcell_exhaustion.yaml
+model:
+  - models/scconcept/corpus30m.yaml
+classification:
+  - tasks/classification.yaml

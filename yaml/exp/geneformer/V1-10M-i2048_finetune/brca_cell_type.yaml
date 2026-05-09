@@ -1,0 +1,5 @@
+run_id: 'geneformer_V1-10M-i2048_finetune_brca_cell_type'
+dataset:
+  - datasets/brca/cell_type/dataset_shared.yaml
+model:
+  - models/geneformer/V1-10M-i2048_finetune.yaml

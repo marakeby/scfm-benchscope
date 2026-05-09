@@ -1,9 +1,0 @@
-run_id: original
-dataset:
-    - brca_full/chemo/dataset_shared.yaml
-
-embedding:
-    skip: True # dont execute this (embedding) step
-    viz: False
-    eval: False
-

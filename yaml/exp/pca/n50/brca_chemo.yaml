@@ -1,0 +1,7 @@
+run_id: 'pca_n50_brca_chemo'
+dataset:
+  - datasets/brca/chemo/cancer_cells.yaml
+model:
+  - models/pca/n50.yaml
+classification:
+  - tasks/classification.yaml

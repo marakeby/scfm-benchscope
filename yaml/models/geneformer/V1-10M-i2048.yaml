@@ -1,0 +1,14 @@
+# Shared Geneformer V1 10M (2048) embedding — use via bases: refactored/models/geneformer/V1-10M-i2048.yaml
+embedding:
+  method: geneformer
+  module: features.gf_extractor
+  class: GeneformerExtractor
+  viz: true
+  eval: true
+  params:
+    model: Geneformer-V1-10M
+    version: V1
+    model_dir: Geneformer
+    dict_dir: Geneformer/gf_dicts_v1
+    input_size: 2048
+    batch_size: 8

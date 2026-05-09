@@ -1,9 +1,0 @@
-run_id: original
-dataset:
-    - luad2/dataset_shared.yaml
-
-embedding:
-    skip: True # dont excute this (embedding) step
-    viz: False
-    eval: False
-

@@ -1,0 +1,19 @@
+embedding:
+  load_cashed: true
+  method: scfoundation
+  module: features.scf_extractor
+  class: scfoundationExtractor
+  viz: true
+  eval: true
+  params:
+    task_name: BRCA_cancer_cells
+    input_type: singlecell
+    output_type: cell
+    pool_type: all
+    tgthighres: t4
+    pre_normalized: T
+    demo: false
+    version: ce
+    model_path: scfoundation/models.ckpt
+    ckpt_name: 01B-resolution
+    gene_index_path: scfoundation/OS_scRNA_gene_index.19264.tsv
