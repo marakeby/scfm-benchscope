@@ -89,6 +89,7 @@ model_name_map={
 'scimilarity':'SCimilarity',
 'cellplm':'CellPLM',
 'nicheformer': 'Nicheformer',
+'scconcept': 'scConcept',
 'gf-6L-30M-i2048': 'GF-V1',
 'gf-6L-30M-i2048_continue': 'GF-V1 [continue]',
 'Geneformer-V2-104M_CLcancer': 'GF-V2 [cancer]',
@@ -115,6 +116,8 @@ def map_groups(exp):
     elif 'cellplm' in exp:
         return 'Other'
     elif 'nicheformer' in exp:
+        return 'Other'
+    elif 'scconcept' in exp:
         return 'Other'
     
     elif any(x in exp for x in ['hvg', 'pca', 'scvi']):
