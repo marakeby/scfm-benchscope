@@ -2,6 +2,37 @@
 Main experiment runner for scFM_eval.
 Handles configuration, data loading, preprocessing, feature extraction, model training, and evaluation.
 """
+import os
+
+# Cap BLAS/OpenMP thread pools before NumPy/PyTorch load (setdefault preserves user-set exports).
+for _k, _v in (
+    ("OMP_NUM_THREADS", "1"),
+    ("MKL_NUM_THREADS", "1"),
+    ("OPENBLAS_NUM_THREADS", "1"),
+    ("NUMEXPR_NUM_THREADS", "1"),
+    ("VECLIB_MAXIMUM_THREADS", "1"),
+):
+    os.environ.setdefault(_k, _v)
+
+# ---- warnings policy (must run before importing scanpy/scib) ----
+# We suppress a couple of noisy *third-party* FutureWarnings that are not actionable
+# inside this repo. Keep the filters narrow so other warnings still surface.
+import warnings
+
+# Allow users to disable suppression if they want to see everything.
+_suppress = os.environ.get("SCFM_EVAL_SUPPRESS_WARNINGS", "1").lower() not in ("0", "false", "no")
+if _suppress:
+    warnings.filterwarnings(
+        "ignore",
+        category=FutureWarning,
+        message=r".*pandas\.value_counts is deprecated.*",
+    )
+    warnings.filterwarnings(
+        "ignore",
+        category=FutureWarning,
+        message=r".*Argument `use_highly_variable` is deprecated.*",
+    )
+
 # import os
 # os.environ.setdefault("PYTHONHASHSEED", "0")
 # os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -55,7 +86,6 @@ import yaml
 from pathlib import Path
 import importlib
 import sys
-import os
 from os.path import dirname, abspath, join, basename, exists
 import shutil
 
@@ -153,7 +183,7 @@ import anndata as ad
 
 # Legacy mapping kept for backward compatibility only.
 # New code derives the key from the extractor (`extractor.output_key`).
-embedding_method_map = dict(PCA='X_pca', HVG='X_hvg', scVI='X_scVI', geneformer='X_geneformer', scgpt='X_scGPT', scfoundation='X_scfoundation', scimilarity='X_scimilarity', cellplm='X_CellPLM', nicheformer='X_nicheformer', mock='X_mock')
+embedding_method_map = dict(PCA='X_pca', HVG='X_hvg', scVI='X_scVI', geneformer='X_geneformer', scgpt='X_scGPT', scfoundation='X_scfoundation', scimilarity='X_scimilarity', cellplm='X_CellPLM', nicheformer='X_nicheformer', scconcept='X_scconcept', state='X_state', mock='X_mock')
 
 # List to store timing records
 def _get_timing_log():
@@ -175,6 +205,17 @@ def _json_default(o):
     if isinstance(o, Path):
         return str(o)
     raise TypeError(f"Object of type {type(o).__name__} is not JSON serializable")
+
+
+def _value_for_metrics_csv(v):
+    """Scalar values safe for pandas CSV cells (numpy / pathlib)."""
+    if v is None:
+        return v
+    if isinstance(v, Path):
+        return str(v)
+    if isinstance(v, np.generic):
+        return v.item()
+    return v
 
 
 def timing(func):
@@ -206,12 +247,26 @@ def set_random_seed(seed: int, deterministic: bool = True) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # for multi-GPU setups
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)  # for multi-GPU setups
+        # Required for deterministic cuBLAS reductions on CUDA; harmless on CPU-only runs.
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 
     if deterministic:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+        try:
+            torch.use_deterministic_algorithms(True, warn_only=True)
+        except TypeError:
+            try:
+                torch.use_deterministic_algorithms(True)
+            except (RuntimeError, AttributeError):
+                pass
+        try:
+            torch.set_num_threads(1)
+        except Exception:
+            pass
 
     print(f"Random seed set to: {seed}")
 
@@ -258,14 +313,17 @@ def get_configs(config_path):
 
         # Optional, more readable composition keys:
         # - dataset: list of dataset fragments (or single string)
+        # - model: list of model (embedding / extractor) fragments (or single string)
         # - classification: list of classifier fragments (or single string)
         # Backward compatible with:
         # - datasets / classifications
         # - bases / defaults
         dataset = config.get("dataset", None)
+        model = config.get("model", None)
         classification = config.get("classification", None)
         datasets = config.pop("datasets", None)  # deprecated alias
         classifications = config.pop("classifications", None)  # deprecated alias
+        models = config.pop("models", None)  # optional plural alias for model includes
         bases = config.pop("bases", None)
         if bases is None:
             bases = config.pop("defaults", None)
@@ -283,14 +341,20 @@ def get_configs(config_path):
         if isinstance(dataset, (str, list)):
             dataset_includes = config.pop("dataset", None)
 
+        model_includes = None
+        if isinstance(model, (str, list)):
+            model_includes = config.pop("model", None)
+
         classification_includes = None
         if isinstance(classification, (str, list)):
             classification_includes = config.pop("classification", None)
 
-        # Merge order: dataset includes -> classification includes -> bases -> local overrides
+        # Merge order: dataset -> model (embedding) -> classification -> bases -> local overrides
         bases_list = (
             _as_list(dataset_includes)
             + _as_list(datasets)
+            + _as_list(model_includes)
+            + _as_list(models)
             + _as_list(classification_includes)
             + _as_list(classifications)
             + _as_list(bases)
@@ -325,11 +389,16 @@ class Experiment:
     Handles the execution of a machine learning experiment defined by a YAML config.
     Handles loading data, preprocessing, feature extraction, model training, and evaluation.
     """
-    def __init__(self, config_path):
+    def __init__(self, config_path, seed: int = 42):
         """
         Initialize the Experiment with a given config path.
         Sets up directories, logging, and loads configuration.
+
+        Args:
+            config_path: Path to YAML under PARAMS_PATH (or relative as before).
+            seed: Global RNG seed used when config does not override (e.g. subsampling, classifier).
         """
+        self.rng_seed = int(seed)
         self.config_path = join(PARAMS_PATH, config_path)
         (
             self.run_id,
@@ -377,6 +446,7 @@ class Experiment:
             run_id=self.run_id,
             config_path=config_path,
             save_dir=self.save_dir,
+            random_seed=self.rng_seed,
             dataset_path=self.data_config.get("path") if isinstance(self.data_config, dict) else None,
             label_key=self.data_config.get("label_key") if isinstance(self.data_config, dict) else None,
             batch_key=self.data_config.get("batch_key") if isinstance(self.data_config, dict) else None,
@@ -423,7 +493,12 @@ class Experiment:
         loader_config = self.data_config
         loader_config['path'] = join(DATA_PATH, loader_config['path'])
         LoaderClass = self.load_class(loader_config['module'], loader_config['class'])
-        self.log.info(f'Data Loader config: {loader_config}')
+        # Pretty-print config for readability in logs.
+        try:
+            cfg_pretty = yaml.safe_dump(loader_config, sort_keys=False, default_flow_style=False).rstrip()
+        except Exception:
+            cfg_pretty = repr(loader_config)
+        self.log.info("Data Loader config:\n%s", cfg_pretty)
         self.loader = LoaderClass(loader_config)
         self.data = self.loader.load()
 
@@ -433,7 +508,7 @@ class Experiment:
             n_obs = self.loader.adata.n_obs
             if n_obs > max_cells:
                 stratify = loader_config.get('max_cells_stratify')
-                rs = int(loader_config.get('max_cells_random_state', 42))
+                rs = int(loader_config.get('max_cells_random_state', self.rng_seed))
                 self.log.info(
                     "Subsampling cells: n_obs=%s -> max_cells=%s, stratify_by=%s, random_state=%s",
                     n_obs,
@@ -534,6 +609,7 @@ class Experiment:
         # Allow label maps to live under dataset config (shared per task/dataset).
         # If not explicitly set in classifier params, inherit from dataset.label_map.
         if 'params' in clf_config and isinstance(clf_config['params'], dict):
+            clf_config['params'].setdefault('random_state', self.rng_seed)
             if 'label_map' not in clf_config['params']:
                 dataset_label_map = None
                 if isinstance(self.data_config, dict):
@@ -578,7 +654,12 @@ class Experiment:
         """
         Evaluate the quality of the learned embeddings using EmbeddingEvaluator.
         """
-        evaluator = EmbeddingEvaluator(self.loader.adata, embedding_key=self.embedding_key, save_dir=self.save_dir)
+        evaluator = EmbeddingEvaluator(
+            self.loader.adata,
+            embedding_key=self.embedding_key,
+            save_dir=self.save_dir,
+            random_state=self.rng_seed,
+        )
         self.embedding_metrics = evaluator.evaluate()
 
     def _collect_classification_metrics(self):
@@ -595,7 +676,7 @@ class Experiment:
         # Prefer CV metrics if present
         cv_dir = join(self.save_dir, "cv")
         if os.path.isdir(cv_dir):
-            for fname in os.listdir(cv_dir):
+            for fname in sorted(os.listdir(cv_dir)):
                 if fname.endswith("_cv_metrics.csv"):
                     df = pd.read_csv(join(cv_dir, fname), index_col=0)
                     # expected columns: ['Metrics', <model_name>, 'fold'] or similar
@@ -616,7 +697,7 @@ class Experiment:
                                 return out
 
         # Fall back to per-run metrics files in root save_dir
-        for fname in os.listdir(self.save_dir):
+        for fname in sorted(os.listdir(self.save_dir)):
             if fname.startswith("cls_metrics_") and fname.endswith(".csv"):
                 df = pd.read_csv(join(self.save_dir, fname), index_col=0)
                 # format: index Metrics, single model column
@@ -639,8 +720,9 @@ class Experiment:
             json.dump(self.run_summary, f, indent=2, default=_json_default)
 
         # Append one row to a global CSV in OUTPUT_PATH
+        metrics_csv = join(OUTPUT_PATH, "metrics_runs.csv")
         try:
-            import pandas as pd
+            os.makedirs(OUTPUT_PATH, exist_ok=True)
             row = dict(
                 run_id=self.run_id,
                 config_path=self.run_summary.get("config_path"),
@@ -653,22 +735,27 @@ class Experiment:
             # Add a few common metrics if available
             if isinstance(self.embedding_metrics, dict):
                 for k, v in self.embedding_metrics.items():
-                    row[f"emb__{k}"] = v
+                    row[f"emb__{k}"] = _value_for_metrics_csv(v)
             if isinstance(self.classification_metrics, dict):
                 cv_mean = self.classification_metrics.get("cv_mean")
                 if isinstance(cv_mean, dict):
                     for k, v in cv_mean.items():
-                        row[f"clf_cv__{k}"] = v
-            metrics_csv = join(OUTPUT_PATH, "metrics_runs.csv")
+                        row[f"clf_cv__{k}"] = _value_for_metrics_csv(v)
+            row = {k: _value_for_metrics_csv(v) for k, v in row.items()}
             df_row = pd.DataFrame([row])
             if os.path.exists(metrics_csv):
                 df_existing = pd.read_csv(metrics_csv)
-                df_out = pd.concat([df_existing, df_row], ignore_index=True)
+                df_out = pd.concat([df_existing, df_row], ignore_index=True, sort=False)
             else:
                 df_out = df_row
             df_out.to_csv(metrics_csv, index=False)
+            self.log.info("Appended run to metrics ledger: %s", metrics_csv)
         except Exception:
-            pass
+            self.log.exception(
+                "Failed to append row to metrics_runs.csv (%s). "
+                "Check permissions, disk space, or whether the file is open in another program.",
+                metrics_csv,
+            )
 
 
 def main():
@@ -676,9 +763,25 @@ def main():
     Main entry point for running an experiment from the command line.
     Sets random seed, parses config path, runs experiment, and saves timing log.
     """
-    set_random_seed(42)
-    config_path = sys.argv[1] if len(sys.argv) > 1 else 'experiment.yaml'
-    experiment = Experiment(config_path)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run scFM_eval experiment from YAML.")
+    parser.add_argument(
+        "config_path",
+        nargs="?",
+        default="experiment.yaml",
+        help="YAML path relative to PARAMS_PATH.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Global RNG seed (default: SCFM_EVAL_SEED environment variable or 42).",
+    )
+    args = parser.parse_args()
+    seed = args.seed if args.seed is not None else int(os.environ.get("SCFM_EVAL_SEED", "42"))
+    set_random_seed(seed)
+    experiment = Experiment(args.config_path, seed=seed)
     experiment.run()
     experiment._write_standard_reports()
     timing_df = pd.DataFrame(_timing_log)
