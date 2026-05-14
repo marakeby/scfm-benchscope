@@ -1,7 +1,0 @@
-run_id: 'scvi_crc_mmr'
-dataset:
-  - datasets/crc/mmr.yaml
-model:
-  - models/scvi/default.yaml
-classification:
-  - tasks/classification.yaml

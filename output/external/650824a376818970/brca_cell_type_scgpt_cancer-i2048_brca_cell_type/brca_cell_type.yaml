@@ -1,7 +1,0 @@
-run_id: 'scgpt_cancer-i2048_brca_cell_type'
-dataset:
-  - datasets/brca/cell_type/dataset_full.yaml    
-model:
-  - models/scgpt/cancer-i2048.yaml
-classification:
-  skip: True

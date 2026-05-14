@@ -1,7 +1,0 @@
-run_id: 'pca_n100_brca_subtype'
-dataset:
-  - datasets/brca/cancer_subtype/cancer_cells.yaml
-model:
-  - models/pca/n100.yaml
-classification:
-  - tasks/classification.yaml

@@ -1,7 +1,0 @@
-run_id: 'pca_n100_melanoma_response'
-dataset:
-  - datasets/melanoma/response.yaml
-model:
-  - models/pca/n100.yaml
-classification:
-  - tasks/classification.yaml

@@ -1,7 +1,0 @@
-run_id: 'scgpt_cancer-i2048_crc_mmr'
-dataset:
-  - datasets/crc/mmr.yaml
-model:
-  - models/scgpt/cancer-i2048.yaml
-classification:
-  - tasks/classification.yaml

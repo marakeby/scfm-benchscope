@@ -1,7 +1,0 @@
-run_id: 'scgpt_cancer-i2048_brca_outcome'
-dataset:
-  - datasets/brca/outcome/tcell_exhaustion.yaml
-model:
-  - models/scgpt/cancer-i2048.yaml
-classification:
-  - tasks/classification.yaml

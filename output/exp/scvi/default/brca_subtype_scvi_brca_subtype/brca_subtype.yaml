@@ -1,7 +1,0 @@
-run_id: 'scvi_brca_subtype'
-dataset:
-  - datasets/brca/cancer_subtype/cancer_cells.yaml
-model:
-  - models/scvi/default.yaml
-classification:
-  - tasks/classification.yaml
