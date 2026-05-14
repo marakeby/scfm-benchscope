@@ -17,8 +17,9 @@
 # Lockfile (commit pixi.lock for reproducible installs):
 #   pixi lock
 #
-# scFoundation is not on PyPI as a single package — use `scf` env and install
-# the Biomap repo into that env, or follow their README inside `pixi shell -e scf`.
+# scFoundation: upstream has no root PyPI package. Use env `scf` and run
+# `pixi run install-scfoundation` (or `bash scripts/install_scfoundation_model.sh`)
+# to clone into third_party/scFoundation and pip install -e the model/ subfolder.
 
 [workspace]
 name = "scfm_eval"
@@ -28,8 +29,8 @@ channels = ["conda-forge"]
 platforms = ["linux-64"]
 
 [tasks]
-# Pass a YAML under yaml/… as the first argument (see run/run_exp.py main()).
-run-exp = { cmd = "python run/run_exp.py" }
+# Pass a YAML path relative to bundled yaml/ (see scfm_cancer_eval.run.run_exp main()).
+run-exp = { cmd = "python -m scfm_cancer_eval.run.run_exp" }
 # Quick sanity check that imports resolve in the active environment.
 check-imports = { cmd = "python -c \"import yaml, numpy, pandas, anndata, scanpy, torch; print('ok')\"" }
 # VM / Docker: clone Hugging Face Geneformer + pip install -e into the `geneformer` env.
@@ -38,6 +39,7 @@ download-models = { cmd = "bash scripts/download_model_weights.sh" }
 download-data = { cmd = "bash scripts/download_data.sh" }
 verify-gpu = { cmd = "python -c \"import torch; print('cuda_available=', torch.cuda.is_available()); print('torch_cuda=', getattr(torch.version, 'cuda', None))\"" }
 bootstrap-vm = { cmd = "bash scripts/bootstrap_vm.sh" }
+install-scfoundation = { cmd = "bash scripts/install_scfoundation_model.sh" }
 
 # ---------------------------------------------------------------------------
 # Default feature: core harness for run_exp.py (PCA/HVG, viz, eval, classifiers).
@@ -67,6 +69,8 @@ jupyterlab = ">=4.5.6,<5"
 ipykernel = ">=7.2.0,<8"
 
 [pypi-dependencies]
+# Editable install of this repo so every Pixi env can run `python -m scfm_cancer_eval.run.run_exp`.
+"scfm-cancer-eval" = { path = ".", editable = true }
 huggingface_hub = ">=0.20"
 # Benchmarking metrics (NMI, ARI, silhouette, …) used by evaluation/eval.py for all experiments.
 scib = "*"
@@ -163,6 +167,9 @@ mygene = "*"
 python = "3.11.*"
 pip = "*"
 
+[feature.nicheformer_isolated.activation]
+scripts = ["scripts/pixi_pythonpath_src.sh"]
+
 [feature.nicheformer_isolated.pypi-dependencies]
 # Installs upstream pins (pandas 1.5.3, numpy 1.26.4, torch>=2.5.1, …).
 nicheformer = { git = "https://github.com/theislab/nicheformer.git" }
@@ -195,7 +202,7 @@ torchvision = { version = "0.21.*", build = "*cuda*" }
 fsspec = "==2025.9.0"
 
 [feature.scconcept_isolated.activation]
-scripts = ["scripts/scgpt_env.sh"]
+scripts = ["scripts/scgpt_env.sh", "scripts/pixi_pythonpath_src.sh"]
 
 # flash-attn build runs without isolation so it sees the env torch (see pixi pypi-options docs).
 [feature.scconcept_isolated.pypi-options]
@@ -233,8 +240,8 @@ scripts = ["scripts/scgpt_env.sh"]
 [feature.state.pypi-dependencies]
 arc-state = ">=0.10"
 
-# scFoundation: no stable PyPI package — install Biomap repo into this env manually.
-# CUDA PyTorch (same pattern as geneformer); `pip install -e` scFoundation uses this torch.
+# scFoundation model code: install via `pixi run install-scfoundation` (editable
+# install of upstream model/). CUDA PyTorch matches other GPU extractors.
 [feature.scf.system-requirements]
 cuda = "12"
 
@@ -246,10 +253,9 @@ torchvision = { version = ">=0.16", build = "*cuda*" }
 scripts = ["scripts/scgpt_env.sh"]
 
 [feature.scf.pypi-dependencies]
-# Install from https://github.com/biomap-research/scFoundation when you use this env:
-#   pixi run -e scf pip install -e path/to/scFoundation
+# After `pixi run install-scfoundation`, pretrainmodels is provided by editable
+# scfoundation-model; local-attention remains here for lockfile consistency.
 protobuf = "*"
-# Used by features/scfoundation/pretrainmodels/performer.py (`from local_attention import LocalAttention`).
 "local-attention" = "*"
 
 # ---------------------------------------------------------------------------

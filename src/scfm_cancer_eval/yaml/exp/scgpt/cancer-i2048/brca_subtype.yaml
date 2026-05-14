@@ -1,0 +1,7 @@
+run_id: 'scgpt_cancer-i2048_brca_subtype'
+dataset:
+  - datasets/brca/cancer_subtype/cancer_cells.yaml
+model:
+  - models/scgpt/cancer-i2048.yaml
+classification:
+  - tasks/classification.yaml

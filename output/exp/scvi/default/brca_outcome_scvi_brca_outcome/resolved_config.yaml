@@ -1,0 +1,65 @@
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: brca_full/T_cells_only.h5ad
+  load_raw: false
+  label_key: outcome
+  batch_key: donor_id
+  filter:
+  - column: outcome
+    values:
+    - NE
+    - E
+  - column: timepoint
+    values:
+    - Pre
+  layer_name: X
+  train_test_split: data_splits/brca_full/brca_outcome/train_test_split_oversampled.json
+  cv_splits: data_splits/brca_full/brca_outcome/cv_splits_oversampled.json
+  label_map:
+    NE: 0
+    E: 1
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  batch_key: batch
+  n_top_genes: 4096
+  flavor: seurat
+embedding:
+  method: scVI
+  module: features.scvi_extractor
+  class: scVIEmbeddingExtractor
+  viz: true
+  eval: true
+  params:
+    batch_key: batch
+    n_layers: 2
+    n_latent: 100
+    gene_likelihood: nb
+    max_epochs: 10
+    layer_name: null
+    batch_size: 128
+classification:
+  module: models.classify
+  class: ClassifierPipeline
+  params:
+    model: randomforest
+    n_estimators: 100
+    max_depth: 5
+    train_funcs:
+    - avg
+    - mil
+    - vote
+    cv: true
+    mil:
+      debug: false
+      top_k: 20
+      holdout_fraction: 0.0
+  viz: true
+  eval: true
+run_id: scvi_brca_outcome

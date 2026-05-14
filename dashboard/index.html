@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>scFM BenchScope</title>
+<style>
+  :root {
+    --bg:#f6f8fc; --panel:#ffffff; --ink:#172033; --muted:#667085; --line:#d9deea;
+    --accent:#2563eb; --accent2:#7c3aed; --accent3:#059669; --shadow:0 12px 30px rgba(20,30,55,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+  .shell{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+  aside{background:#0f172a;color:white;padding:24px 18px;position:sticky;top:0;height:100vh;overflow:auto}
+  .brand{display:flex;gap:12px;align-items:center;margin-bottom:22px}
+  .logo{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#38bdf8,#7c3aed);box-shadow:0 10px 25px rgba(56,189,248,.25)}
+  h1{font-size:22px;line-height:1.08;margin:0;letter-spacing:-.03em}
+  .tagline{color:#cbd5e1;font-size:13px;line-height:1.4;margin:10px 0 22px}
+  nav{display:grid;gap:8px}
+  .navbtn{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);color:#e5e7eb;text-align:left;padding:12px 12px;border-radius:13px;cursor:pointer;font-weight:750;display:flex;align-items:center;gap:10px}
+  .navbtn span.icon{width:24px;height:24px;border-radius:8px;display:inline-grid;place-items:center;background:rgba(255,255,255,.10);font-size:13px}
+  .navbtn:hover{background:rgba(255,255,255,.08)}
+  .navbtn.active{background:white;color:#0f172a;border-color:white}
+  .aside-note{margin-top:24px;border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:14px;background:rgba(255,255,255,.04);color:#cbd5e1;font-size:12px;line-height:1.45}
+  main{min-width:0}
+  header{padding:26px 30px 18px;background:linear-gradient(135deg,#eff6ff,#f8fafc);border-bottom:1px solid var(--line)}
+  .eyebrow{font-size:12px;font-weight:850;color:#2563eb;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+  .page-title{font-size:30px;font-weight:850;letter-spacing:-.035em;margin:0 0 8px}
+  .subtitle{color:var(--muted);line-height:1.5;max-width:1050px}
+  .content{padding:22px 28px 36px}
+  .section{display:none}
+  .section.active{display:block}
+  .cards{display:grid;grid-template-columns:repeat(3,minmax(190px,1fr));gap:16px;margin:18px 0}
+  .card.is-wide{grid-column:1/-1}
+  .benchmark-list{margin:10px 0 0;padding:0 0 0 1.25rem;color:var(--muted);font-size:14px;line-height:1.5}
+  .benchmark-list li{margin:6px 0}
+  .benchmark-list strong{color:var(--ink);font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:18px}
+  .card h3{margin:0 0 8px;font-size:17px}
+  .card p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+  .card .mod-link{margin-top:14px;font-size:14px;font-weight:750}
+  .card .mod-link a{color:var(--accent);text-decoration:none}
+  .card .mod-link a:hover{text-decoration:none;opacity:.88}
+  .hero{background:linear-gradient(135deg,#111827,#1e3a8a);color:white;border-radius:24px;padding:26px;box-shadow:var(--shadow)}
+  .hero h2{font-size:28px;margin:0 0 10px;letter-spacing:-.03em}
+  .hero p{color:#dbeafe;line-height:1.55;max-width:980px;margin:0}
+  .pillbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .pill{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.10);color:white;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:750}
+  .embed-frame{width:100%;height:calc(100vh - 142px);min-height:760px;border:1px solid var(--line);border-radius:20px;background:white;box-shadow:var(--shadow)}
+  .frame-note{display:flex;justify-content:space-between;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:14px;color:var(--muted);font-size:13px}
+  .frame-note strong{color:var(--ink)}
+  .launch{border:0;background:#e8eefc;color:#1e40af;border-radius:10px;padding:8px 11px;font-weight:800;cursor:pointer;white-space:nowrap}
+  .table{width:100%;border-collapse:collapse;font-size:14px;background:white;border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+  th,td{border-bottom:1px solid var(--line);padding:12px;text-align:left;vertical-align:top} th{background:#f8fafc;color:#475569;font-size:12px;text-transform:uppercase;letter-spacing:.05em} tr:last-child td{border-bottom:0}
+  @media(max-width:1000px){.shell{grid-template-columns:1fr}aside{height:auto;position:relative}.cards{grid-template-columns:1fr}.embed-frame{height:900px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside>
+    <div class="brand"><div class="logo"></div><div><h1>scFM<br/>BenchScope</h1></div></div>
+    <div class="tagline">A systematic evaluation framework for single-cell foundation models (scFMs), covering biological conservation, batch mixing, and classification performance across diverse cancer datasets and tasks.
+      .</div>
+    <nav>
+      <button class="navbtn active" data-page="overview"><span class="icon">⌂</span> Overview</button>
+      <button class="navbtn" data-page="embedding"><span class="icon">↔</span> Embedding quality</button>
+      <button class="navbtn" data-page="classification"><span class="icon">◎</span> Classification metrics</button>
+      <button class="navbtn" data-page="models"><span class="icon">M</span> Models</button>
+      <button class="navbtn" data-page="datasets"><span class="icon">D</span> Datasets</button>
+      <button class="navbtn" data-page="metrics"><span class="icon">Σ</span> Metric dictionary</button>
+    </nav>
+  </aside>
+  <main>
+    <header>
+      <div class="eyebrow">Single-cell foundation model benchmarking</div>
+      <div id="pageTitle" class="page-title">Overview</div>
+      <div id="pageSubtitle" class="subtitle">Explore benchmarking results for scFM embeddings and downstream classification tasks.</div>
+    </header>
+    <div class="content">
+      <section id="overview" class="section active">
+        <div class="hero">
+          <h2>scFM BenchScope</h2>
+          <p>scFM BenchScope is an agentic evaluation framework for single-cell foundation models (scFMs), designed to assess both representation quality and clinical-task utility. It benchmarks models across biological conservation, batch mixing, and classification performance using diverse cancer datasets and clinically relevant prediction tasks. The framework also supports automated discovery, classification, and summarization of emerging scFMs, enabling continuous evaluation of new models for applications such as patient outcome prediction.
+          </p>
+          <div class="pillbar"></div>
+        </div>
+        <div class="cards">
+          <div class="card"><h3>Embedding quality</h3><p>Interactive views for biological conservation and batch mixing metrics, grouped by model families such as Baseline, Geneformer, scGPT, and Other.</p><p class="mod-link"><a href="embeddings.html" target="_blank" rel="noopener">Embedding Metrics</a></p></div>
+          <div class="card"><h3>Classification metrics</h3><p>Task × model performance matrix, aggregated performance, run-level distributions, and metric-vs-metric comparisons for downstream tasks.</p><p class="mod-link"><a href="classification.html" target="_blank" rel="noopener">Classification Metrics</a></p></div>
+          <div class="card"><h3>Model Explorer</h3><p>Navigation now includes model metadata, embedding quality, classification metrics, and placeholders for dataset descriptions and metric documentation.</p><p class="mod-link"><a href="models.html" target="_blank" rel="noopener">Model Explorer</a></p></div>
+          <div class="card is-wide">
+            <h3>Benchmarked models</h3>
+            <p>The following models have been evaluated through the full scFM evaluation framework across all metric categories:</p>
+            <ul class="benchmark-list">
+              <li><strong>scGPT</strong> — Generative pre-trained transformer trained on 33 million human single-cell transcriptomes.</li>
+              <li><strong>Geneformer</strong> — BERT-style transformer pre-trained on 30 million human single-cell transcriptomes with rank-value encoding of gene expression.</li>
+              <li><strong>scFoundation</strong> — 100-million parameter model pre-trained on 50 million human single cells with an asymmetric transformer architecture.</li>
+              <li><strong>CellPLM</strong> — Encodes cell-cell relationships beyond individual cells using a Gaussian mixture latent space.</li>
+              <li><strong>Nicheformer</strong> — Joint foundation model for dissociated single-cell and spatial transcriptomics, trained on 110 million cells.</li>
+              <li><strong>Scimilarity</strong> — Metric learning foundation model trained on about 22 million single-cell profiles.</li>
+              <li><strong>scConcept</strong> — Contrastive pre-training approach that learns technology-agnostic single-cell representations without relying on reconstruction objectives.</li>
+              <li><strong>STATE</strong> — Context-aware perturbation foundation model that predicts transcriptional responses to genetic and chemical perturbations across diverse cell types and experimental conditions.</li>
+            </ul>
+          </div>
+
+        </div>
+      </section>
+      <section id="embedding" class="section">
+        <div class="frame-note"><div><strong>Embedding quality module.</strong> Includes biological conservation and batch mixing tabs with grouped run distributions and metric-vs-metric comparison.</div><button class="launch" data-open="embeddingFrame">Open in new tab</button></div>
+        <iframe id="embeddingFrame" class="embed-frame" title="Embedding quality dashboard"></iframe>
+      </section>
+      <section id="classification" class="section">
+        <div class="frame-note"><div><strong>Classification metrics module.</strong> Based on your attached classification dashboard, with task × model matrix, aggregated performance, distributions, and scatter comparison.</div><button class="launch" data-open="classificationFrame">Open in new tab</button></div>
+        <iframe id="classificationFrame" class="embed-frame" title="Classification metrics dashboard"></iframe>
+      </section>
+      <section id="models" class="section">
+        <div class="frame-note"><div><strong>Model registry module.</strong> Search and filter the single-cell foundation models used or tracked in the benchmark. Cards include papers, repositories, pre-trained weights, modalities, architecture, objectives, domain, prior knowledge, and benchmarked status.</div><button class="launch" data-open="modelsFrame">Open in new tab</button></div>
+        <iframe id="modelsFrame" class="embed-frame" title="Single-cell foundation model registry"></iframe>
+      </section>
+      <section id="datasets" class="section">
+        <div class="card"><h3>Datasets page placeholder</h3><p>This page can describe benchmark datasets, cohort sizes, tissue/disease context, labels, tasks, split strategy, and preprocessing choices.</p></div>
+      </section>
+      <section id="metrics" class="section">
+        <div class="card"><h3>Metric dictionary placeholder</h3><p>This page can become the canonical documentation for metric categories, friendly names, directions, and short explanations.</p></div>
+        <div class="cards"><div class="card"><h3>Biological conservation</h3><p>NMI, ARI, ASW label, graph connectivity, cLISI, label-purity and kNN label-prediction metrics.</p></div><div class="card"><h3>Batch mixing</h3><p>kBET, iLISI, PCR batch, batch ASW, KNN batch purity, and batch prediction accuracy.</p></div><div class="card"><h3>Classification</h3><p>AUPRC, AUROC/AUC, F1, accuracy, precision, recall, plus task- and strategy-level summaries.</p></div></div>
+      </section>
+    </div>
+  </main>
+</div>
+<script>
+const pages = {
+  overview: {title:'Overview', subtitle:'Explore benchmarking results for scFM embeddings and downstream classification tasks.'},
+  embedding: {title:'Embedding quality', subtitle:'Biological conservation and batch mixing metrics across single-cell foundation models.'},
+  classification: {title:'Classification metrics', subtitle:'Downstream task performance across models, strategies, and model groups.'},
+  models: {title:'Models', subtitle:'Searchable registry of scFM model metadata: papers, repositories, weights, modalities, architectures, objectives, domains, and prior knowledge.'},
+  datasets: {title:'Datasets', subtitle:'Future dataset registry with cohort, task, label, split, and preprocessing information.'},
+  metrics: {title:'Metric dictionary', subtitle:'Future documentation for metric definitions, categories, directions, and interpretation.'}
+};
+const MODULE_SRC = {
+  embeddingFrame: 'embeddings.html',
+  classificationFrame: 'classification.html',
+  modelsFrame: 'models.html'
+};
+function loadFrame(id){
+  const frame = document.getElementById(id);
+  if(frame.dataset.loaded) return;
+  frame.src = MODULE_SRC[id];
+  frame.dataset.loaded = '1';
+}
+function showPage(page){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById(page).classList.add('active');
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.page===page));
+  document.getElementById('pageTitle').textContent = pages[page].title;
+  document.getElementById('pageSubtitle').textContent = pages[page].subtitle;
+  if(page==='embedding') loadFrame('embeddingFrame');
+  if(page==='classification') loadFrame('classificationFrame');
+  if(page==='models') loadFrame('modelsFrame');
+}
+document.querySelectorAll('.navbtn').forEach(btn=>btn.addEventListener('click',()=>showPage(btn.dataset.page)));
+document.querySelectorAll('.launch').forEach(btn=>btn.addEventListener('click',()=>{
+  const id = btn.dataset.open;
+  loadFrame(id);
+  window.open(MODULE_SRC[id], '_blank');
+}));
+</script>
+</body>
+</html>

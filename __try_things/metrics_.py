@@ -28,7 +28,7 @@ def densify_obsm_embeddings(adata: ad.AnnData, keys: list[str]) -> None:
 
 # sys.path.insert(0, '/home/jupyter/scFM_eval_')
 sys.path.insert(0, '..')
-from evaluation.eval import EmbeddingEvaluator
+from scfm_cancer_eval.evaluation.eval import EmbeddingEvaluator
 base_dir = '/home/haitham/mnt/__output_v3/exp'
 
 

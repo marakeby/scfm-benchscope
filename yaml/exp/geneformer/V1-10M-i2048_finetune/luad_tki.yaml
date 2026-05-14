@@ -1,5 +1,0 @@
-run_id: 'geneformer_V1-10M-i2048_finetune_luad_tki'
-dataset:
-  - datasets/luad/tki.yaml
-model:
-  - models/geneformer/V1-10M-i2048_finetune.yaml

@@ -1,0 +1,11 @@
+embedding:
+  method: state
+  module: features.state_extractor
+  class: StateExtractor
+  viz: true
+  eval: true
+  params:
+    # PyTorch Lightning checkpoint containing cfg_yaml (or pass config_path).
+    checkpoint_path: state/SE-600M/se600m_epoch16.ckpt
+    # Map Ensembl → symbol when var_names / columns are not already SE-600M protein keys.
+    gene_name_id_dict: Geneformer/gf_dicts_v2/gene_name_id_dict_gc104M.pkl

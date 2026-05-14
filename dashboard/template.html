@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Single-Cell Foundation Models</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px;background:#f6f8fa;color:#1a1a1a;line-height:1.5;}
+a{color:#0969da;text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+/* ── Header ── */
+.header{background:#fff;border-bottom:1px solid #d0d7de;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.header-left h1{font-size:18px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.header-left p{font-size:12px;color:#656d76;margin-top:3px;}
+.updated{font-size:11px;color:#656d76;background:#f6f8fa;border:1px solid #d0d7de;border-radius:6px;padding:4px 10px;}
+
+/* ── Layout ── */
+.container{max-width:1200px;margin:0 auto;padding:20px 16px;}
+
+/* ── Stats ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:20px;}
+.stat{background:#fff;border:1px solid #d0d7de;border-radius:8px;padding:12px 14px;}
+.stat-n{font-size:22px;font-weight:600;color:#1a1a1a;}
+.stat-l{font-size:11px;color:#656d76;margin-top:2px;}
+
+/* ── Controls ── */
+.controls{background:#fff;border:1px solid #d0d7de;border-radius:8px;padding:14px 16px;margin-bottom:16px;}
+.search-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.search-row input{flex:1;min-width:200px;padding:6px 10px;border:1px solid #d0d7de;border-radius:6px;font-size:13px;}
+.search-row input:focus{outline:none;border-color:#0969da;box-shadow:0 0 0 3px rgba(9,105,218,.1);}
+.search-row select{padding:6px 10px;border:1px solid #d0d7de;border-radius:6px;font-size:13px;background:#fff;cursor:pointer;}
+.filter-section{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-top:10px;border-top:1px solid #f0f0f0;}
+.filter-label{font-size:11px;color:#656d76;font-weight:500;min-width:56px;}
+.chip{font-size:12px;padding:3px 10px;border-radius:20px;border:1px solid #d0d7de;background:#fff;cursor:pointer;color:#656d76;transition:all .15s;}
+.chip:hover{border-color:#0969da;color:#0969da;}
+.chip.on{background:#0969da;color:#fff;border-color:#0969da;}
+.chip .cn{font-size:10px;opacity:.8;margin-left:3px;}
+
+/* ── Grid ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
+.card{background:#fff;border:1px solid #d0d7de;border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;transition:box-shadow .15s;}
+.card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+.model-name{font-size:15px;font-weight:600;color:#1a1a1a;}
+.badges{display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0;}
+.badge{font-size:10px;font-weight:500;padding:2px 7px;border-radius:20px;white-space:nowrap;}
+.b-pub{background:#dafbe1;color:#1a7f37;}
+.b-pre{background:#fff3cd;color:#9a6700;}
+.b-unk{background:#f6f8fa;color:#656d76;}
+.b-cat{background:#ddf4ff;color:#0550ae;}
+.b-new{background:#ffebe9;color:#a40e26;}
+.b-bench{background:#dafbe1;color:#1a7f37;font-weight:600;}
+.paper-title{font-size:11px;color:#656d76;line-height:1.4;}
+.desc{font-size:12px;color:#444;line-height:1.6;}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.mi{display:flex;flex-direction:column;gap:1px;}
+.ml{font-size:10px;color:#656d76;text-transform:uppercase;letter-spacing:.04em;font-weight:500;}
+.mv{font-size:12px;color:#1a1a1a;}
+.links{display:flex;flex-wrap:wrap;gap:5px;border-top:1px solid #f0f0f0;padding-top:10px;}
+.lp{font-size:11px;display:flex;align-items:center;gap:4px;border:1px solid #d0d7de;border-radius:6px;padding:3px 9px;color:#0969da;transition:background .15s;}
+.lp:hover{background:#f6f8fa;text-decoration:none;}
+.lp svg{width:12px;height:12px;flex-shrink:0;}
+.empty{text-align:center;color:#656d76;padding:40px 0;grid-column:1/-1;font-size:14px;}
+
+/* ── Footer ── */
+.footer{text-align:center;font-size:11px;color:#656d76;padding:24px 16px;border-top:1px solid #d0d7de;margin-top:24px;}
+
+/* ── New model highlight ── */
+.card.is-new{border-color:#0969da;}
+/* ── Benchmarked highlight ── */
+.card.is-benchmarked{border-color:#1a7f37;border-width:1.5px;}
+
+/* ── Benchmarked highlight ── */
+.card.is-benchmarked{border-color:#1a7f37;border-width:1.5px;}
+.b-bench{background:#dafbe1;color:#1a7f37;}
+.bench-banner{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:#1a7f37;background:#dafbe1;border-radius:6px;padding:4px 10px;margin-bottom:2px;}
+.bench-banner svg{width:13px;height:13px;flex-shrink:0;}
+.tag-row{display:flex;flex-wrap:wrap;gap:4px;padding-top:6px;}
+.tag{font-size:10px;padding:2px 7px;border-radius:20px;white-space:nowrap;font-weight:500;}
+.tag-arch{background:#EEEDFE;color:#3C3489;}
+.tag-loss{background:#FAEEDA;color:#633806;}
+.tag-domain{background:#E6F1FB;color:#0C447C;}
+.tag-prior{background:#E1F5EE;color:#085041;}
+.tag-group{display:flex;flex-direction:column;gap:3px;}
+.tag-group-label{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#656d76;margin-top:4px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      Single-Cell Foundation Models
+    </h1>
+    <p>Models with public code &amp; pre-trained weights · auto-updated every 3 days</p>
+  </div>
+  <span class="updated">Last updated: __UPDATED_AT__</span>
+</div>
+
+<div class="container">
+
+  <div class="stats" id="statsRow">
+    <div class="stat"><div class="stat-n" id="sTotal">0</div><div class="stat-l">Total models</div></div>
+    <div class="stat"><div class="stat-n" id="sPublished">0</div><div class="stat-l">Published</div></div>
+    <div class="stat"><div class="stat-n" id="sPreprint">0</div><div class="stat-l">Preprints</div></div>
+    <div class="stat"><div class="stat-n" id="sWeights">0</div><div class="stat-l">Has weights</div></div>
+    <div class="stat"><div class="stat-n" id="sGithub">0</div><div class="stat-l">Has GitHub</div></div>
+    <div class="stat" style="border-color:#1a7f37;"><div class="stat-n" id="sBench" style="color:#1a7f37;">0</div><div class="stat-l">Benchmarked</div></div>
+  </div>
+
+  <div class="controls">
+    <div class="search-row">
+      <input type="text" id="q" placeholder="Search models, papers, modalities, descriptions..." oninput="render()"/>
+      <select id="yrFilter" onchange="render()">
+        <option value="">All years</option>
+        <option value="2026">2026</option>
+        <option value="2025">2025</option>
+        <option value="2024">2024</option>
+        <option value="2023">2023</option>
+        <option value="2022">2022</option>
+      </select>
+      <select id="sortBy" onchange="render()">
+        <option value="bench_first" selected>Benchmarked first</option>
+        <option value="new_first">Newest (2026) first</option>
+        <option value="year_desc">Newest first</option>
+        <option value="year_asc">Oldest first</option>
+        <option value="name">Name A–Z</option>
+        <option value="venue">Venue</option>
+      </select>
+    </div>
+    <div class="filter-section">
+      <span class="filter-label">Status:</span>
+      <button class="chip on" data-g="status" data-v="all" onclick="fc(this)">All <span class="cn" id="cn-all"></span></button>
+      <button class="chip" data-g="status" data-v="published" onclick="fc(this)">Published <span class="cn" id="cn-pub"></span></button>
+      <button class="chip" data-g="status" data-v="preprint" onclick="fc(this)">Preprint <span class="cn" id="cn-pre"></span></button>
+    </div>
+    <div class="filter-section" style="margin-top:8px;">
+      <span class="filter-label">Category:</span>
+      <button class="chip on" data-g="cat" data-v="all" onclick="fc(this)">All</button>
+      <button class="chip" data-g="cat" data-v="FM" onclick="fc(this)">Foundation model</button>
+      <button class="chip" data-g="cat" data-v="LLM" onclick="fc(this)">FM + LLM</button>
+      <button class="chip" data-g="cat" data-v="Perturbation" onclick="fc(this)">Perturbation</button>
+      <button class="chip" data-g="cat" data-v="Spatial" onclick="fc(this)">Spatial</button>
+      <button class="chip" data-g="cat" data-v="Multimodal" onclick="fc(this)">Multimodal</button>
+    </div>
+    <div class="filter-section" style="margin-top:8px;">
+      <span class="filter-label">Architecture:</span>
+      <button class="chip on" data-g="arch" data-v="all" onclick="fc(this)">All</button>
+      <button class="chip" data-g="arch" data-v="Transformer" onclick="fc(this)">Transformer</button>
+      <button class="chip" data-g="arch" data-v="BERT" onclick="fc(this)">BERT</button>
+      <button class="chip" data-g="arch" data-v="GPT" onclick="fc(this)">GPT</button>
+      <button class="chip" data-g="arch" data-v="Graph Neural Network" onclick="fc(this)">GNN</button>
+      <button class="chip" data-g="arch" data-v="VAE" onclick="fc(this)">VAE</button>
+      <button class="chip" data-g="arch" data-v="Hyena" onclick="fc(this)">Hyena/SSM</button>
+      <button class="chip" data-g="arch" data-v="MLP" onclick="fc(this)">MLP</button>
+      <button class="chip" data-g="arch" data-v="Diffusion" onclick="fc(this)">Diffusion</button>
+    </div>
+    <div class="filter-section" style="margin-top:8px;">
+      <span class="filter-label">Loss:</span>
+      <button class="chip on" data-g="loss" data-v="all" onclick="fc(this)">All</button>
+      <button class="chip" data-g="loss" data-v="Masked Gene Modelling" onclick="fc(this)">Masked / MLM</button>
+      <button class="chip" data-g="loss" data-v="Autoregressive" onclick="fc(this)">Autoregressive</button>
+      <button class="chip" data-g="loss" data-v="Contrastive" onclick="fc(this)">Contrastive</button>
+      <button class="chip" data-g="loss" data-v="Reconstruction" onclick="fc(this)">Reconstruction</button>
+      <button class="chip" data-g="loss" data-v="Multitask" onclick="fc(this)">Multitask</button>
+      <button class="chip" data-g="loss" data-v="Cross-modal" onclick="fc(this)">Cross-modal</button>
+      <button class="chip" data-g="loss" data-v="Denoising" onclick="fc(this)">Denoising</button>
+    </div>
+    <div class="filter-section" style="margin-top:8px;">
+      <span class="filter-label">Domain:</span>
+      <button class="chip on" data-g="domain" data-v="all" onclick="fc(this)">All</button>
+      <button class="chip" data-g="domain" data-v="Generic" onclick="fc(this)">Generic</button>
+      <button class="chip" data-g="domain" data-v="Multi-tissue" onclick="fc(this)">Multi-tissue</button>
+      <button class="chip" data-g="domain" data-v="Spatial / Tissue" onclick="fc(this)">Spatial</button>
+      <button class="chip" data-g="domain" data-v="Epigenomics" onclick="fc(this)">Epigenomics</button>
+      <button class="chip" data-g="domain" data-v="Cross-species" onclick="fc(this)">Cross-species</button>
+      <button class="chip" data-g="domain" data-v="Cancer" onclick="fc(this)">Cancer</button>
+      <button class="chip" data-g="domain" data-v="Brain / Neuronal" onclick="fc(this)">Brain</button>
+      <button class="chip" data-g="domain" data-v="Immunology" onclick="fc(this)">Immunology</button>
+      <button class="chip" data-g="domain" data-v="Proteomics" onclick="fc(this)">Proteomics</button>
+    </div>
+    <div class="filter-section" style="margin-top:8px;">
+      <span class="filter-label">Prior knowledge:</span>
+      <button class="chip on" data-g="prior" data-v="all" onclick="fc(this)">All</button>
+      <button class="chip" data-g="prior" data-v="None" onclick="fc(this)">None (data-only)</button>
+      <button class="chip" data-g="prior" data-v="Gene Regulatory Network" onclick="fc(this)">Gene Reg. Network</button>
+      <button class="chip" data-g="prior" data-v="Protein-Protein Interaction" onclick="fc(this)">PPI Network</button>
+      <button class="chip" data-g="prior" data-v="Protein Sequence / ESM" onclick="fc(this)">Protein Seq / ESM</button>
+      <button class="chip" data-g="prior" data-v="DNA Sequence" onclick="fc(this)">DNA Sequence</button>
+      <button class="chip" data-g="prior" data-v="Genomic Position" onclick="fc(this)">Genomic Position</button>
+      <button class="chip" data-g="prior" data-v="Peak-to-Gene Links" onclick="fc(this)">Peak-to-Gene</button>
+      <button class="chip" data-g="prior" data-v="Spatial Coordinates" onclick="fc(this)">Spatial Coords</button>
+      <button class="chip" data-g="prior" data-v="Cell Ontology" onclick="fc(this)">Cell Ontology</button>
+      <button class="chip" data-g="prior" data-v="Gene Ontology" onclick="fc(this)">Gene Ontology</button>
+      <button class="chip" data-g="prior" data-v="Text / Literature" onclick="fc(this)">Text / Literature</button>
+      <button class="chip" data-g="prior" data-v="Pathway / Metabolic" onclick="fc(this)">Pathway</button>
+      <button class="chip" data-g="prior" data-v="Cross-species Orthologs" onclick="fc(this)">Orthologs</button>
+      <button class="chip" data-g="prior" data-v="Chromatin Accessibility" onclick="fc(this)">Chromatin Access.</button>
+    </div>
+    <div class="filter-section" style="margin-top:8px;">
+      <span class="filter-label">Benchmarked:</span>
+      <button class="chip on" data-g="bench" data-v="all" onclick="fc(this)">All</button>
+      <button class="chip" data-g="bench" data-v="yes" onclick="fc(this)">&#10003; Benchmarked only</button>
+    </div>
+    <div class="filter-section" style="margin-top:8px;">
+      <span class="filter-label">Modality:</span>
+      <button class="chip on" data-g="mod" data-v="all" onclick="fc(this)">All</button>
+      <button class="chip" data-g="mod" data-v="scRNA-seq" onclick="fc(this)">scRNA-seq</button>
+      <button class="chip" data-g="mod" data-v="scATAC-seq" onclick="fc(this)">scATAC-seq</button>
+      <button class="chip" data-g="mod" data-v="Spatial" onclick="fc(this)">Spatial</button>
+      <button class="chip" data-g="mod" data-v="Protein" onclick="fc(this)">Protein</button>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="footer">
+  Auto-generated by the single-cell foundation model discovery agent &middot;
+  Seeded from <a href="https://github.com/OmicsML/awesome-foundation-model-single-cell-papers">OmicsML/awesome-foundation-model-single-cell-papers</a> &middot;
+  __TOTAL_COUNT__ models tracked
+</div>
+
+<script>
+const ALL_MODELS = __MODELS_JSON__;
+
+let filters = { status: 'all', cat: 'all', mod: 'all', bench: 'all', arch: 'all', loss: 'all', domain: 'all', prior: 'all' };
+
+function fc(btn) {
+  const g = btn.dataset.g;
+  document.querySelectorAll(`[data-g="${g}"]`).forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  filters[g] = btn.dataset.v;
+  render();
+}
+
+function updateStats() {
+  const m = ALL_MODELS;
+  document.getElementById('sTotal').textContent     = m.length;
+  document.getElementById('sPublished').textContent = m.filter(x => x.status === 'published').length;
+  document.getElementById('sPreprint').textContent  = m.filter(x => x.status === 'preprint').length;
+  document.getElementById('sWeights').textContent   = m.filter(x => x.weights_url).length;
+  document.getElementById('sGithub').textContent    = m.filter(x => x.github_url).length;
+  document.getElementById('sBench').textContent     = m.filter(x => x.benchmarked).length;
+  document.getElementById('cn-all').textContent     = m.length;
+  document.getElementById('cn-pub').textContent     = m.filter(x => x.status === 'published').length;
+  document.getElementById('cn-pre').textContent     = m.filter(x => x.status === 'preprint').length;
+}
+
+function render() {
+  const q   = document.getElementById('q').value.toLowerCase().trim();
+  const yr  = document.getElementById('yrFilter').value;
+  const srt = document.getElementById('sortBy').value;
+
+  let data = ALL_MODELS.filter(m => {
+    if (filters.status !== 'all' && m.status !== filters.status) return false;
+    if (filters.cat !== 'all' && m.category !== filters.cat) return false;
+    if (filters.mod !== 'all') {
+      const mods = Array.isArray(m.modalities) ? m.modalities : [];
+      if (!mods.some(mod => mod.toLowerCase().includes(filters.mod.toLowerCase()))) return false;
+    }
+    if (filters.bench === 'yes' && !m.benchmarked) return false;
+    if (filters.arch !== 'all') {
+      const archs = m.architecture || [];
+      if (!archs.some(a => a === filters.arch || a.includes(filters.arch))) return false;
+    }
+    if (filters.loss !== 'all') {
+      const losses = m.loss_functions || [];
+      if (!losses.some(l => l === filters.loss || l.includes(filters.loss))) return false;
+    }
+    if (filters.prior !== 'all') {
+      const priors = m.prior_knowledge || [];
+      if (!priors.some(p => p === filters.prior || p.includes(filters.prior))) return false;
+    }
+    if (filters.domain !== 'all') {
+      const domains = m.domain || [];
+      if (!domains.some(d => d === filters.domain || d.includes(filters.domain))) return false;
+    }
+    if (yr && String(m.year) !== yr) return false;
+    if (q) {
+      const hay = [m.model_name, m.paper_title, m.description, m.journal,
+                   ...(m.modalities || []), m.category,
+                   ...(m.architecture || []), ...(m.loss_functions || []), ...(m.domain || []),
+                   ...(m.prior_knowledge || [])].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  data.sort((a, b) => {
+    if (srt === 'year_desc') return (b.year || 0) - (a.year || 0);
+    if (srt === 'year_asc')  return (a.year || 0) - (b.year || 0);
+    if (srt === 'name')      return (a.model_name || '').localeCompare(b.model_name || '');
+    if (srt === 'venue')     return (a.journal || '').localeCompare(b.journal || '');
+    if (srt === 'new_first') {
+      const nd = (b.year >= 2026 ? 1 : 0) - (a.year >= 2026 ? 1 : 0);
+      return nd !== 0 ? nd : (b.year || 0) - (a.year || 0);
+    }
+    if (srt === 'bench_first') {
+      const bd = (b.benchmarked ? 1 : 0) - (a.benchmarked ? 1 : 0);
+      return bd !== 0 ? bd : (b.year || 0) - (a.year || 0);
+    }
+    return 0;
+  });
+
+  const g = document.getElementById('grid');
+  if (!data.length) {
+    g.innerHTML = '<div class="empty">No models match the current filters.</div>';
+    return;
+  }
+
+  const today = new Date();
+  g.innerHTML = data.map(m => {
+    const sbc = m.status === 'published' ? 'b-pub' : m.status === 'preprint' ? 'b-pre' : 'b-unk';
+    const sbl = m.status === 'published' ? 'Published' : m.status === 'preprint' ? 'Preprint' : 'Unknown';
+    const mods = Array.isArray(m.modalities) ? m.modalities.join(', ') : (m.modalities || '—');
+    const isNew   = m.year >= 2026;
+    const isBench = !!m.benchmarked;
+    const is2025  = m.year === 2025;
+
+    const paperIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+    const githubIcon = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>`;
+    const downloadIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+
+    let links = '';
+    if (m.paper_url)   links += `<a class="lp" href="${m.paper_url}">${paperIcon}Paper</a>`;
+    if (m.github_url)  links += `<a class="lp" href="${m.github_url}">${githubIcon}GitHub</a>`;
+    if (m.weights_url) links += `<a class="lp" href="${m.weights_url}">${downloadIcon}Weights</a>`;
+
+    const benchIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
+    const cardClass = 'card' + (isBench ? ' is-benchmarked' : '') + (!isBench && isNew ? ' is-new' : '');
+    const benchBanner = isBench ? '<div class="bench-banner">' + benchIcon + ' Benchmarked by scFM evaluation framework</div>' : '';
+    return `<div class="${cardClass}">
+      ${benchBanner}
+      <div class="card-head">
+        <span class="model-name">${m.model_name || '?'}</span>
+        <div class="badges">
+          ${isBench ? '<span class="badge b-bench">✓ Benchmarked</span>' : ''}
+          ${isNew ? '<span class="badge b-new">★ New</span>' : ''}
+          ${is2025 ? '<span class="badge b-cat">2025</span>' : ''}
+          <span class="badge ${sbc}">${sbl}</span>
+          <span class="badge" style="background:#f6f8fa;color:#656d76;">${m.category || '—'}</span>
+        </div>
+      </div>
+      <p class="paper-title">${m.paper_title || ''}</p>
+      <p class="desc">${m.description || 'No description available.'}</p>
+      <div class="meta">
+        <div class="mi"><span class="ml">Year</span><span class="mv">${m.year || '—'}</span></div>
+        <div class="mi"><span class="ml">Venue</span><span class="mv">${m.journal || '—'}</span></div>
+        <div class="mi"><span class="ml">Weights size</span><span class="mv">${m.weights_size || '—'}</span></div>
+        <div class="mi"><span class="ml">Modalities</span><span class="mv">${mods}</span></div>
+      </div>
+      <div class="tag-group">
+        <span class="tag-group-label">Architecture</span>
+        <div class="tag-row">${(m.architecture || []).map(a => `<span class="tag tag-arch">${a}</span>`).join('')}</div>
+        <span class="tag-group-label">Loss / Objective</span>
+        <div class="tag-row">${(m.loss_functions || []).map(l => `<span class="tag tag-loss">${l}</span>`).join('')}</div>
+        <span class="tag-group-label">Domain</span>
+        <div class="tag-row">${(m.domain || []).map(d => `<span class="tag tag-domain">${d}</span>`).join('')}</div>
+        <span class="tag-group-label">Prior knowledge</span>
+        <div class="tag-row">${(m.prior_knowledge || []).map(p => `<span class="tag tag-prior" >${p}</span>`).join('')}</div>
+      </div>
+      ${links ? `<div class="links">${links}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+updateStats();
+render();
+</script>
+</body>
+</html>

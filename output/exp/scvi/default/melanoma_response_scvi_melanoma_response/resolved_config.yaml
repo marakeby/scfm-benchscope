@@ -1,0 +1,61 @@
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: melanoma/GSE120575_melanoma_tpm_annotated_final.h5ad
+  load_raw: false
+  label_key: lesion_response
+  batch_key: sample_id
+  layer_name: X
+  train_test_split: data_splits/melanoma_response/train_test_split.json
+  cv_splits: data_splits/melanoma_response/cv_splits.json
+  filter:
+  - column: timepoint
+    values:
+    - Pre
+  label_map:
+    NR: 0
+    R: 1
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  batch_key: batch
+  n_top_genes: 4096
+  flavor: seurat
+embedding:
+  method: scVI
+  module: features.scvi_extractor
+  class: scVIEmbeddingExtractor
+  viz: true
+  eval: true
+  params:
+    batch_key: batch
+    n_layers: 2
+    n_latent: 100
+    gene_likelihood: nb
+    max_epochs: 10
+    layer_name: null
+    batch_size: 128
+classification:
+  module: models.classify
+  class: ClassifierPipeline
+  params:
+    model: randomforest
+    n_estimators: 100
+    max_depth: 5
+    train_funcs:
+    - avg
+    - mil
+    - vote
+    cv: true
+    mil:
+      debug: false
+      top_k: 20
+      holdout_fraction: 0.0
+  viz: true
+  eval: true
+run_id: scvi_melanoma_response

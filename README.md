@@ -12,32 +12,66 @@ Evaluate single-cell foundation model (scFM) embeddings + downstream classificat
 
 ### Quickstart
 
-From the repo root:
+The Python package is **`scfm-cancer-eval`** (import **`scfm_cancer_eval`**). After `pixi install` (recommended) or `pip install -e .`, run from the **repo root**:
 
 ```bash
-python run/run_exp.py brca_full/pre_post/scvi.yaml
-python run/run_exp.py luad1/scgpt.yaml
+pixi run -e default run-exp exp/geneformer/V1-10M-i2048/brca_cell_type.yaml
+# or
+python -m scfm_cancer_eval.run.run_exp exp/geneformer/V1-10M-i2048/brca_cell_type.yaml
+# or
+scfm-cancer-eval exp/geneformer/V1-10M-i2048/brca_cell_type.yaml
 ```
 
-There are helper scripts with example runs:
+Paths like `exp/...` are relative to **`PARAMS_PATH`** (bundled `yaml/` in the install, unless you set **`SCFM_PARAMS_PATH`**).
 
-- `run/run_brca.sh`
-- `run/run_luad.sh`
+Helper scripts: `run/*.sh` (they `cd` to the repo root and call `python -m scfm_cancer_eval.run.run_exp …`).
+
+### Custom models (your YAML, extractor, and weights)
+
+Use this when you want to **evaluate your own embedding model** on the same tasks/loaders/metrics as the bundled benchmarks, and **compare** runs via the shared outputs (see below).
+
+1. **Your code (extractor / loader)**  
+   - Implement an embedding class that follows the same contract as **`scfm_cancer_eval.features.extractor.EmbeddingExtractor`** (subclass it when possible; set **`output_key`** or implement **`get_output_key()`**).  
+   - Put it in an **installable** package (e.g. `pip install -e /path/to/my_lab_pkg`) or ensure the package root is on **`PYTHONPATH`**.
+
+2. **YAML `module` / `class`**  
+   - In the `embedding` block, set **`module`** to a fully importable module path, e.g. **`my_lab.embedders.my_model`**, and **`class`** to your extractor class name.  
+   - Bundled configs use short names like **`features.gf_extractor`**; those are rewritten internally to **`scfm_cancer_eval.features.*`**. Anything else is imported **as-is**, so your package name must be importable.
+
+3. **Weights and checkpoints**  
+   - Set **`SCFM_MODELS_PATH`** to the directory that holds your checkpoints.  
+   - In YAML, use **absolute** paths or **relative** paths under `SCFM_MODELS_PATH` for keys the extractor resolves (same pattern as the bundled Geneformer / scGPT configs).
+
+4. **Your experiment YAML**  
+   - **Option A — absolute entry config:**  
+     `python -m scfm_cancer_eval.run.run_exp /path/to/my_experiment.yaml`  
+     Includes in that file that look like `./fragment.yaml` or `../shared/dataset.yaml` resolve **relative to each YAML file’s directory**. Other relative includes resolve under **`PARAMS_PATH`**.  
+   - **Option B — your own tree as `PARAMS_PATH`:**  
+     `export SCFM_PARAMS_PATH=/path/to/my_yaml_root`  
+     then `python -m scfm_cancer_eval.run.run_exp exp/my_task.yaml` (relative to that root).  
+   - **Reusing bundled fragments** while keeping your entry YAML elsewhere: either copy/include paths that point into the installed package’s `yaml/` (absolute path to that directory), or set `SCFM_PARAMS_PATH` to a directory that contains **both** your files and symlinks to the fragments you need.
+
+5. **Data and outputs**  
+   - **`SCFM_DATA_PATH`**: prefix for `dataset.path` in YAML (same as before).  
+   - **`SCFM_OUTPUT_PATH`**: all run directories and the global **`metrics_runs.csv`** ledger.  
+   - Entry YAML **outside** the repo: run artifacts go under **`OUTPUT_PATH/external/<hash>/<stem>/`** so they stay under your output root.
+
+6. **Comparing to baseline / other runs**  
+   - Each run writes **`results.json`** (schema **`scfm_eval.results` v1.1.0** — see `scfm_cancer_eval.utils.results_json`), plus **`run_summary.json`**, **`metrics.json`**, and **`resolved_config.yaml`**.  
+   - The runner appends one row per run to **`metrics_runs.csv`** under **`OUTPUT_PATH`** (columns include **`config_path`**, **`resolved_entry_yaml`**, **`save_dir`**, **`embedding_method`**, **`embedding_key`**, and metric fields when present).  
+   - To compare your model to **previously evaluated** models: use the same **`OUTPUT_PATH`** (or merge ledgers), or join on stable ids you define in **`run_id`** / dataset / task metadata in **`results.json`**.
+
+7. **Optional validation**  
+   - Set **`SCFM_VALIDATE_EXP=1`** to run embedding/data constraint checks after merge (see `scfm_cancer_eval.utils.validate_exp_constraints`).
 
 ### Mock embedding example (cancer subtyping)
 
-To exercise the full pipeline (QC, HVG, embeddings, visualization, embedding metrics, and downstream classification) **without** loading a foundation model, use the mock linear projector:
+To exercise the full pipeline **without** loading a foundation model, point an experiment YAML at the mock extractor (see bundled **`embedding`** examples under `src/scfm_cancer_eval/yaml/` or define your own YAML using):
 
-```bash
-python run/run_exp.py yaml/examples/mock_subtype_eval.yaml
-```
+- **`module`:** `features.mock_extractor` (resolved to `scfm_cancer_eval.features.mock_extractor`)
+- **`class`:** `MockEmbeddingExtractor`
 
-This config is the **cancer subtyping** task (ER+ vs TNBC, Pre), reusing the same dataset and classifier fragments as the real subtype runs:
-
-- `yaml/brca_full/subtype/dataset_shared.yaml`
-- `yaml/brca_full/subtype/classification_randomforest.yaml`
-
-The `embedding` block points at `features.mock_extractor.MockEmbeddingExtractor` and `models/mock_embedding_model.py`. Swap that block for a real extractor + params to match production experiments.
+Use **`python -m scfm_cancer_eval.run.run_exp …`** with a suitable YAML path (bundled or custom per section above).
 
 ### Pixi environments (optional)
 
@@ -45,8 +79,8 @@ The `embedding` block points at `features.mock_extractor.MockEmbeddingExtractor`
 
 ```bash
 pixi install
-pixi run -e default run-exp yaml/examples/mock_subtype_eval.yaml
-pixi run -e scvi run-exp yaml/brca_full/subtype/scvi.yaml
+pixi run -e default run-exp exp/geneformer/V1-10M-i2048/brca_cell_type.yaml
+pixi run -e scvi run-exp exp/scvi/default/brca_cell_type.yaml
 pixi run -e scconcept run-exp …      # after extractors + YAML exist for scConcept
 pixi run -e nicheformer run-exp …   # heavy deps (Merlin/dask); prefer Linux + CUDA for upstream workflows
 ```
@@ -80,11 +114,16 @@ Pixi shortcuts: `pixi run install-packages`, `pixi run download-models`, `pixi r
 
 ### Paths & outputs
 
-Key paths are defined in `setup_path.py`:
+Key paths are defined in **`scfm_cancer_eval.setup_path`** (overridable via environment variables):
 
-- `PARAMS_PATH`: points at `yaml/` (where experiment configs live)
-- `DATA_PATH`: prefix for dataset paths in YAML (default: repo root; override with `SCFM_DATA_PATH`)
-- `OUTPUT_PATH`: where run artifacts are written (default: `__output/` under the repo; override with `SCFM_OUTPUT_PATH`)
+| Symbol | Role | Override |
+|--------|------|----------|
+| **`PARAMS_PATH`** | Root for **relative** experiment YAML paths and includes | Default: bundled `yaml/` inside the package. Set **`SCFM_PARAMS_PATH`** to your own directory. |
+| **`DATA_PATH`** | Prefix for **`dataset.path`** in YAML | **`SCFM_DATA_PATH`** (default: `./data` under process CWD at import time). |
+| **`MODELS_PATH`** | Prefix for relative checkpoint paths in YAML | **`SCFM_MODELS_PATH`** (default: `./models` under CWD). |
+| **`OUTPUT_PATH`** | Run directories + **`metrics_runs.csv`** | **`SCFM_OUTPUT_PATH`** (default: `./output` under CWD). |
+
+Convenience: **`source scripts/set_runtime_paths.sh`** after copying **`scripts/config/runtime_paths.env.example`** (optional **`SCFM_PARAMS_PATH`** there).
 
 ### YAML experiment configs
 
@@ -100,7 +139,7 @@ An experiment YAML ultimately needs these top-level keys (after composition):
 
 #### Config composition (to reduce redundancy)
 
-`run/run_exp.py` supports composing configs by deep-merging “fragment” YAMLs before running.
+`scfm_cancer_eval.run.run_exp` supports composing configs by deep-merging “fragment” YAMLs before running.
 
 Use these include-tags at the top of an experiment YAML:
 
@@ -130,13 +169,13 @@ Notes:
 #### `label_map` convention
 
 For many tasks, the class mapping is stored under `dataset.label_map` in the dataset fragment.
-At runtime, if `classification.params.label_map` is missing, `run/run_exp.py` will inherit it from `dataset.label_map`.
+At runtime, if `classification.params.label_map` is missing, the experiment runner will inherit it from `dataset.label_map`.
 
 ### Unified extractor API (recommended)
 
-Extractors inherit from `features/extractor.py::EmbeddingExtractor` and expose an `output_key`.
-The runner now prefers `extractor.output_key` (or `extractor.get_output_key()`) instead of hard-coding
-the embedding key in `run/run_exp.py`.
+Extractors inherit from **`scfm_cancer_eval.features.extractor.EmbeddingExtractor`** and expose an **`output_key`**.
+The runner prefers **`extractor.output_key`** (or **`extractor.get_output_key()`**) instead of hard-coding
+the embedding key in **`run_exp.py`**.
 
 To override the output key in YAML, set:
 
@@ -156,10 +195,7 @@ Additionally, the runner appends one row per run to:
 
 ### Repository layout (high level)
 
-- `run/`: entrypoints and runner (`run_exp.py`)
-- `yaml/`: experiment configurations + fragments
-- `data/`: dataset loaders (`H5ADLoader`, etc.)
-- `features/`: embedding extractors
-- `models/`: classifiers / finetuning modules
-- `evaluation/`, `viz/`: evaluation + visualization
+- `src/scfm_cancer_eval/`: installable package (code + bundled `yaml/`)
+- `run/`: shell helpers invoking `python -m scfm_cancer_eval.run.run_exp`
+- `scripts/`: VM/bootstrap, downloads, validation
 

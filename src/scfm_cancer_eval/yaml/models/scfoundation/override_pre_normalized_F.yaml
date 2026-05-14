@@ -1,0 +1,5 @@
+# Merge after `brca_cancer_cells.yaml` when `adata.X` holds raw counts (e.g. `load_raw: true`
+# and preprocessing skipped). scFoundation single-cell path then applies log1p+TP10k internally.
+embedding:
+  params:
+    pre_normalized: F

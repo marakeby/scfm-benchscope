@@ -1,0 +1,7 @@
+run_id: 'scvi_brca_cell_type'
+dataset:
+  - datasets/brca/cell_type/dataset_full.yaml
+model:
+  - models/scvi/default.yaml
+classification:
+  skip: True

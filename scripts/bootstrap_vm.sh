@@ -23,8 +23,10 @@ else
 fi
 
 echo ""
-echo "Next: configure scripts/config/model_weights.env + data_download.env, then:"
+echo "Next: optional — copy scripts/config/runtime_paths.env.example to runtime_paths.env"
+echo "      and: source scripts/set_runtime_paths.sh  (SCFM_DATA_PATH / OUTPUT / MODELS)"
+echo "      configure scripts/config/model_weights.env + data_download.env, then:"
 echo "  bash scripts/download_model_weights.sh"
 echo "  bash scripts/download_data.sh"
-echo "Set SCFM_DATA_PATH / SCFM_OUTPUT_PATH if data/output are not under the repo, then e.g."
-echo "  pixi run -e default run-exp yaml/examples/mock_subtype_eval.yaml"
+echo "Set SCFM_DATA_PATH / SCFM_OUTPUT_PATH (and optionally SCFM_PARAMS_PATH for custom YAML root), then e.g."
+echo "  pixi run -e default run-exp exp/geneformer/V1-10M-i2048/brca_cell_type.yaml"

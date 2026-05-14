@@ -77,30 +77,26 @@ if _suppress:
 # from viz.visualization import EmbeddingVisualizer
 # from evaluation.eval import EmbeddingEvaluator
 # from utils.logs_ import set_logging, get_logger
-# from setup_path import BASE_PATH, OUTPUT_PATH, PARAMS_PATH, DATA_PATH
+# from scfm_cancer_eval.setup_path import BASE_PATH, OUTPUT_PATH, PARAMS_PATH, DATA_PATH
 
 #-------good list --
 import copy
+import hashlib
 import json
 import yaml
+from typing import Optional
 from pathlib import Path
 import importlib
-import sys
-from os.path import dirname, abspath, join, basename, exists
+from os.path import join, basename, exists
 import shutil
-
-
-dir_path = dirname(dirname(abspath(__file__)))
-print(dir_path)
-sys.path.insert(0,dir_path)
 
 import logging
 # logger = logging.getLogger('ml_logger')
-from viz.visualization import EmbeddingVisualizer
-from evaluation.eval import EmbeddingEvaluator
-from utils.logs_ import set_logging, get_logger
-from setup_path import BASE_PATH, OUTPUT_PATH, PARAMS_PATH, DATA_PATH
-from utils.sampling import sample_adata
+from scfm_cancer_eval.viz.visualization import EmbeddingVisualizer
+from scfm_cancer_eval.evaluation.eval import EmbeddingEvaluator
+from scfm_cancer_eval.utils.logs_ import set_logging, get_logger
+from scfm_cancer_eval.setup_path import BASE_PATH, OUTPUT_PATH, PARAMS_PATH, DATA_PATH
+from scfm_cancer_eval.utils.sampling import sample_adata
 
 embedding_method_map= dict(PCA='X_pca', HVG='X_hvg', scVI='X_scVI', geneformer='X_geneformer', scgpt='X_scGPT')
 
@@ -111,6 +107,59 @@ import time
 from functools import wraps
 import pandas as pd
 import anndata as ad
+
+# New unified results record (schema v1.1.0)
+from scfm_cancer_eval.utils.results_json import build_results_json, write_results_json
+
+_LEGACY_EXPERIMENT_MODULE_ROOTS = frozenset(
+    {
+        "data",
+        "features",
+        "models",
+        "viz",
+        "evaluation",
+        "utils",
+        "run",
+        "data_splits",
+    }
+)
+
+
+def _resolve_experiment_module(module_path: str) -> str:
+    """Map YAML ``module: data.foo`` style paths to the installable package name."""
+    if module_path.startswith("scfm_cancer_eval."):
+        return module_path
+    root = module_path.split(".", 1)[0]
+    if root in _LEGACY_EXPERIMENT_MODULE_ROOTS:
+        return f"scfm_cancer_eval.{module_path}"
+    return module_path
+
+
+def _resolve_experiment_config_path(config_path: str) -> str:
+    """Absolute path to the entry YAML; relative paths are under :data:`PARAMS_PATH`."""
+    if os.path.isabs(config_path):
+        return os.path.normpath(config_path)
+    return os.path.normpath(join(PARAMS_PATH, config_path))
+
+
+def _output_subdir_for_config(cli_config: str, resolved_config_path: str) -> str:
+    """
+    Directory under OUTPUT_PATH for this run.
+
+    Relative CLI paths (resolved under PARAMS_PATH) use the same path-shaped layout
+    as before, e.g. ``exp/geneformer/.../brca_cell_type`` — *not* ``external/...``.
+
+    Only when the user passes an **absolute** path on the CLI do we use ``external/``,
+    because ``join(OUTPUT_PATH, "/abs/path")`` would otherwise ignore OUTPUT_PATH.
+    """
+    if os.path.isabs(cli_config):
+        key = hashlib.sha256(
+            os.path.normpath(resolved_config_path).encode("utf-8")
+        ).hexdigest()[:16]
+        stem = os.path.splitext(os.path.basename(resolved_config_path))[0]
+        return join("external", key, stem)
+    return os.path.splitext(cli_config)[0]
+
 
 # RNG / determinism snapshot
 # import numpy as np, torch, os
@@ -159,7 +208,7 @@ import anndata as ad
 # from viz.visualization import EmbeddingVisualizer
 # from evaluation.eval import EmbeddingEvaluator
 # from utils.logs_ import set_logging, get_logger
-# from setup_path import BASE_PATH, OUTPUT_PATH, PARAMS_PATH, DATA_PATH
+# from scfm_cancer_eval.setup_path import BASE_PATH, OUTPUT_PATH, PARAMS_PATH, DATA_PATH
 # RNG / determinism snapshot
 # import numpy as np, torch, os
 # print("np first rand:", np.random.RandomState(0).rand())
@@ -389,17 +438,35 @@ class Experiment:
     Handles the execution of a machine learning experiment defined by a YAML config.
     Handles loading data, preprocessing, feature extraction, model training, and evaluation.
     """
-    def __init__(self, config_path, seed: int = 42):
+    def __init__(
+        self,
+        config_path,
+        seed: int = 42,
+        max_cells: Optional[int] = None,
+        max_cells_stratify: Optional[str] = None,
+    ):
         """
         Initialize the Experiment with a given config path.
         Sets up directories, logging, and loads configuration.
 
         Args:
-            config_path: Path to YAML under PARAMS_PATH (or relative as before).
+            config_path: Path to the entry YAML (relative to PARAMS_PATH, or absolute).
             seed: Global RNG seed used when config does not override (e.g. subsampling, classifier).
+            max_cells: If set and positive, cap the number of cells after load (overrides dataset.max_cells
+                in YAML). Useful for quick tests without editing the config.
+            max_cells_stratify: If set (including empty string), ``obs`` column used for stratified
+                subsampling when ``max_cells`` applies (overrides dataset.max_cells_stratify in YAML).
+                Empty string forces uniform random subsampling (no stratification).
         """
         self.rng_seed = int(seed)
-        self.config_path = join(PARAMS_PATH, config_path)
+        self._cli_max_cells: Optional[int] = None
+        if max_cells is not None:
+            mc = int(max_cells)
+            if mc > 0:
+                self._cli_max_cells = mc
+        self._cli_max_cells_stratify: Optional[str] = max_cells_stratify
+        self._cli_config_path = config_path
+        self.config_path = _resolve_experiment_config_path(config_path)
         (
             self.run_id,
             self.data_config,
@@ -416,8 +483,8 @@ class Experiment:
         self.eval_embedding = bool(self.feat_config['eval'])
 
         # Prepare saving dir
-        relative_sav_dir = os.path.splitext(config_path)[0]
-        config_filename = os.path.basename(config_path)
+        relative_sav_dir = _output_subdir_for_config(self._cli_config_path, self.config_path)
+        config_filename = os.path.basename(self.config_path)
         save_dir = join(OUTPUT_PATH, relative_sav_dir)
         self.save_dir = save_dir + f'_{self.run_id}' if self.run_id else save_dir
         print(f'save_dir: {self.save_dir}')
@@ -432,6 +499,20 @@ class Experiment:
         # Set logging format
         self.log = set_logging(self.save_dir)
 
+        if os.environ.get("SCFM_VALIDATE_EXP", "").lower() in ("1", "true", "yes"):
+            from scfm_cancer_eval.utils.validate_exp_constraints import validate_merged_config
+
+            verrs, vwarns = validate_merged_config(self.resolved_config)
+            for w in vwarns:
+                self.log.warning("SCFM_VALIDATE_EXP: %s", w)
+            if verrs:
+                for e in verrs:
+                    self.log.error("SCFM_VALIDATE_EXP: %s", e)
+                raise ValueError(
+                    "Experiment config failed embedding data constraint validation: "
+                    + "; ".join(verrs)
+                )
+
         # Placeholders for data, embeddings, model, and results
         self.data = None
         self.embedding = None
@@ -444,14 +525,20 @@ class Experiment:
         # Lightweight run summary (finalized at end)
         self.run_summary = dict(
             run_id=self.run_id,
-            config_path=config_path,
+            config_path=self._cli_config_path,
+            resolved_entry_yaml=self.config_path,
             save_dir=self.save_dir,
             random_seed=self.rng_seed,
             dataset_path=self.data_config.get("path") if isinstance(self.data_config, dict) else None,
             label_key=self.data_config.get("label_key") if isinstance(self.data_config, dict) else None,
             batch_key=self.data_config.get("batch_key") if isinstance(self.data_config, dict) else None,
             embedding_method=self.feat_config.get("method") if isinstance(self.feat_config, dict) else None,
+            max_cells_cli=self._cli_max_cells,
+            max_cells_stratify_cli=self._cli_max_cells_stratify,
         )
+        # best-effort run timing (RFC3339); set finished at report time
+        from datetime import datetime, timezone
+        self.run_summary["started_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     @timing
     def run(self):
@@ -481,7 +568,7 @@ class Experiment:
         Returns:
             type: The class object.
         """
-        module = importlib.import_module(module_path)
+        module = importlib.import_module(_resolve_experiment_module(module_path))
         return getattr(module, class_name)
 
     @timing
@@ -502,12 +589,30 @@ class Experiment:
         self.loader = LoaderClass(loader_config)
         self.data = self.loader.load()
 
-        max_cells = loader_config.get('max_cells')
+        max_cells = self._cli_max_cells if self._cli_max_cells is not None else loader_config.get('max_cells')
+        if self._cli_max_cells is not None:
+            self.log.info(
+                "Using --max-cells CLI override: %s (YAML dataset.max_cells was %s)",
+                self._cli_max_cells,
+                loader_config.get('max_cells'),
+            )
+        if self._cli_max_cells_stratify is not None:
+            self.log.info(
+                "Using --max-cells-stratify CLI override: %r (YAML dataset.max_cells_stratify was %s)",
+                self._cli_max_cells_stratify,
+                loader_config.get('max_cells_stratify'),
+            )
         if max_cells is not None and int(max_cells) > 0:
             max_cells = int(max_cells)
             n_obs = self.loader.adata.n_obs
             if n_obs > max_cells:
-                stratify = loader_config.get('max_cells_stratify')
+                stratify = (
+                    self._cli_max_cells_stratify
+                    if self._cli_max_cells_stratify is not None
+                    else loader_config.get('max_cells_stratify')
+                )
+                if stratify == "":
+                    stratify = None
                 rs = int(loader_config.get('max_cells_random_state', self.rng_seed))
                 self.log.info(
                     "Subsampling cells: n_obs=%s -> max_cells=%s, stratify_by=%s, random_state=%s",
@@ -716,8 +821,34 @@ class Experiment:
 
         # Update run summary
         self.run_summary["embedding_key"] = self.embedding_key
+        from datetime import datetime, timezone
+        self.run_summary["finished_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         with open(join(self.save_dir, "run_summary.json"), "w") as f:
             json.dump(self.run_summary, f, indent=2, default=_json_default)
+
+        # New: schema'd results.json (multi-evaluation, folds+aggregate when available)
+        try:
+            results_payload = build_results_json(
+                run_id=self.run_id,
+                save_dir=self.save_dir,
+                repo_root=BASE_PATH,
+                config_path=self.run_summary.get("config_path"),
+                resolved_config_path="resolved_config.yaml",
+                resolved_config=self.resolved_config if isinstance(self.resolved_config, dict) else None,
+                dataset_cfg=self.data_config if isinstance(self.data_config, dict) else None,
+                embedding_cfg=self.feat_config if isinstance(self.feat_config, dict) else None,
+                task_cfg=self.task_config if isinstance(self.task_config, dict) else None,
+                embedding_key=self.embedding_key,
+                embedding_metrics=self.embedding_metrics if isinstance(self.embedding_metrics, dict) else None,
+                rng_seed=self.rng_seed,
+                started_at=self.run_summary.get("started_at"),
+                finished_at=self.run_summary.get("finished_at"),
+                status="success",
+            )
+            write_results_json(join(self.save_dir, "results.json"), results_payload)
+            self.log.info("Wrote results.json: %s", join(self.save_dir, "results.json"))
+        except Exception:
+            self.log.exception("Failed to write results.json (non-fatal).")
 
         # Append one row to a global CSV in OUTPUT_PATH
         metrics_csv = join(OUTPUT_PATH, "metrics_runs.csv")
@@ -726,6 +857,7 @@ class Experiment:
             row = dict(
                 run_id=self.run_id,
                 config_path=self.run_summary.get("config_path"),
+                resolved_entry_yaml=self.run_summary.get("resolved_entry_yaml"),
                 save_dir=self.save_dir,
                 dataset_path=self.run_summary.get("dataset_path"),
                 label_key=self.run_summary.get("label_key"),
@@ -770,7 +902,10 @@ def main():
         "config_path",
         nargs="?",
         default="experiment.yaml",
-        help="YAML path relative to PARAMS_PATH.",
+        help=(
+            "Experiment YAML: path relative to PARAMS_PATH (bundled or SCFM_PARAMS_PATH), "
+            "or an absolute path. Includes in YAML resolve relative to each file's directory."
+        ),
     )
     parser.add_argument(
         "--seed",
@@ -778,10 +913,37 @@ def main():
         default=None,
         help="Global RNG seed (default: SCFM_EVAL_SEED environment variable or 42).",
     )
+    parser.add_argument(
+        "--max-cells",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "After loading, keep at most N cells (random or stratified subsample). Overrides dataset.max_cells "
+            "when set to a positive integer. Omit (default) to leave dataset YAML max_cells unchanged; "
+            "omit with no YAML cap to keep all loaded cells. Use --max-cells-stratify to override the stratify column."
+        ),
+    )
+    parser.add_argument(
+        "--max-cells-stratify",
+        type=str,
+        default=None,
+        metavar="COL",
+        help=(
+            "When subsampling runs (dataset.max_cells and/or --max-cells), stratify by this obs column. "
+            "Overrides dataset.max_cells_stratify. Use an empty argument (e.g. --max-cells-stratify '') to force "
+            "uniform random sampling instead of stratifying."
+        ),
+    )
     args = parser.parse_args()
     seed = args.seed if args.seed is not None else int(os.environ.get("SCFM_EVAL_SEED", "42"))
     set_random_seed(seed)
-    experiment = Experiment(args.config_path, seed=seed)
+    experiment = Experiment(
+        args.config_path,
+        seed=seed,
+        max_cells=args.max_cells,
+        max_cells_stratify=args.max_cells_stratify,
+    )
     experiment.run()
     experiment._write_standard_reports()
     timing_df = pd.DataFrame(_timing_log)

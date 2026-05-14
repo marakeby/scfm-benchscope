@@ -1,0 +1,55 @@
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: crc/crc_tcell_tumor_MMRd_vs_MMRp_min200cells.h5ad
+  load_raw: false
+  label_key: MMRStatusTumor
+  batch_key: donor_id
+  layer_name: X
+  train_test_split: data_splits/crc_mmr/train_test_split.json
+  cv_splits: data_splits/crc_mmr/cv_splits.json
+  label_map:
+    MMRd: 0
+    MMRp: 1
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  batch_key: batch
+  n_top_genes: 4096
+  flavor: seurat
+embedding:
+  method: scgpt
+  module: features.scgpt_extractor
+  class: scGPT_Exractor
+  viz: true
+  eval: true
+  params:
+    model: scGPT_cancer
+    model_dir: scGPT
+    batch_size: 16
+    n_bins: 51
+    max_seq_len: 2048
+classification:
+  module: models.classify
+  class: ClassifierPipeline
+  params:
+    model: randomforest
+    n_estimators: 100
+    max_depth: 5
+    train_funcs:
+    - avg
+    - mil
+    - vote
+    cv: true
+    mil:
+      debug: false
+      top_k: 20
+      holdout_fraction: 0.0
+  viz: true
+  eval: true
+run_id: scgpt_cancer-i2048_crc_mmr

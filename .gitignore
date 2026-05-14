@@ -146,10 +146,12 @@ venv.bak/
 
 # Geneformer HF clone (scripts/install_packages.sh)
 third_party/Geneformer/
+third_party/scFoundation/
 
 # Local download configs (copy from *.example)
 scripts/config/model_weights.env
 scripts/config/data_download.env
+scripts/config/runtime_paths.env
 
 # Spyder project settings
 .spyderproject
@@ -186,4 +188,5 @@ cython_debug/
 **/*.csv
 **/*.xlsx
 *arxiv*
+*arxiv
 cache/

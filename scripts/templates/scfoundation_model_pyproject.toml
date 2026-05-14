@@ -1,0 +1,21 @@
+# Copied into third_party/scFoundation/model/ by scripts/install_scfoundation_model.sh
+# so `pip install -e` exposes the `pretrainmodels` package (BioMap scFoundation).
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scfoundation-model"
+version = "0.0.0"
+description = "BioMap scFoundation model code (pretrainmodels); source lives under model/ in the upstream repo."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "einops",
+    "local-attention",
+    "numpy",
+]
+
+[tool.setuptools.packages.find]
+include = ["pretrainmodels*"]

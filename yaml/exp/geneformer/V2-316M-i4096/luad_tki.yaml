@@ -1,7 +1,0 @@
-run_id: 'geneformer_V2-316M-i4096_luad_tki'
-dataset:
-  - datasets/luad/tki.yaml
-model:
-  - models/geneformer/V2-316M-i4096.yaml
-classification:
-  - tasks/classification.yaml

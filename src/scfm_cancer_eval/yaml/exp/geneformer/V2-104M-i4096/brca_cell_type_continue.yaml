@@ -1,0 +1,45 @@
+run_id: 'geneformer_V2-104M-i4096_continue_brca_cell_type'
+dataset:
+  - datasets/brca/cell_type/dataset_shared.yaml
+  
+preprocessing:
+  skip: true
+  
+hvg:
+  flavor: seurat
+  layer: counts
+  normalize_before_hvg: True
+  n_top_genes: 4096
+  batch_key: batch
+  subset: True
+  preserve_counts: true
+  
+embedding:
+  method: geneformer
+  module: features.gf_extractor
+  class: GeneformerExtractor
+  viz: true
+  eval: true
+  params:
+    model: Geneformer-V2-104M
+    version: V2
+    model_dir: Geneformer
+    dict_dir: Geneformer/gf_dicts_v2
+    input_size: 4096
+    batch_size: 8
+    continue_training:
+        learning_rate: 0.0001
+        do_train: True
+        do_eval: False
+        group_by_length: True
+        length_column_name: length
+        disable_tqdm: False
+        lr_scheduler_type: linear
+        warmup_steps: 1000
+        weight_decay: 0.0005
+        per_device_train_batch_size: 16
+        num_train_epochs: 6
+        save_strategy: 'epoch' #'steps' 
+        
+classification:
+  skip: True

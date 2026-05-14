@@ -3,15 +3,22 @@ from os.path import join, realpath, dirname, normpath
 from typing import AbstractSet
 
 BASE_PATH = dirname(realpath(__file__))
-PARAMS_PATH = join(BASE_PATH, 'yaml')
+# Experiment YAML fragments: bundled under the package by default. Override to a custom root
+# (e.g. your own yaml/ tree) with SCFM_PARAMS_PATH — see README "Custom models".
+_params_override = (os.environ.get("SCFM_PARAMS_PATH") or "").strip()
+PARAMS_PATH = normpath(_params_override) if _params_override else join(BASE_PATH, "yaml")
 RUN_PATH = join(BASE_PATH, 'run')
 
-DATA_PATH = os.environ.get("SCFM_DATA_PATH", "/home/haitham/mnt/DATA")
+# When unset, paths are resolved at import time relative to the process working directory
+# (not the package install location). Set SCFM_DATA_PATH / SCFM_OUTPUT_PATH / SCFM_MODELS_PATH
+# for fixed locations (e.g. shared mounts on a VM).
+_cwd_default = os.getcwd()
+DATA_PATH = os.environ.get("SCFM_DATA_PATH", join(_cwd_default, "data"))
 # Global run ledger (metrics_runs.csv); override if outputs live on another mount.
-OUTPUT_PATH = os.environ.get("SCFM_OUTPUT_PATH", "/home/haitham/mnt/__output_v4")
+OUTPUT_PATH = os.environ.get("SCFM_OUTPUT_PATH", join(_cwd_default, "output"))
 
 # Weights / checkpoints live under here. YAML can use paths relative to MODELS_PATH (see resolve_under_models_path).
-MODELS_PATH = os.environ.get("SCFM_MODELS_PATH", "/home/haitham/mnt/MODELS")
+MODELS_PATH = os.environ.get("SCFM_MODELS_PATH", join(_cwd_default, "models"))
 
 
 def resolve_under_models_path(value: str) -> str:
