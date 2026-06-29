@@ -1,0 +1,5 @@
+run_id: 'geneformer_V2-104M-i4096_finetune_brca_subtype'
+dataset:
+  - datasets/brca/cancer_subtype/cancer_cells.yaml
+model:
+  - models/geneformer/V2-104M-i4096_finetune.yaml

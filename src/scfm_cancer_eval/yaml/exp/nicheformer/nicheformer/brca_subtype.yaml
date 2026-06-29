@@ -1,0 +1,7 @@
+run_id: 'nicheformer_nicheformer_brca_subtype'
+dataset:
+  - datasets/brca/cancer_subtype/cancer_cells.yaml
+model:
+  - models/nicheformer/nicheformer.yaml
+classification:
+  - tasks/classification.yaml

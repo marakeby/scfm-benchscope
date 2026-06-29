@@ -1,0 +1,15 @@
+run_id: 'scimilarity_v1.1_melanoma_response'
+dataset:
+  - datasets/melanoma/response.yaml
+
+preprocessing:
+    skip: True
+
+hvg:
+    skip: True
+    
+model:
+  - models/scimilarity/v1.1.yaml
+classification:
+  - tasks/classification.yaml
+  - exp/scimilarity/v1.1/mil.yaml

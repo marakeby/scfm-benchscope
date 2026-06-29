@@ -1,0 +1,12 @@
+embedding:
+  method: scgpt
+  module: features.scgpt_extractor
+  class: scGPT_Exractor
+  viz: true
+  eval: true
+  params:
+    model: scGPT_human
+    model_dir: scGPT
+    batch_size: 16
+    n_bins: 51
+    max_seq_len: 2048

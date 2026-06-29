@@ -1,0 +1,49 @@
+run_id: 'geneformer_V1-10M-i2048_brca_cell_type_full'
+
+
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: brca_full/cells_only.h5ad
+  load_raw: false
+  label_key: cell_types
+  batch_key: donor_id
+
+  max_cells: 10000
+  max_cells_stratify: donor_id
+
+  filter:
+  - column: timepoint
+    values:
+    - Pre
+  layer_name: X
+  train_test_split: data_splits/brca_full/brca_cell_type/train_test_split.json
+  cv_splits: data_splits/brca_full/brca_cell_type/cv_splits.json
+  label_map:
+    Pre: 0
+    Post: 1 
+
+bases:
+  - models/geneformer/V1-10M-i2048.yaml
+
+qc:
+  min_genes: 10
+  min_cells: 10
+
+# preprocessing:
+#   skip: true
+preprocessing:
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+
+# hvg:
+#   skip: true
+
+hvg:
+  batch_key: batch
+  n_top_genes: 4096
+  flavor: seurat
+
+classification:
+  skip: True

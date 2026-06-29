@@ -1,0 +1,15 @@
+run_id: 
+dataset:
+    - brca_full/subtype/dataset_shared.yaml
+
+embedding:
+    skip: False
+    method: HVG
+    module: features.hvg_extractor
+    class: HVGExtractor
+    viz: True
+    eval: True
+    params:
+        n_top_genes: 4096
+        flavor: seurat
+

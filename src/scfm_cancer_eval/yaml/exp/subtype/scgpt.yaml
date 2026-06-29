@@ -1,0 +1,7 @@
+run_id:
+dataset:
+  - brca_full/subtype/dataset_shared.yaml
+classification:
+  - brca_full/subtype/classification_randomforest.yaml
+bases:
+  - refactored/models/scgpt/human-i2048.yaml

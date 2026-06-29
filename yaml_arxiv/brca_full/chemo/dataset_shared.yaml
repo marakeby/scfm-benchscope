@@ -1,0 +1,28 @@
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: mnt/DATA/brca_full/cancer_cells_only.h5ad
+  load_raw: false
+  label_key: cohort
+  batch_key: donor_id
+  filter:
+  - column: timepoint
+    values:
+    - Pre
+  layer_name: X
+  train_test_split: data_splits/brca_full/brca_chemo/train_test_split_oversampled.json
+  cv_splits: data_splits/brca_full/brca_chemo/cv_splits_oversampled.json
+  label_map:
+    treatment_naive: 0
+    neoadjuvant_chemo: 1
+qc:
+  min_genes: 10
+  min_cells: 10
+preprocessing:
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+hvg:
+  batch_key: batch
+  n_top_genes: 4096
+  flavor: seurat

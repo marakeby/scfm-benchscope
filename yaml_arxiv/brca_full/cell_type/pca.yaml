@@ -1,0 +1,14 @@
+run_id: 
+dataset:
+    - brca_full/cell_type/dataset_shared.yaml
+
+embedding:
+    method: PCA
+    module: features.pca_extractor
+    class: PCAEmbeddingExtractor
+    viz: True
+    eval: True
+    params: 
+        n_components: 100
+        embedding_col: X_pca
+

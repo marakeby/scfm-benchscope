@@ -1,0 +1,6 @@
+run_id: 'geneformer_V1-10M-i2048_brca_subtype'
+bases:
+  - datasets/brca/cancer_subtype/cancer_cells.yaml
+  - models/geneformer/V1-10M-i2048.yaml
+  - tasks/classification.yaml
+

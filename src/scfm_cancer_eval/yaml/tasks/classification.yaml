@@ -1,0 +1,38 @@
+# Shared RandomForest classifier 
+classification:
+  module: models.classify
+  class: ClassifierPipeline
+  params:
+    model: randomforest
+    n_estimators: 100
+    max_depth: 5
+    train_funcs:
+    - avg
+    - mil
+    - vote
+    cv: True
+    # Optional MIL settings (only used when train_funcs includes "mil"):
+    # mil:
+    #   debug: false              # if true, save plots + CSVs under <save_dir>/mil_debug/ (and mil_debug/fold_k/ during CV)
+    #   top_k: 20                 # top cells per patient for collect_attention_frame / topk_table
+    #   holdout_fraction: 0.0     # e.g. 0.2 to carve a patient-level val set from train for early stopping (val_loss)
+    #   pos_weight: null          # or a float, or "auto" (n_neg/n_pos by patient)
+    #   hidden_dim: 128
+    #   attention_dim: 64
+    #   epochs: 500
+    #   lr: 1.0e-4
+    #   weight_decay: 1.0e-5
+    #   dropout: 0.3
+    #   patience: 50
+    #   temperature: 1.0
+    #   min_delta: 0.001
+    #   monitor: val_loss         # val_loss (needs holdout_fraction>0) or train_loss
+    #   mode: min
+    #   device: null              # null = cuda if available else cpu
+    #   celltype_key: cell_type   # obs column for attention summaries (must exist for some plots)
+    mil:
+      debug: false
+      top_k: 20
+      holdout_fraction: 0.0
+  viz: True
+  eval: True

@@ -1,0 +1,9 @@
+run_id: 'hvg_seurat_4096_luad_tki'
+bases:
+  - datasets/luad/tki.yaml
+  - models/hvg/seurat_4096.yaml
+hvg:
+  skip: true
+  
+classification:
+  - tasks/classification.yaml

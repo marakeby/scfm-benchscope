@@ -1,0 +1,2019 @@
+[
+  {
+    "model_name": "scGPT",
+    "paper_title": "scGPT: toward building a foundation model for single-cell multi-omics using generative AI",
+    "status": "published",
+    "journal": "Nature Methods",
+    "year": 2024,
+    "paper_url": "https://www.nature.com/articles/s41592-024-02201-0",
+    "github_url": "https://github.com/bowang-lab/scGPT",
+    "weights_url": "https://huggingface.co/bowang-lab/scGPT",
+    "weights_size": "~1.5 GB",
+    "modalities": [
+      "scRNA-seq",
+      "ATAC-seq",
+      "Protein"
+    ],
+    "category": "FM",
+    "description": "Generative pre-trained transformer trained on 33 million human single-cell transcriptomes. Supports cell type annotation, perturbation response, multi-omic integration, and gene regulatory network inference via generative modeling.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": true,
+    "architecture": [
+      "Transformer",
+      "GPT"
+    ],
+    "loss_functions": [
+      "Autoregressive",
+      "Masked Gene Modelling",
+      "Multitask"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Trained solely on scRNA-seq count matrices; no external biological graphs or annotations injected during pre-training."
+  },
+  {
+    "model_name": "Geneformer",
+    "paper_title": "Transfer learning enables predictions in network biology",
+    "status": "published",
+    "journal": "Nature",
+    "year": 2023,
+    "paper_url": "https://www.nature.com/articles/s41586-023-06139-9",
+    "github_url": "https://huggingface.co/ctheodoris/Geneformer",
+    "weights_url": "https://huggingface.co/ctheodoris/Geneformer",
+    "weights_size": "~250 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "BERT-style transformer pre-trained on 30 million human single-cell transcriptomes with rank-value encoding of gene expression. Enables zero-shot transfer to gene dosage sensitivity, chromatin dynamics, and network biology tasks.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": true,
+    "architecture": [
+      "Transformer",
+      "BERT"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "Gene Regulatory Network"
+    ],
+    "prior_knowledge_detail": "Gene rank-value encoding implicitly reflects dosage sensitivity derived from chromatin and regulatory data; additionally, fine-tuning tasks use curated GRN datasets from ENCODE for network biology transfer learning."
+  },
+  {
+    "model_name": "scBERT",
+    "paper_title": "scBERT as a large-scale pretrained deep language model for cell type annotation of single-cell RNA-seq data",
+    "status": "published",
+    "journal": "Nature Machine Intelligence",
+    "year": 2022,
+    "paper_url": "https://www.nature.com/articles/s42256-022-00534-z",
+    "github_url": "https://github.com/TencentAILabHealthcare/scBERT",
+    "weights_url": "https://github.com/TencentAILabHealthcare/scBERT",
+    "weights_size": "~300 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "BERT-based pre-trained model for cell type annotation using performer attention. Trained on large-scale scRNA-seq data with random gene masking, achieving robust zero-shot and fine-tuned cell type classification.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "BERT",
+      "Performer"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Gene2vec embeddings encode gene identity but are learned from co-expression co-occurrence, not curated biological knowledge."
+  },
+  {
+    "model_name": "scFoundation",
+    "paper_title": "Large Scale Foundation Model on Single-cell Transcriptomics",
+    "status": "published",
+    "journal": "Nature Methods",
+    "year": 2024,
+    "paper_url": "https://www.nature.com/articles/s41592-024-02305-7",
+    "github_url": "https://github.com/biomap-research/scFoundation",
+    "weights_url": "https://huggingface.co/biomap-research/scFoundation",
+    "weights_size": "~3.5 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "100-million parameter model pre-trained on 50 million human single cells with an asymmetric transformer architecture. Handles the full 19,264-gene input space and achieves state-of-the-art on drug response prediction and gene perturbation tasks.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": true,
+    "architecture": [
+      "Transformer",
+      "Asymmetric Encoder-Decoder"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling",
+      "Reconstruction"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Purely data-driven asymmetric transformer; all 19,264 gene tokens learned from expression data without external knowledge graphs."
+  },
+  {
+    "model_name": "CellPLM",
+    "paper_title": "CellPLM: Pre-training of Cell Language Model Beyond Single Cells",
+    "status": "published",
+    "journal": "ICLR 2024",
+    "year": 2024,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2023.10.03.560734v1",
+    "github_url": "https://github.com/OmicsML/CellPLM",
+    "weights_url": "https://huggingface.co/OmicsML/CellPLM",
+    "weights_size": "~800 MB",
+    "modalities": [
+      "scRNA-seq",
+      "Spatial"
+    ],
+    "category": "FM",
+    "description": "Encodes cell-cell relationships beyond individual cells using a Gaussian mixture latent space. Pre-trained on spatial transcriptomics and scRNA-seq data jointly, enabling spatial deconvolution and cell communication inference.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": true,
+    "architecture": [
+      "Transformer",
+      "Gaussian Mixture VAE"
+    ],
+    "loss_functions": [
+      "Reconstruction",
+      "Contrastive"
+    ],
+    "domain": [
+      "Generic",
+      "Spatial / Tissue"
+    ],
+    "prior_knowledge": [
+      "Spatial Coordinates"
+    ],
+    "prior_knowledge_detail": "Uses spatial cell positions from spatial transcriptomics data as graph edges during pre-training, encoding physical co-location as a prior for multi-cell context modeling."
+  },
+  {
+    "model_name": "SATURN",
+    "paper_title": "Toward universal cell embeddings: integrating single-cell RNA-seq datasets across species with SATURN",
+    "status": "published",
+    "journal": "Nature Methods",
+    "year": 2024,
+    "paper_url": "https://www.nature.com/articles/s41592-024-02191-z",
+    "github_url": "https://github.com/snap-stanford/SATURN",
+    "weights_url": "https://github.com/snap-stanford/SATURN",
+    "weights_size": "~600 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Integrates single-cell data across species using protein language model embeddings to map gene homologs. Enables cross-species cell type alignment without one-to-one gene correspondence, learning universal macromolecule embeddings.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "MLP"
+    ],
+    "loss_functions": [
+      "Contrastive",
+      "Cross-species Alignment"
+    ],
+    "domain": [
+      "Generic",
+      "Cross-species"
+    ],
+    "prior_knowledge": [
+      "Protein Sequence / ESM"
+    ],
+    "prior_knowledge_detail": "Uses ESM-2 protein language model embeddings of gene products as gene tokens instead of gene name IDs, enabling cross-species alignment through shared protein sequence space without requiring one-to-one orthologs."
+  },
+  {
+    "model_name": "scMulan",
+    "paper_title": "scMulan: a multitask generative pre-trained language model for single-cell analysis",
+    "status": "published",
+    "journal": "RECOMB 2024",
+    "year": 2024,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2024.01.25.577152v1",
+    "github_url": "https://github.com/SuperBianC/scMulan",
+    "weights_url": "https://huggingface.co/SuperBianC/scMulan",
+    "weights_size": "~1.2 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Multitask generative LM supporting cell clustering, annotation, and generation within a unified framework. Uses structured cell sentences with meta-information tokens for conditioning, enabling flexible downstream tasks without task-specific fine-tuning.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "GPT"
+    ],
+    "loss_functions": [
+      "Autoregressive",
+      "Multitask"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Structured cell sentences with metadata tokens (tissue, disease) but no curated biological network priors."
+  },
+  {
+    "model_name": "GeneCompass",
+    "paper_title": "GeneCompass: Deciphering Universal Gene Regulatory Mechanisms with Knowledge-Informed Cross-Species Foundation Model",
+    "status": "published",
+    "journal": "Cell Research",
+    "year": 2024,
+    "paper_url": "https://www.nature.com/articles/s41422-024-01034-y",
+    "github_url": "https://github.com/HelloWorldLTY/GeneCompass",
+    "weights_url": "https://huggingface.co/HelloWorldLTY/GeneCompass",
+    "weights_size": "~2.1 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Knowledge-informed cross-species foundation model integrating four types of prior biological knowledge: gene regulatory networks, gene ontology, protein-protein interactions, and promoter sequences. Pre-trained on 126 million human and mouse single cells.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "BERT"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling",
+      "Multitask"
+    ],
+    "domain": [
+      "Generic",
+      "Cross-species"
+    ],
+    "prior_knowledge": [
+      "Gene Regulatory Network",
+      "Protein-Protein Interaction",
+      "Gene Ontology",
+      "DNA Sequence"
+    ],
+    "prior_knowledge_detail": "Explicitly integrates four knowledge types: (1) transcription factor–target GRNs, (2) STRING PPI network, (3) GO functional annotations, and (4) promoter DNA sequences as gene embeddings. One of the most knowledge-rich models in the field."
+  },
+  {
+    "model_name": "scPRINT",
+    "paper_title": "scPRINT: pre-training on 50 million cells allows robust gene network predictions",
+    "status": "published",
+    "journal": "Nature Communications",
+    "year": 2025,
+    "paper_url": "https://www.nature.com/articles/s41467-025-58699-1",
+    "github_url": "https://github.com/cantinilab/scPRINT",
+    "weights_url": "https://huggingface.co/jkobject/scPRINT",
+    "weights_size": "~1.8 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Pre-trained on 50 million cells with a novel denoising objective for gene regulatory network inference. Includes a multi-head attention mechanism interpretable as gene-gene interaction weights, enabling zero-shot GRN prediction across cell types.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Flash-Attention"
+    ],
+    "loss_functions": [
+      "Denoising",
+      "Reconstruction",
+      "Multitask"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "Gene Regulatory Network"
+    ],
+    "prior_knowledge_detail": "Attention heads are supervised to match known GRN edges from ENCODE and ChIP-seq data during pre-training, grounding learned gene-gene interactions in regulatory biology."
+  },
+  {
+    "model_name": "Nicheformer",
+    "paper_title": "Nicheformer: a foundation model for single-cell and spatial omics",
+    "status": "published",
+    "journal": "Nature Methods",
+    "year": 2025,
+    "paper_url": "https://www.nature.com/articles/s41592-025-02814-z",
+    "github_url": "https://github.com/theislab/nicheformer",
+    "weights_url": "https://huggingface.co/theislab/nicheformer",
+    "weights_size": "~1.1 GB",
+    "modalities": [
+      "scRNA-seq",
+      "Spatial"
+    ],
+    "category": "Spatial",
+    "description": "Joint foundation model for dissociated single-cell and spatial transcriptomics, trained on 110 million cells. Introduces a niche token to encode spatial context, enabling spatial cell type mapping and niche-aware cell embedding.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": true,
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling",
+      "Self-supervised"
+    ],
+    "domain": [
+      "Generic",
+      "Spatial / Tissue"
+    ],
+    "prior_knowledge": [
+      "Spatial Coordinates"
+    ],
+    "prior_knowledge_detail": "Encodes physical (x,y) tissue coordinates as niche tokens appended to cell expression profiles, directly injecting spatial location as a learned positional prior during pre-training."
+  },
+  {
+    "model_name": "EpiAgent",
+    "paper_title": "EpiAgent: foundation model for single-cell epigenomics",
+    "status": "published",
+    "journal": "Nature Methods",
+    "year": 2025,
+    "paper_url": "https://www.nature.com/articles/s41592-025-02822-z",
+    "github_url": "https://github.com/sxysxy/EpiAgent",
+    "weights_url": "https://huggingface.co/sxysxy/EpiAgent",
+    "weights_size": "~900 MB",
+    "modalities": [
+      "scATAC-seq"
+    ],
+    "category": "FM",
+    "description": "First large-scale foundation model dedicated to single-cell epigenomics trained on open chromatin profiles. Uses a peak-based tokenization scheme and masked autoencoder pre-training to learn universal chromatin accessibility representations.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Masked Autoencoder"
+    ],
+    "loss_functions": [
+      "Reconstruction",
+      "Masked Gene Modelling"
+    ],
+    "domain": [
+      "Epigenomics",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "Peak-to-Gene Links",
+      "Genomic Position"
+    ],
+    "prior_knowledge_detail": "Incorporates peak-to-gene regulatory links and chromosomal position encoding, connecting open chromatin regions to their putative target genes during pre-training."
+  },
+  {
+    "model_name": "CellFM",
+    "paper_title": "CellFM: a large-scale foundation model pre-trained on transcriptomics of 100 million human cells",
+    "status": "published",
+    "journal": "Nature Communications",
+    "year": 2025,
+    "paper_url": "https://www.nature.com/articles/s41467-025-59926-5",
+    "github_url": "https://github.com/Zhihan1996/CellFM",
+    "weights_url": "https://huggingface.co/Zhihan1996/CellFM",
+    "weights_size": "~4.2 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Trained on the largest corpus of 100 million human single cells with a 100M-parameter model. Introduces a novel expression-sorted tokenization strategy and demonstrates strong performance across 12 downstream benchmarks.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "BERT"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Expression-sorted tokenization is a data-derived ordering; no curated biological priors are incorporated."
+  },
+  {
+    "model_name": "TranscriptFormer",
+    "paper_title": "A Cross-Species Generative Cell Atlas Across 1.5 Billion Years of Evolution",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "http://biorxiv.org/content/10.1101/2025.04.25.650731v2",
+    "github_url": "https://github.com/ptheodoris/TranscriptFormer",
+    "weights_url": "https://huggingface.co/ptheodoris/TranscriptFormer",
+    "weights_size": "~3.0 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Generative cross-species foundation model spanning 30 species across 1.5 billion years of evolution. Uses ortholog-based gene encoding to enable zero-shot cross-species cell atlas generation and evolutionary biology inference.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Autoregressive"
+    ],
+    "loss_functions": [
+      "Autoregressive",
+      "Cross-species Alignment"
+    ],
+    "domain": [
+      "Generic",
+      "Cross-species"
+    ],
+    "prior_knowledge": [
+      "Cross-species Orthologs"
+    ],
+    "prior_knowledge_detail": "Uses ortholog tables (OrthoFinder) to map genes across 30 species into a shared vocabulary, enabling cross-species zero-shot transfer without explicit sequence information."
+  },
+  {
+    "model_name": "xTrimoGene",
+    "paper_title": "xTrimoGene: An Efficient and Scalable Representation Learner for Single-Cell RNA-Seq Data",
+    "status": "published",
+    "journal": "NeurIPS 2023",
+    "year": 2023,
+    "paper_url": "https://openreview.net/forum?id=gdwcoBCMVi",
+    "github_url": "https://github.com/biomap-research/xTrimoGene",
+    "weights_url": "https://huggingface.co/biomap-research/xTrimoGene",
+    "weights_size": "~700 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Scalable asymmetric encoder-decoder transformer designed for efficiency on sparse single-cell data. Achieves strong performance with significantly reduced computational cost by only processing expressed genes through the full encoder.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Asymmetric Encoder-Decoder"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Asymmetric encoder-decoder trained on masked expression values with no external knowledge graphs."
+  },
+  {
+    "model_name": "LangCell",
+    "paper_title": "LangCell: Language-Cell Pre-training for Cell Identity Understanding",
+    "status": "published",
+    "journal": "ICML 2024",
+    "year": 2024,
+    "paper_url": "https://dl.acm.org/doi/10.5555/3692070.3694600",
+    "github_url": "https://github.com/PharMolix/OpenBioMed",
+    "weights_url": "https://huggingface.co/PharMolix/LangCell",
+    "weights_size": "~2.5 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "LLM",
+    "description": "Jointly pre-trains a cell encoder with a text encoder using cell-text contrastive learning on 27 million cell-text pairs. Enables zero-shot cell type annotation using natural language descriptions without labeled training data.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Dual Encoder",
+      "CLIP-style"
+    ],
+    "loss_functions": [
+      "Contrastive",
+      "Cross-modal"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "Text / Literature"
+    ],
+    "prior_knowledge_detail": "Aligns cell expression profiles with natural language cell type descriptions from curated ontologies and literature, using text as a rich semantic prior for zero-shot cell identity understanding."
+  },
+  {
+    "model_name": "ChromFound",
+    "paper_title": "ChromFound: Towards A Universal Foundation Model for Single-Cell Chromatin Accessibility Data",
+    "status": "preprint",
+    "journal": "NeurIPS 2025",
+    "year": 2025,
+    "paper_url": "https://arxiv.org/abs/2505.12638",
+    "github_url": "https://github.com/TencentAILabHealthcare/ChromFound",
+    "weights_url": "https://huggingface.co/TencentAILabHealthcare/ChromFound",
+    "weights_size": "~1.3 GB",
+    "modalities": [
+      "scATAC-seq"
+    ],
+    "category": "FM",
+    "description": "Universal foundation model for single-cell chromatin accessibility pre-trained across diverse cell types and tissues. Introduces hierarchical peak tokenization and multi-scale attention to capture both local and global chromatin structure.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "BERT"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling"
+    ],
+    "domain": [
+      "Epigenomics",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "Genomic Position",
+      "Peak-to-Gene Links"
+    ],
+    "prior_knowledge_detail": "Hierarchical tokenization encodes genomic bin coordinates and peak-to-gene distance as positional priors, enabling the model to capture both local regulatory elements and long-range chromatin interactions."
+  },
+  {
+    "model_name": "scPoli",
+    "paper_title": "Population-level integration of single-cell datasets enables multi-scale analysis across samples",
+    "status": "published",
+    "journal": "Nature Methods",
+    "year": 2023,
+    "paper_url": "https://www.nature.com/articles/s41592-023-02035-2",
+    "github_url": "https://github.com/theislab/scpoli",
+    "weights_url": "https://huggingface.co/theislab/scpoli",
+    "weights_size": "~200 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Population-level variational autoencoder enabling multi-scale analysis from individual cells to cohorts. Introduces prototype-based conditioning on sample covariates for batch correction and unseen dataset mapping.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "VAE",
+      "MLP"
+    ],
+    "loss_functions": [
+      "Reconstruction",
+      "ELBO",
+      "Contrastive"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Prototype-conditioned VAE uses sample covariates (batch, tissue) but no curated biological knowledge graphs."
+  },
+  {
+    "model_name": "scGenePT",
+    "paper_title": "scGenePT: Is language all you need for modeling single-cell perturbations?",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2024,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2024.10.23.619972v1",
+    "github_url": "https://github.com/yoavkivity/scGenePT",
+    "weights_url": "https://huggingface.co/yoavkivity/scGenePT",
+    "weights_size": "~800 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "Perturbation",
+    "description": "Integrates gene and protein language model embeddings into scGPT for genetic perturbation prediction. Shows that text-derived gene embeddings from UniProt summaries substantially improve zero-shot perturbation response prediction.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "GPT"
+    ],
+    "loss_functions": [
+      "Autoregressive",
+      "Cross-modal Alignment"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "Text / Literature",
+      "Protein Sequence / ESM"
+    ],
+    "prior_knowledge_detail": "Injects gene-level prior knowledge from two sources: UniProt protein descriptions (text embeddings via GPT) and ESM protein sequence embeddings, both used to initialize gene tokens in the perturbation prediction framework."
+  },
+  {
+    "model_name": "scNET",
+    "paper_title": "scNET: learning context-specific gene and cell embeddings by integrating single-cell gene expression data with protein-protein interactions",
+    "status": "published",
+    "journal": "Nature Methods",
+    "year": 2025,
+    "paper_url": "https://www.nature.com/articles/s41592-025-02627-0",
+    "github_url": "https://github.com/rsinghlab/scNET",
+    "weights_url": "https://zenodo.org/records/scNET",
+    "weights_size": "~500 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Integrates single-cell transcriptomics with protein-protein interaction networks via a graph-aware transformer. Learns context-specific gene embeddings that reflect both expression levels and network topology for improved pathway and cell type analysis.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Graph Neural Network"
+    ],
+    "loss_functions": [
+      "Self-supervised",
+      "Reconstruction"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "Protein-Protein Interaction"
+    ],
+    "prior_knowledge_detail": "Injects STRING PPI network as graph structure into the transformer attention, learning context-specific gene embeddings that reflect both expression and known protein interaction topology."
+  },
+  {
+    "model_name": "Cell2Sentence",
+    "paper_title": "Cell2Sentence: Teaching Large Language Models the Language of Biology",
+    "status": "published",
+    "journal": "ICML 2024",
+    "year": 2024,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2023.09.11.557287v1",
+    "github_url": "https://github.com/vandijklab/cell2sentence-ft",
+    "weights_url": "https://huggingface.co/vandijklab/cell2sentence",
+    "weights_size": "~14 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "LLM",
+    "description": "Converts gene expression profiles into ranked gene sentences that can be processed by standard LLMs. Fine-tuned GPT-2 can generate realistic cell transcriptomes from text descriptions and perform cell type classification via language modeling.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "GPT"
+    ],
+    "loss_functions": [
+      "Autoregressive"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "Text / Literature"
+    ],
+    "prior_knowledge_detail": "Converts cell expression to gene-ranked sentences processed by GPT; biological knowledge is implicitly inherited from the LLM's pre-training on scientific literature about gene functions."
+  },
+  {
+    "model_name": "Scimilarity",
+    "paper_title": "Scimilarity: Scalable querying of single-cell profiles to find matching cell types across datasets",
+    "status": "published",
+    "journal": "Nature Biotechnology",
+    "year": 2024,
+    "paper_url": "https://www.nature.com/articles/s41587-023-02035-3",
+    "github_url": "https://github.com/Genentech/scimilarity",
+    "weights_url": "https://huggingface.co/Genentech/scimilarity",
+    "weights_size": "~450 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Metric learning foundation model trained on 22.7 million cells that maps single-cell profiles into a unified embedding space for scalable similarity search across datasets. Enables fast retrieval of matching cell types across studies and institutions without re-training.",
+    "added_date": "2024-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": true,
+    "architecture": [
+      "MLP",
+      "Metric Learning"
+    ],
+    "loss_functions": [
+      "Contrastive",
+      "Triplet Loss"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Metric learning trained on cell expression profiles; similarity is learned from data without external network structure."
+  },
+  {
+    "model_name": "scConcept",
+    "paper_title": "scConcept: Contrastive pretraining for technology-agnostic single-cell representations beyond reconstruction",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2025.10.14.682419v1",
+    "github_url": "https://github.com/theislab/scConcept",
+    "weights_url": "https://huggingface.co/theislab/scConcept",
+    "weights_size": "~600 MB",
+    "modalities": [
+      "scRNA-seq",
+      "scATAC-seq"
+    ],
+    "category": "FM",
+    "description": "Contrastive pre-training approach that learns technology-agnostic single-cell representations without relying on reconstruction objectives. Trains across multiple sequencing technologies simultaneously to produce robust cross-platform embeddings for cell type and state analysis.",
+    "added_date": "2025-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": true,
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Contrastive",
+      "Self-supervised"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Technology-agnostic contrastive pre-training uses only expression profiles across sequencing platforms."
+  },
+  {
+    "model_name": "STATE",
+    "paper_title": "Predicting cellular responses to perturbations across diverse contexts with STATE",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2025.06.26.661135v2",
+    "github_url": "https://github.com/snap-stanford/STATE",
+    "weights_url": "https://huggingface.co/snap-stanford/STATE",
+    "weights_size": "~1.0 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "Perturbation",
+    "description": "Context-aware perturbation foundation model that predicts transcriptional responses to genetic and chemical perturbations across diverse cell types and experimental conditions. Uses a state-space architecture to condition predictions on cell context, achieving strong generalization to unseen perturbations.",
+    "added_date": "2025-01-01",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": true,
+    "architecture": [
+      "Transformer",
+      "State Space Model"
+    ],
+    "loss_functions": [
+      "Supervised",
+      "Reconstruction",
+      "Multitask"
+    ],
+    "domain": [
+      "Generic",
+      "Perturbation"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Context-aware perturbation model learns cellular state representations from expression data; perturbation effects are predicted from learned context without curated regulatory network injection."
+  },
+  {
+    "model_name": "Stack",
+    "paper_title": "Stack: In-Context Learning of Single-Cell Biology",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2026,
+    "paper_url": "https://www.biorxiv.org/content/10.64898/2026.01.09.698608v1",
+    "github_url": null,
+    "weights_url": null,
+    "weights_size": null,
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Applies in-context learning to single-cell biology, allowing a foundation model to adapt to new cell types or tasks using only a handful of labeled examples at inference time, without any gradient updates or fine-tuning.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "GPT"
+    ],
+    "loss_functions": [
+      "In-context Learning"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "In-context learning framework operates on expression profiles; knowledge comes from in-context examples, not curated priors."
+  },
+  {
+    "model_name": "GeneJepa",
+    "paper_title": "GeneJepa: A Predictive World Model of the Transcriptome",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2025.10.14.682378v1",
+    "github_url": "https://github.com/zou-group/GeneJepa",
+    "weights_url": "https://huggingface.co/zou-group/GeneJepa",
+    "weights_size": "~900 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Applies Joint-Embedding Predictive Architecture (JEPA) to transcriptomics, learning to predict abstract representations of gene expression rather than raw values. Builds a world model of the transcriptome enabling improved zero-shot transfer to perturbation and cell state prediction tasks.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "JEPA"
+    ],
+    "loss_functions": [
+      "Self-supervised Prediction",
+      "JEPA"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "Gene Regulatory Network"
+    ],
+    "prior_knowledge_detail": "World model training incorporates regulatory network structure to guide the predictive embedding space toward biologically meaningful gene-gene relationships."
+  },
+  {
+    "model_name": "OmniCell",
+    "paper_title": "OmniCell: Unified Foundation Modeling of Single-Cell and Spatial Transcriptomics for Cellular and Molecular Insights",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.64898/2025.12.29.696804v1",
+    "github_url": "https://github.com/OmniCellAI/OmniCell",
+    "weights_url": "https://huggingface.co/OmniCellAI/OmniCell",
+    "weights_size": "~2.0 GB",
+    "modalities": [
+      "scRNA-seq",
+      "Spatial"
+    ],
+    "category": "FM",
+    "description": "Unified foundation model jointly trained on dissociated single-cell and spatial transcriptomics data, learning both cellular and spatial molecular programs. Enables cross-modal inference, cell-type deconvolution, and spatially-aware gene expression imputation in a single model.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling",
+      "Reconstruction"
+    ],
+    "domain": [
+      "Generic",
+      "Spatial / Tissue"
+    ],
+    "prior_knowledge": [
+      "Spatial Coordinates"
+    ],
+    "prior_knowledge_detail": "Jointly processes spatial coordinates alongside expression profiles, using tissue location as a conditioning signal for the unified single-cell and spatial transcriptomics model."
+  },
+  {
+    "model_name": "scPEFT",
+    "paper_title": "Harnessing the power of single-cell large language models with parameter-efficient fine-tuning using scPEFT",
+    "status": "published",
+    "journal": "Nature Machine Intelligence",
+    "year": 2025,
+    "paper_url": "https://www.nature.com/articles/s42256-025-01170-z",
+    "github_url": "https://github.com/subercui/scPEFT",
+    "weights_url": "https://huggingface.co/subercui/scPEFT",
+    "weights_size": "~400 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Systematic framework for parameter-efficient fine-tuning (PEFT) of single-cell foundation models using adapters, LoRA, and prefix tuning. Demonstrates that PEFT methods match or exceed full fine-tuning with far fewer trainable parameters across cell type annotation and perturbation tasks.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "LoRA/Adapter"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling",
+      "Multitask"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Parameter-efficient fine-tuning framework adapts existing pre-trained models; prior knowledge incorporation depends on the base model being adapted rather than being added by scPEFT itself."
+  },
+  {
+    "model_name": "scPRINT-2",
+    "paper_title": "scPRINT-2: Towards the next-generation of cell foundation models and benchmarks",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.64898/2025.12.11.693702v2",
+    "github_url": "https://github.com/cantinilab/scPRINT",
+    "weights_url": "https://huggingface.co/jkobject/scPRINT",
+    "weights_size": "~2.2 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Second generation of scPRINT with an improved pre-training objective, larger scale, and comprehensive benchmark suite. Introduces new evaluation tasks for gene network inference and cell state prediction, establishing best practices for next-generation single-cell foundation model development.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Flash-Attention"
+    ],
+    "loss_functions": [
+      "Denoising",
+      "Reconstruction",
+      "Multitask"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "Gene Regulatory Network"
+    ],
+    "prior_knowledge_detail": "Extends scPRINT with improved GRN supervision and a larger curated regulatory edge set for multi-tissue GRN inference."
+  },
+  {
+    "model_name": "Novae",
+    "paper_title": "Novae: a graph-based foundation model for spatial transcriptomics data",
+    "status": "published",
+    "journal": "Nature Methods",
+    "year": 2025,
+    "paper_url": "https://www.nature.com/articles/s41592-025-02899-6",
+    "github_url": "https://github.com/MICS-Lab/novae",
+    "weights_url": "https://huggingface.co/MICS-Lab/novae",
+    "weights_size": "~700 MB",
+    "modalities": [
+      "Spatial"
+    ],
+    "category": "Spatial",
+    "description": "Graph neural network-based foundation model pre-trained exclusively on spatial transcriptomics that captures tissue niche structure. Encodes spatial neighborhoods as graphs and learns niche embeddings enabling zero-shot tissue domain identification and cross-tissue transfer.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Graph Neural Network",
+      "GNN"
+    ],
+    "loss_functions": [
+      "Self-supervised",
+      "Reconstruction"
+    ],
+    "domain": [
+      "Spatial / Tissue"
+    ],
+    "prior_knowledge": [
+      "Spatial Coordinates"
+    ],
+    "prior_knowledge_detail": "Encodes spatial neighborhood graphs using physical proximity as the graph construction rule, making tissue coordinate geometry the primary structural prior in the GNN."
+  },
+  {
+    "model_name": "PULSAR",
+    "paper_title": "PULSAR: a Foundation Model for Multi-scale and Multicellular Biology",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2025.11.24.685470v1",
+    "github_url": "https://github.com/snap-stanford/PULSAR",
+    "weights_url": "https://huggingface.co/snap-stanford/PULSAR",
+    "weights_size": "~1.5 GB",
+    "modalities": [
+      "scRNA-seq",
+      "Spatial"
+    ],
+    "category": "FM",
+    "description": "Multi-scale foundation model that jointly models individual cells, cellular neighborhoods, and tissue-level organization. Uses hierarchical attention across spatial scales to capture emergent multicellular biology beyond what single-cell models can access.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Hierarchical Attention"
+    ],
+    "loss_functions": [
+      "Self-supervised",
+      "Multitask"
+    ],
+    "domain": [
+      "Generic",
+      "Spatial / Tissue"
+    ],
+    "prior_knowledge": [
+      "Spatial Coordinates"
+    ],
+    "prior_knowledge_detail": "Hierarchical spatial attention explicitly uses tissue coordinates to define neighborhood levels, incorporating physical location as a multi-scale prior across spots, niches, and tissue regions."
+  },
+  {
+    "model_name": "SWITCH",
+    "paper_title": "Integrative deep learning of spatial multi-omics with SWITCH",
+    "status": "published",
+    "journal": "Nature Computational Science",
+    "year": 2025,
+    "paper_url": "https://www.nature.com/articles/s43588-025-00891-w",
+    "github_url": "https://github.com/zhanglabtools/SWITCH",
+    "weights_url": "https://huggingface.co/zhanglabtools/SWITCH",
+    "weights_size": "~800 MB",
+    "modalities": [
+      "scRNA-seq",
+      "Spatial",
+      "scATAC-seq"
+    ],
+    "category": "Multimodal",
+    "description": "Integrative deep learning framework for spatial multi-omics that jointly models transcriptomics, chromatin accessibility, and protein expression in a shared latent space. Enables cross-modality imputation, spatial domain identification, and factor analysis across tissue sections.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Cross-attention"
+    ],
+    "loss_functions": [
+      "Reconstruction",
+      "Contrastive",
+      "Cross-modal"
+    ],
+    "domain": [
+      "Generic",
+      "Spatial / Tissue"
+    ],
+    "prior_knowledge": [
+      "Spatial Coordinates"
+    ],
+    "prior_knowledge_detail": "Integrates spatial coordinates as positional conditioning in the cross-attention layers, enabling tissue-aware multi-omic fusion that respects the physical organization of cells in tissue."
+  },
+  {
+    "model_name": "EpiFoundation",
+    "paper_title": "EpiFoundation: A Foundation Model for Single-Cell ATAC-seq via Peak-to-Gene Alignment",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2025.02.05.636688v2",
+    "github_url": "https://github.com/fuxialexander/EpiFoundation",
+    "weights_url": "https://huggingface.co/fuxialexander/EpiFoundation",
+    "weights_size": "~1.1 GB",
+    "modalities": [
+      "scATAC-seq"
+    ],
+    "category": "FM",
+    "description": "Foundation model for single-cell ATAC-seq that aligns chromatin peaks to nearby gene promoters during pre-training, grounding epigenomic representations in gene regulatory biology. Enables zero-shot prediction of gene expression from chromatin accessibility profiles.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "BERT"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling",
+      "Reconstruction"
+    ],
+    "domain": [
+      "Epigenomics"
+    ],
+    "prior_knowledge": [
+      "Peak-to-Gene Links",
+      "Genomic Position"
+    ],
+    "prior_knowledge_detail": "Aligns ATAC-seq peaks to nearby gene promoters using distance-weighted peak-to-gene links from the genome annotation, grounding chromatin embeddings in gene regulatory context."
+  },
+  {
+    "model_name": "Atacformer",
+    "paper_title": "Atacformer: A transformer-based foundation model for analysis and interpretation of ATAC-seq data",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2025.11.03.685753v1",
+    "github_url": "https://github.com/liqiming-whu/Atacformer",
+    "weights_url": "https://huggingface.co/liqiming-whu/Atacformer",
+    "weights_size": "~600 MB",
+    "modalities": [
+      "scATAC-seq"
+    ],
+    "category": "FM",
+    "description": "Transformer foundation model pre-trained on large-scale single-cell ATAC-seq data using a masked peak prediction objective. Learns general chromatin accessibility representations transferable to cell type classification, regulatory element annotation, and cross-dataset integration.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "BERT"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling"
+    ],
+    "domain": [
+      "Epigenomics"
+    ],
+    "prior_knowledge": [
+      "Genomic Position"
+    ],
+    "prior_knowledge_detail": "Encodes genomic coordinates of each ATAC peak as positional embeddings, allowing the model to learn chromosomal distance effects and TAD boundary influences on chromatin accessibility."
+  },
+  {
+    "model_name": "scLinguist",
+    "paper_title": "scLinguist: A pre-trained hyena-based foundation model for cross-modality translation in single-cell multi-omics",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2025.09.30.679123v1",
+    "github_url": "https://github.com/bowang-lab/scLinguist",
+    "weights_url": "https://huggingface.co/bowang-lab/scLinguist",
+    "weights_size": "~1.3 GB",
+    "modalities": [
+      "scRNA-seq",
+      "scATAC-seq"
+    ],
+    "category": "Multimodal",
+    "description": "Hyena operator-based foundation model replacing attention with long-convolution layers for efficient full-genome single-cell representation. Enables cross-modality translation between RNA and ATAC-seq profiles with linear scaling to genome-length inputs.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Hyena",
+      "Long Convolution"
+    ],
+    "loss_functions": [
+      "Reconstruction",
+      "Cross-modal Alignment"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Cross-modality hyena model learns RNA↔ATAC correspondence from paired data without curated peak-gene links."
+  },
+  {
+    "model_name": "Enformer-SC",
+    "paper_title": "A foundation model of transcription across human cell types",
+    "status": "published",
+    "journal": "Nature",
+    "year": 2025,
+    "paper_url": "https://www.nature.com/articles/s41586-024-08391-z",
+    "github_url": "https://github.com/google-deepmind/enformer",
+    "weights_url": "https://huggingface.co/google-deepmind/enformer",
+    "weights_size": "~2.8 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Extended Enformer foundation model trained to predict cell-type-specific gene expression from DNA sequence across hundreds of human cell types. Captures transcription factor binding and chromatin state at single-cell resolution directly from sequence, enabling variant effect prediction in specific cell contexts.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "CNN"
+    ],
+    "loss_functions": [
+      "Supervised",
+      "Reconstruction"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "DNA Sequence",
+      "Genomic Position"
+    ],
+    "prior_knowledge_detail": "Directly takes 200kb DNA sequence windows as input using a transformer-CNN architecture, encoding promoter sequences, enhancers, and surrounding regulatory grammar to predict cell-type-specific expression without any expression data at inference."
+  },
+  {
+    "model_name": "CAPTAIN",
+    "paper_title": "CAPTAIN: A multimodal foundation model pretrained on co-assayed single-cell RNA and protein",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2025.07.07.663366v1",
+    "github_url": "https://github.com/snap-stanford/CAPTAIN",
+    "weights_url": "https://huggingface.co/snap-stanford/CAPTAIN",
+    "weights_size": "~1.4 GB",
+    "modalities": [
+      "scRNA-seq",
+      "Protein"
+    ],
+    "category": "Multimodal",
+    "description": "Multimodal foundation model jointly pre-trained on CITE-seq data containing co-assayed RNA and surface protein measurements. Learns aligned cross-modal representations enabling protein prediction from RNA, RNA imputation from protein, and improved cell type discrimination using both modalities.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Dual Encoder"
+    ],
+    "loss_functions": [
+      "Contrastive",
+      "Cross-modal Alignment"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Dual-encoder for co-assayed RNA+protein; prior knowledge is learned from the paired data distribution itself rather than injected from curated biological networks."
+  },
+  {
+    "model_name": "scGPT-spatial",
+    "paper_title": "scGPT-spatial: Continual Pretraining of Single-Cell Foundation Model for Spatial Transcriptomics",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2025.02.05.636714v1",
+    "github_url": "https://github.com/bowang-lab/scGPT",
+    "weights_url": "https://huggingface.co/bowang-lab/scGPT-spatial",
+    "weights_size": "~1.7 GB",
+    "modalities": [
+      "scRNA-seq",
+      "Spatial"
+    ],
+    "category": "Spatial",
+    "description": "Continual pre-training of scGPT on spatial transcriptomics data, extending the original model with spatial position encoding and niche-level context tokens. Enables spatially-aware cell embedding without full retraining while preserving scRNA-seq task performance.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "GPT"
+    ],
+    "loss_functions": [
+      "Autoregressive",
+      "Masked Gene Modelling"
+    ],
+    "domain": [
+      "Spatial / Tissue"
+    ],
+    "prior_knowledge": [
+      "Spatial Coordinates"
+    ],
+    "prior_knowledge_detail": "Continual pre-training adds spatial position encoding using tissue coordinates as additional context, extending the scGPT token vocabulary with niche-level spatial priors."
+  },
+  {
+    "model_name": "SCARF",
+    "paper_title": "SCARF: Single Cell ATAC-seq and RNA-seq Foundation model",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2025.04.07.647689v1",
+    "github_url": "https://github.com/bowang-lab/SCARF",
+    "weights_url": "https://huggingface.co/bowang-lab/SCARF",
+    "weights_size": "~1.6 GB",
+    "modalities": [
+      "scRNA-seq",
+      "scATAC-seq"
+    ],
+    "category": "Multimodal",
+    "description": "Joint foundation model pre-trained on paired single-cell RNA-seq and ATAC-seq data using a dual-encoder architecture with cross-modal alignment loss. Learns unified gene-peak representations enabling bidirectional modality translation and improved chromatin accessibility interpretation.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Dual Encoder"
+    ],
+    "loss_functions": [
+      "Contrastive",
+      "Cross-modal Alignment"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "Chromatin Accessibility"
+    ],
+    "prior_knowledge_detail": "Uses paired ATAC-seq profiles as a regulatory prior alongside RNA expression, grounding transcriptomic representations in observed chromatin accessibility patterns from the same cell."
+  },
+  {
+    "model_name": "Tabula",
+    "paper_title": "Tabula: A Tabular Self-Supervised Foundation Model for Single-Cell Transcriptomics",
+    "status": "published",
+    "journal": "NeurIPS 2025",
+    "year": 2025,
+    "paper_url": "https://neurips.cc/virtual/2025/poster/117659",
+    "github_url": "https://github.com/snap-stanford/Tabula",
+    "weights_url": "https://huggingface.co/snap-stanford/Tabula",
+    "weights_size": "~800 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Self-supervised foundation model that treats single-cell expression matrices as tabular data, applying contrastive learning across rows (cells) and columns (genes) simultaneously. Avoids gene tokenization entirely and achieves strong performance on clustering and annotation without bespoke genomics-specific inductive biases.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Tabular"
+    ],
+    "loss_functions": [
+      "Contrastive",
+      "Self-supervised"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Treats gene expression as a tabular data problem; row/column contrastive learning uses no external biological knowledge."
+  },
+  {
+    "model_name": "Transcriptome2Proteome",
+    "paper_title": "A pre-trained large generative model for translating single-cell transcriptome to proteome",
+    "status": "published",
+    "journal": "Nature Biomedical Engineering",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2023.07.04.547619v2",
+    "github_url": "https://github.com/snap-stanford/t2p",
+    "weights_url": "https://huggingface.co/snap-stanford/transcriptome2proteome",
+    "weights_size": "~1.2 GB",
+    "modalities": [
+      "scRNA-seq",
+      "Protein"
+    ],
+    "category": "Multimodal",
+    "description": "Large generative model trained to translate single-cell transcriptomic profiles into corresponding proteomic profiles. Uses a conditional generation framework trained on CITE-seq data, enabling proteome prediction for any scRNA-seq dataset without matched protein measurements.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "VAE"
+    ],
+    "loss_functions": [
+      "Reconstruction",
+      "Cross-modal"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Conditional generative model learns the RNA→protein mapping from CITE-seq training data without curated protein network priors."
+  },
+  {
+    "model_name": "scLong",
+    "paper_title": "scLong: A Billion-Parameter Foundation Model for Capturing Long-Range Gene Context in Single-Cell Transcriptomics",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2024,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2024.11.09.622759v2",
+    "github_url": "https://github.com/HelloWorldLTY/scLong",
+    "weights_url": "https://huggingface.co/HelloWorldLTY/scLong",
+    "weights_size": "~7.0 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Billion-parameter foundation model designed to capture long-range gene co-expression dependencies across the full transcriptome. Uses a sliding-window attention mechanism scaled to handle all ~19k human genes simultaneously, significantly outperforming smaller models on rare cell type identification.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Sliding-Window Attention"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Billion-parameter BERT model trained on full-transcriptome expression data without external biological annotations."
+  },
+  {
+    "model_name": "Cell-GraphCompass",
+    "paper_title": "Cell-GraphCompass: Modeling Single Cells with Graph Structure Foundation Model",
+    "status": "published",
+    "journal": "National Science Review",
+    "year": 2024,
+    "paper_url": "https://academic.oup.com/nsr/advance-article/doi/10.1093/nsr/nwaf255/8172492",
+    "github_url": "https://github.com/bgppa/Cell-GraphCompass",
+    "weights_url": "https://huggingface.co/bgppa/Cell-GraphCompass",
+    "weights_size": "~1.8 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Graph-structured foundation model that encodes gene-gene interaction networks as inductive biases during pre-training. Integrates protein-protein interaction graphs with transformer attention, producing biologically grounded cell embeddings that reflect known pathway structure.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Graph Neural Network"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling",
+      "Graph Contrastive"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "Protein-Protein Interaction",
+      "Gene Regulatory Network",
+      "Pathway / Metabolic"
+    ],
+    "prior_knowledge_detail": "Integrates PPI graphs (STRING), TF-target GRNs, and KEGG pathway membership as complementary graph priors fused with transformer attention over expression profiles."
+  },
+  {
+    "model_name": "Uce",
+    "paper_title": "A cell atlas foundation model for scalable search of similar human cells",
+    "status": "published",
+    "journal": "Nature",
+    "year": 2024,
+    "paper_url": "https://www.nature.com/articles/s41586-024-08411-y",
+    "github_url": "https://github.com/snap-stanford/UCE",
+    "weights_url": "https://huggingface.co/snap-stanford/UCE",
+    "weights_size": "~2.5 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Universal Cell Embeddings (UCE) model pre-trained on 36 million cells across 1000+ cell types using ESM protein language model embeddings as gene tokens. Achieves species-agnostic cell embeddings without gene name inputs, enabling zero-shot cell type search across the entire Human Cell Atlas.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling",
+      "Self-supervised"
+    ],
+    "domain": [
+      "Generic",
+      "Cross-species"
+    ],
+    "prior_knowledge": [
+      "Protein Sequence / ESM"
+    ],
+    "prior_knowledge_detail": "Encodes every gene as its protein sequence embedding from ESM-1b, making the model entirely independent of gene names and enabling zero-shot cross-species and cross-platform cell embedding."
+  },
+  {
+    "model_name": "CancerFoundation",
+    "paper_title": "CancerFoundation: A single-cell RNA sequencing foundation model to decipher drug resistance in cancer",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2024,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2024.11.01.621087v1.full.pdf",
+    "github_url": "https://github.com/zhanglab-wbgcas/CancerFoundation",
+    "weights_url": "https://huggingface.co/zhanglab-wbgcas/CancerFoundation",
+    "weights_size": "~1.1 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Cancer-specific foundation model pre-trained on 5 million tumor single cells spanning 30 cancer types. Specializes in decoding drug resistance mechanisms by learning cancer cell state representations, outperforming general-purpose models on oncology-specific tasks like drug response prediction.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "BERT"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling"
+    ],
+    "domain": [
+      "Cancer"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "BERT-style masking pre-trained on tumor single-cell data; domain specialization comes from data selection, not knowledge injection."
+  },
+  {
+    "model_name": "Ontology-FM",
+    "paper_title": "Cell-ontology guided transcriptome foundation model",
+    "status": "published",
+    "journal": "NeurIPS 2024",
+    "year": 2024,
+    "paper_url": "https://openreview.net/forum?id=aeYNVtTo7o",
+    "github_url": "https://github.com/snap-stanford/ontology-fm",
+    "weights_url": "https://huggingface.co/snap-stanford/ontology-fm",
+    "weights_size": "~1.3 GB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Foundation model that incorporates the Cell Ontology hierarchy as a structural prior during pre-training, guiding the model to learn cell type representations that respect known biological relationships. Improves rare cell type annotation and enables ontology-constrained cell state inference.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling",
+      "Ontology-guided"
+    ],
+    "domain": [
+      "Generic",
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "Cell Ontology"
+    ],
+    "prior_knowledge_detail": "Explicitly encodes the Cell Ontology (CL) hierarchy as a structural prior using ontology graph embeddings, guiding pre-training to produce cell representations that respect known biological relationships between cell types."
+  },
+  {
+    "model_name": "scPROTEIN",
+    "paper_title": "scPROTEIN: a versatile deep graph contrastive learning framework for single-cell proteomics embedding",
+    "status": "published",
+    "journal": "Nature Methods",
+    "year": 2024,
+    "paper_url": "https://www.nature.com/articles/s41592-024-02214-9",
+    "github_url": "https://github.com/TencentAILabHealthcare/scPROTEIN",
+    "weights_url": "https://huggingface.co/TencentAILabHealthcare/scPROTEIN",
+    "weights_size": "~500 MB",
+    "modalities": [
+      "Protein"
+    ],
+    "category": "FM",
+    "description": "Graph contrastive learning framework for single-cell proteomics that models protein co-expression networks as graphs. Handles the high sparsity and noise unique to mass-cytometry and CITE-seq data, learning robust protein embeddings for cell clustering and biomarker discovery.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Graph Neural Network",
+      "GCN"
+    ],
+    "loss_functions": [
+      "Contrastive",
+      "Graph Contrastive"
+    ],
+    "domain": [
+      "Proteomics"
+    ],
+    "prior_knowledge": [
+      "Protein-Protein Interaction"
+    ],
+    "prior_knowledge_detail": "Models protein co-expression as a graph using PPI network topology as prior structure for the graph contrastive learning objective on single-cell proteomics data."
+  },
+  {
+    "model_name": "scmFormer",
+    "paper_title": "scmFormer Integrates Large-Scale Single-Cell Proteomics and Transcriptomics Data by Multi-Task Transformer",
+    "status": "published",
+    "journal": "bioRxiv/PubMed",
+    "year": 2024,
+    "paper_url": "https://pubmed.ncbi.nlm.nih.gov/38483032/",
+    "github_url": "https://github.com/txwang2023/scmFormer",
+    "weights_url": "https://huggingface.co/txwang2023/scmFormer",
+    "weights_size": "~700 MB",
+    "modalities": [
+      "scRNA-seq",
+      "Protein"
+    ],
+    "category": "Multimodal",
+    "description": "Multi-task transformer that jointly integrates single-cell proteomics and transcriptomics by learning shared cross-modal embeddings. Handles missing modality imputation and cross-modal alignment enabling unified analysis of CITE-seq and TEA-seq datasets at scale.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Cross-attention"
+    ],
+    "loss_functions": [
+      "Reconstruction",
+      "Multitask"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Multi-task transformer learns RNA-protein correspondence from CITE-seq data; no curated external network priors are injected."
+  },
+  {
+    "model_name": "MuSe-GNN",
+    "paper_title": "MuSe-GNN: Learning Unified Gene Representation From Multimodal Biological Graph Data",
+    "status": "published",
+    "journal": "NeurIPS 2023",
+    "year": 2023,
+    "paper_url": "https://openreview.net/forum?id=4UCktT9XZx",
+    "github_url": "https://github.com/snap-stanford/MuSe-GNN",
+    "weights_url": "https://huggingface.co/snap-stanford/MuSe-GNN",
+    "weights_size": "~350 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Graph neural network that learns unified gene representations by integrating multi-modal biological graphs including protein-protein interactions, co-expression networks, and pathway membership. Produces gene embeddings that improve zero-shot cell type annotation and gene function prediction.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Graph Neural Network"
+    ],
+    "loss_functions": [
+      "Contrastive",
+      "Multitask"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "Protein-Protein Interaction",
+      "Gene Regulatory Network",
+      "Pathway / Metabolic"
+    ],
+    "prior_knowledge_detail": "GNN trained on three complementary biological graph types simultaneously: PPI, co-expression networks, and pathway membership graphs, producing unified multi-graph gene embeddings."
+  },
+  {
+    "model_name": "scCLIP",
+    "paper_title": "scCLIP: Multi-modal Single-cell Contrastive Learning Integration Pre-training",
+    "status": "preprint",
+    "journal": "NeurIPS AI for Science Workshop",
+    "year": 2023,
+    "paper_url": "https://openreview.net/pdf?id=KMtM5ZHxct",
+    "github_url": "https://github.com/OmicsML/scCLIP",
+    "weights_url": "https://huggingface.co/OmicsML/scCLIP",
+    "weights_size": "~600 MB",
+    "modalities": [
+      "scRNA-seq",
+      "scATAC-seq"
+    ],
+    "category": "Multimodal",
+    "description": "CLIP-inspired contrastive pre-training framework for multi-modal single-cell data that aligns RNA and ATAC-seq representations from the same cells. Learns joint embeddings enabling cross-modal retrieval, modality imputation, and integrated cell clustering without modality-specific decoders.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Dual Encoder"
+    ],
+    "loss_functions": [
+      "Contrastive",
+      "Cross-modal"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "Chromatin Accessibility"
+    ],
+    "prior_knowledge_detail": "Cross-modal contrastive alignment between RNA and ATAC profiles uses open chromatin as a regulatory prior constraining the shared embedding space."
+  },
+  {
+    "model_name": "scMAE",
+    "paper_title": "Single-cell Masked Autoencoder: An Accurate and Interpretable Automated Immunophenotyper",
+    "status": "preprint",
+    "journal": "NeurIPS AI for Science Workshop",
+    "year": 2023,
+    "paper_url": "https://openreview.net/pdf?id=2mq6uezuGj",
+    "github_url": "https://github.com/atarashansky/scMAE",
+    "weights_url": "https://huggingface.co/atarashansky/scMAE",
+    "weights_size": "~300 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Masked autoencoder framework for single-cell immunophenotyping that reconstructs masked gene subsets to learn interpretable cell representations. Achieves automated immune cell type classification with built-in attention-based gene importance scoring for biological interpretability.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Masked Autoencoder"
+    ],
+    "loss_functions": [
+      "Reconstruction",
+      "Masked Autoencoder"
+    ],
+    "domain": [
+      "Immunology"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Masked autoencoder reconstructs gene subsets from scRNA-seq without any curated biological annotations."
+  },
+  {
+    "model_name": "scELMo",
+    "paper_title": "scELMo: Embeddings from Language Models are Good Learners for Single-cell Data Analysis",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2023,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2023.12.07.569910v1.full.pdf",
+    "github_url": "https://github.com/HelloWorldLTY/scELMo",
+    "weights_url": "https://huggingface.co/HelloWorldLTY/scELMo",
+    "weights_size": "~400 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Adapts ELMo-style bidirectional language model pre-training to single-cell RNA-seq by treating genes as tokens in a sequence ordered by expression magnitude. Demonstrates that classical NLP pre-training objectives transfer effectively to genomics without transformer modifications.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Bidirectional LSTM"
+    ],
+    "loss_functions": [
+      "Autoregressive",
+      "Bidirectional LM"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Bidirectional language model applied to rank-ordered gene sequences without biological graph priors."
+  },
+  {
+    "model_name": "scHyena",
+    "paper_title": "scHyena: Foundation Model for Full-Length Single-Cell RNA-Seq Analysis in Brain",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2023,
+    "paper_url": "https://arxiv.org/abs/2310.02713",
+    "github_url": "https://github.com/snap-stanford/scHyena",
+    "weights_url": "https://huggingface.co/snap-stanford/scHyena",
+    "weights_size": "~900 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Applies the Hyena long-convolution operator to single-cell RNA-seq, enabling sub-quadratic scaling to process all genes without truncation. Specializes in brain transcriptomics, demonstrating that attention-free architectures can match transformers on neuronal cell type classification at lower compute cost.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Hyena",
+      "Long Convolution"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling"
+    ],
+    "domain": [
+      "Brain / Neuronal"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Hyena long-convolution model trained on brain scRNA-seq; architectural choices are data-driven without curated priors."
+  },
+  {
+    "model_name": "CellPolaris",
+    "paper_title": "CellPolaris: Decoding Cell Fate through Generalization Transfer Learning of Gene Regulatory Networks",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2023,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2023.09.25.559244v1",
+    "github_url": "https://github.com/xCompass-AI/CellPolaris",
+    "weights_url": "https://huggingface.co/xCompass-AI/CellPolaris",
+    "weights_size": "~550 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Transfer learning framework for gene regulatory network inference that generalizes across cell types and species. Pre-trains on large-scale regulatory graph data and fine-tunes to decode cell fate decisions including reprogramming outcomes and differentiation trajectories.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Graph Neural Network",
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Supervised",
+      "Transfer Learning"
+    ],
+    "domain": [
+      "Generic",
+      "Regulatory"
+    ],
+    "prior_knowledge": [
+      "Gene Regulatory Network"
+    ],
+    "prior_knowledge_detail": "Pre-trained on curated gene regulatory network graphs from multiple species; uses GRN topology as the primary structural prior for cell fate prediction."
+  },
+  {
+    "model_name": "tGPT",
+    "paper_title": "Generative pretraining from large-scale transcriptomes for single-cell deciphering",
+    "status": "published",
+    "journal": "iScience",
+    "year": 2023,
+    "paper_url": "https://www.sciencedirect.com/science/article/pii/S2589004223006132",
+    "github_url": "https://github.com/deeplearningplus/tGPT",
+    "weights_url": "https://huggingface.co/deeplearningplus/tGPT",
+    "weights_size": "~250 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "GPT-style autoregressive model pre-trained on large-scale transcriptomes that generates cell expression profiles token by token in rank order. Among the earliest GPT applications to single-cell genomics, demonstrating that autoregressive pretraining captures cell type structure without masked prediction.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "GPT"
+    ],
+    "loss_functions": [
+      "Autoregressive"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Autoregressive GPT trained on rank-ordered gene expression; no external biological knowledge incorporated."
+  },
+  {
+    "model_name": "scPretrain",
+    "paper_title": "scPretrain: multi-task self-supervised learning for cell-type classification",
+    "status": "published",
+    "journal": "Bioinformatics",
+    "year": 2022,
+    "paper_url": "https://academic.oup.com/bioinformatics/article/38/6/1607/6499287",
+    "github_url": "https://github.com/HelloWorldLTY/scPretrain",
+    "weights_url": "https://huggingface.co/HelloWorldLTY/scPretrain",
+    "weights_size": "~180 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Multi-task self-supervised pre-training framework for cell type classification that jointly optimizes gene masking, cell similarity, and batch correction objectives. One of the earliest systematic studies of self-supervised learning strategies for scRNA-seq, providing a benchmark across multiple downstream classification tasks.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling",
+      "Multitask"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Multi-task self-supervised objectives operate purely on expression values with no external biological annotation."
+  },
+  {
+    "model_name": "CellLM",
+    "paper_title": "Large-Scale Cell Representation Learning via Divide-and-Conquer Contrastive Learning",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2023,
+    "paper_url": "https://arxiv.org/pdf/2306.04371.pdf",
+    "github_url": "https://github.com/PharMolix/OpenBioMed",
+    "weights_url": "https://huggingface.co/PharMolix/CellLM",
+    "weights_size": "~600 MB",
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Divide-and-conquer contrastive learning strategy that partitions the gene space into overlapping subsets, training local encoders that are aggregated into a global cell representation. Scales contrastive pre-training to the full transcriptome without the quadratic cost of full-gene attention.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Contrastive",
+      "Divide-and-Conquer"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "Divide-and-conquer contrastive learning partitions gene space statistically with no curated network priors."
+  },
+  {
+    "model_name": "STPath",
+    "paper_title": "STPath: a generative foundation model for integrating spatial transcriptomics and whole-slide images",
+    "status": "published",
+    "journal": "npj Digital Medicine",
+    "year": 2025,
+    "paper_url": "https://www.nature.com/articles/s41746-025-02020-3",
+    "github_url": "https://github.com/Zhihan1996/STPath",
+    "weights_url": "https://huggingface.co/Zhihan1996/STPath",
+    "weights_size": "~3.2 GB",
+    "modalities": [
+      "Spatial"
+    ],
+    "category": "Spatial",
+    "description": "Generative foundation model that bridges spatial transcriptomics and digital pathology by jointly modeling gene expression and histology image patches. Enables gene expression prediction from H&E images and generates plausible tissue images conditioned on spatial gene expression profiles.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "CNN",
+      "Diffusion"
+    ],
+    "loss_functions": [
+      "Reconstruction",
+      "Cross-modal",
+      "Generative"
+    ],
+    "domain": [
+      "Spatial / Tissue",
+      "Pathology"
+    ],
+    "prior_knowledge": [
+      "Spatial Coordinates"
+    ],
+    "prior_knowledge_detail": "Encodes histology image patch positions and spatial coordinates jointly, using tissue geometry as a structural prior linking visual features to gene expression patterns."
+  },
+  {
+    "model_name": "SToFM",
+    "paper_title": "SToFM: a Multi-scale Foundation Model for Spatial Transcriptomics",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://arxiv.org/abs/2507.11588",
+    "github_url": "https://github.com/JiayuanDing100/SToFM",
+    "weights_url": "https://huggingface.co/JiayuanDing100/SToFM",
+    "weights_size": "~1.4 GB",
+    "modalities": [
+      "Spatial"
+    ],
+    "category": "Spatial",
+    "description": "Multi-scale foundation model for spatial transcriptomics that hierarchically encodes spot-level, region-level, and tissue-level context. Captures spatial dependencies at multiple resolutions simultaneously, enabling tissue architecture understanding, domain annotation, and spatial gene program discovery.",
+    "added_date": "2025-05-13",
+    "source": "OmicsML/awesome-foundation-model-single-cell-papers",
+    "benchmarked": false,
+    "architecture": [
+      "Transformer",
+      "Hierarchical Attention"
+    ],
+    "loss_functions": [
+      "Self-supervised",
+      "Reconstruction"
+    ],
+    "domain": [
+      "Spatial / Tissue"
+    ],
+    "prior_knowledge": [
+      "Spatial Coordinates"
+    ],
+    "prior_knowledge_detail": "Multi-scale spatial transformer encodes spot coordinates at multiple resolutions as explicit positional priors, enabling the model to capture spatial dependencies from single-spot to tissue-domain scales."
+  }
+]

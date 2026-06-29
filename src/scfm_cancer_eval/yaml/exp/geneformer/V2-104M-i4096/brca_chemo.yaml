@@ -1,0 +1,6 @@
+run_id: 'geneformer_V2-104M-i4096_brca_chemo'
+bases:
+  - datasets/brca/chemo/cancer_cells.yaml
+  - models/geneformer/V2-104M-i4096.yaml
+  - tasks/classification.yaml
+

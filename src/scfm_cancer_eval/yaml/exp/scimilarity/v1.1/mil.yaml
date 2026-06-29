@@ -1,0 +1,7 @@
+# Merged after tasks/classification.yaml — only MIL overrides for this experiment.
+classification:
+  params:
+    mil:
+      debug: true
+      celltype_key: cell_types
+

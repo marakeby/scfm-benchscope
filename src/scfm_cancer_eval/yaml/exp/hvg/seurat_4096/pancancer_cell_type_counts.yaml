@@ -1,0 +1,12 @@
+run_id: 'hvg_seurat_4096_pancancer_celltype'
+bases:
+  - datasets/pancancer/cell_type/dataset_shared.yaml
+
+dataset:
+  max_cells: 10000
+  max_cells_stratify: patient
+
+model:
+  - models/hvg/seurat_4096.yaml
+classification:
+  skip: true

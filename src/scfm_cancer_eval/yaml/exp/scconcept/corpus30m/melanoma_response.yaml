@@ -1,0 +1,7 @@
+run_id: 'scconcept_corpus30m_melanoma_response'
+dataset:
+  - datasets/melanoma/response.yaml
+model:
+  - models/scconcept/corpus30m.yaml
+classification:
+  - tasks/classification.yaml

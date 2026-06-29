@@ -1,0 +1,129 @@
+# Machine-readable embedding data requirements for validating merged experiment YAML.
+# Keys under ``methods`` match ``embedding.method`` after config merge (case-sensitive).
+#
+# Dataset semantics (merged ``dataset`` block) — optional but recommended for accurate checks:
+#   matrix_in_x: raw_counts | log_normalized | other_processed | unspecified
+#       Declares what ``adata.X`` represents *after* ``H5ADLoader.load`` (including ``load_raw`` / ``layer_name``).
+#       ``unspecified`` (default if key omitted): validator uses conservative severities.
+#       Use ``log_normalized`` or ``other_processed`` for TPM / Seurat-normalized / Pearson-residual matrices, etc.
+#
+# Fields (all optional per method):
+#   require_hvg_skip: bool
+#       If true, ``hvg`` must be absent/falsy OR ``hvg.skip`` must be true (no HVG subsetting in pipeline).
+#   require_preprocessing_skip: bool
+#       If true, ``preprocessing.skip`` must be true (do not run Scanpy normalize/log1p in DataLoader.scale).
+#   forbid_preprocess_normalize_and_log1p: bool | mapping
+#       If true: same as mapping with default severities (see ``defaults.forbid_preprocess_normalize_and_log1p``).
+#       If mapping: keys are ``matrix_in_x`` values; values are ``error`` or ``warning`` when preprocessing is
+#       active with both ``normalize`` and ``apply_log1p`` true (double-transform / wrong-scale risk).
+#   warn_pre_normalized_T_raw_load: bool
+#       If true, warn when embedding.params.pre_normalized is T, preprocessing is skipped, and dataset load_raw is true
+#       (X may be raw counts; scFoundation single-cell path with T expects log1p+TP10k already in X).
+#   warn_method_matrix_mismatch: bool
+#       If true, warn when ``matrix_in_x`` disagrees with typical expectations for the method (e.g. Geneformer + log_normalized).
+#
+# Metadata blocks are documentation only (not enforced by the default validator).
+schema_version: "1.1.0"
+description: >-
+  Constraints derived from public docs / READMEs for each foundation model.
+  Validate merged YAML (dataset + model fragments + experiment overrides) before run_exp.
+
+defaults:
+  unknown_method_severity: warning
+  message: "No constraints defined for this embedding.method; skipping checks."
+  # Default severities for ``forbid_preprocess_normalize_and_log1p: true`` (bool shorthand on a method).
+  forbid_preprocess_normalize_and_log1p:
+    raw_counts: error
+    log_normalized: warning
+    other_processed: warning
+    unspecified: error
+
+methods:
+  geneformer:
+    require_hvg_skip: true
+    forbid_preprocess_normalize_and_log1p: true
+    warn_if_matrix_not_raw_counts: true
+    metadata:
+      counts_scale: raw_umis_expected
+      gene_ids: ensembl_stable
+      gene_panel: full_transcriptome_no_hvg
+
+  scVI:
+    require_hvg_skip: true
+    require_preprocessing_skip: true
+    error_if_matrix_in_x_not_raw_counts: true
+    metadata:
+      counts_scale: raw_counts_in_X_or_layer
+      gene_ids: flexible_symbols_or_ensembl
+      gene_panel: typically_all_genes_post_qc
+
+  scfoundation:
+    require_hvg_skip: true
+    warn_pre_normalized_T_raw_load: true
+    # Only warn about T+load_raw when we believe X might be raw; skip if matrix is already processed.
+    warn_pre_normalized_T_raw_load_when_matrix_in_x:
+      - raw_counts
+      - unspecified
+    metadata:
+      counts_scale: >-
+        depends_on_embedding.params.pre_normalized (F: raw in X, internal TP10k+log1p;
+        T: already log1p+normalized expression in X)
+      gene_ids: gene_symbols_aligned_to_OS_scRNA_gene_index_19264
+      gene_panel: fixed_19264_genes
+
+  scimilarity:
+    require_hvg_skip: true
+    metadata:
+      counts_scale: tp10k_log_normalized_before_get_embeddings
+      gene_ids: gene_symbols_aligned_to_model_gene_order
+      gene_panel: fixed_model_gene_space
+      ensembl_var_names: >-
+        optional ``embedding.params.gene_name_id_dict`` (Geneformer pickle / dict dir) renames
+        majority-Ensembl ``var_names`` to symbols before alignment; override with
+        ``force_ensembl_symbol_mapping: true`` if needed
+
+  scgpt:
+    metadata:
+      counts_scale: raw_at_pipeline_start_preprocessor_normalizes
+      gene_ids: gene_symbols
+      gene_panel: often_hvg_subset_configurable
+
+  cellplm:
+    metadata:
+      counts_scale: processed_shiftlog_or_similar_in_practice
+      gene_ids: gene_symbols_typical
+      gene_panel: often_hvg_in_tutorials
+
+  nicheformer:
+    metadata:
+      counts_scale: processed_expression_typical
+      gene_ids: gene_symbols
+      gene_panel: tokenizer_sequence_limited
+
+  scconcept:
+    metadata:
+      counts_scale: raw_or_robust_to_distribution_per_docs
+      gene_ids: ensembl_ensg
+      gene_panel: token_budget_per_checkpoint
+
+  state:
+    metadata:
+      counts_scale: >-
+        SE embedding uses gene-symbol overlap; ST pipeline uses preprocess_train normalize+log1p+HVG
+      gene_ids: gene_symbols_auto_detected_from_var
+      gene_panel: >-
+        ST uses HVG in obsm by design; SE uses overlap with embedding vocabulary
+
+  scBERT:
+    metadata:
+      counts_scale: raw_then_normalize_total_log1p_in_recipes
+      gene_ids: ncbi_gene_symbols
+      gene_panel: pretrained_vocabulary_subset
+
+  PCA:
+    metadata:
+      note: baseline method; constraints not enforced here.
+
+  HVG:
+    metadata:
+      note: baseline HVG embedding; require_hvg_skip must be false for meaningful runs.

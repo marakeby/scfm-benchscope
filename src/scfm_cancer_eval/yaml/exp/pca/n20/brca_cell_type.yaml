@@ -1,0 +1,7 @@
+run_id: 'pca_n20_brca_cell_type'
+dataset:
+  - datasets/brca/cell_type/dataset_full.yaml
+model:
+  - models/pca/n20.yaml
+classification:
+  skip: true

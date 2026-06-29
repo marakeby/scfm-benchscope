@@ -1,0 +1,35 @@
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  # path is relative to DATA_PATH in setup_path.py
+  path: brca_full/T_cells_only.h5ad
+  load_raw: False
+  label_key: pre_post
+  batch_key: donor_id
+  # layer_name is copied into adata.X if needed
+  layer_name: X
+  train_test_split: data_splits/brca_full/brca_pre_post/train_test_split.json
+  cv_splits: data_splits/brca_full/brca_pre_post/cv_splits.json
+  label_map:
+    Pre: 0
+    Post: 1
+
+  # sample smaller set of cells for testing and development
+  # max_cells: 2000
+  # max_cells_stratify: label
+
+qc:
+  # skip: True
+  min_genes: 10
+  min_cells: 10
+
+preprocessing:
+  # skip: True
+  normalize: True
+  target_sum: 10000
+  apply_log1p: True
+
+hvg:
+  batch_key: batch
+  n_top_genes: 4096
+  flavor: seurat # expect logarithmized data

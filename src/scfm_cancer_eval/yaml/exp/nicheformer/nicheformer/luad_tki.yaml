@@ -1,0 +1,7 @@
+run_id: 'nicheformer_nicheformer_luad_tki'
+dataset:
+  - datasets/luad/tki.yaml
+model:
+  - models/nicheformer/nicheformer.yaml
+classification:
+  - tasks/classification.yaml

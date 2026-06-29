@@ -1,0 +1,7 @@
+run_id: 'cellplm_85M-20231027_melanoma_response'
+dataset:
+  - datasets/melanoma/response.yaml
+model:
+  - models/cellplm/85M-20231027.yaml
+classification:
+  - tasks/classification.yaml

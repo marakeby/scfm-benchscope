@@ -1,0 +1,9 @@
+run_id: 'geneformer_V1-10M-i2048_melanoma_response'
+dataset:
+  - datasets/melanoma/response.yaml
+model:
+  - models/geneformer/V1-10M-i2048_finetune.yaml
+embedding:
+    skip: True # dont excute this (embedding) step
+    viz: False
+    eval: False

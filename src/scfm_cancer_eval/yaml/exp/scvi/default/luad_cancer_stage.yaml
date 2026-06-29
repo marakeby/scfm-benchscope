@@ -1,0 +1,7 @@
+run_id: 'scvi_luad_cancer_stage'
+dataset:
+  - datasets/luad/cancer_stage.yaml
+model:
+  - models/scvi/default.yaml
+classification:
+  - tasks/classification.yaml

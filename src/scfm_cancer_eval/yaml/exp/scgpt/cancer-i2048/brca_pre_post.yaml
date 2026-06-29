@@ -1,0 +1,7 @@
+run_id: 'scgpt_cancer-i2048_brca_pre_post'
+dataset:
+  - datasets/brca/immunotherapy_pre_post/tcells.yaml
+model:
+  - models/scgpt/cancer-i2048.yaml
+classification:
+  - tasks/classification.yaml

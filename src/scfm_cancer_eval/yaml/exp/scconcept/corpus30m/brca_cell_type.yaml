@@ -1,0 +1,7 @@
+run_id: 'scconcept_corpus30m_brca_cell_type'
+dataset:
+  - datasets/brca/cell_type/dataset_shared.yaml
+model:
+  - models/scconcept/corpus30m.yaml
+classification:
+  - tasks/classification.yaml

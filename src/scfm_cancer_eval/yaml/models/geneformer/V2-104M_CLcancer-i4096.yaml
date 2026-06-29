@@ -1,0 +1,13 @@
+# Shared Geneformer V2 104M cancer checkpoint (4096)
+embedding:
+  method: geneformer
+  module: features.gf_extractor
+  class: GeneformerExtractor
+  viz: true
+  eval: true
+  params:
+    model: Geneformer-V2-104M_CLcancer
+    version: V2
+    model_dir: Geneformer/
+    dict_dir: Geneformer/gf_dicts_v2
+    input_size: 4096

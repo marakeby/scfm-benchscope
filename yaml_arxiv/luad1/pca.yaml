@@ -1,0 +1,20 @@
+run_id: 
+dataset:
+    - luad1/dataset_shared.yaml
+
+# hvg:
+#     skip: True
+#     batch_key: batch
+#     n_top_genes: 4096
+#     flavor: seurat # expect logarithmized data
+    
+embedding:
+    method: PCA
+    module: features.pca_extractor
+    class: PCAEmbeddingExtractor
+    viz: False
+    eval: False
+    params: 
+        n_components: 100
+        embedding_col: X_pca
+

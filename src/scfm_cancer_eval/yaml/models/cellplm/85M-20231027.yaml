@@ -1,0 +1,11 @@
+embedding:
+  load_cached: true
+  method: cellplm
+  module: features.cellplm_extractor
+  class: CellPLMExtractor
+  viz: true
+  eval: true
+  params:
+    pretrain_directory: CellPLM
+    pretrain_prefix: 20231027_85M
+    gene_name_id_dict: Geneformer/gf_dicts_v2/gene_name_id_dict_gc104M.pkl

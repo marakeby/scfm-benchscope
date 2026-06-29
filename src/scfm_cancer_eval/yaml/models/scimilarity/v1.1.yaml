@@ -1,0 +1,13 @@
+embedding:
+  load_cached: false
+  method: scimilarity
+  module: features.scimilarity_extractor
+  class: SCimilarityExtractor
+  viz: true
+  eval: true
+  params:
+    model_path: SCimilarity/model_v1.1
+    use_gpu: true
+    # Geneformer symbol↔Ensembl pickle (under MODELS_PATH). Required when ``var_names`` are ENSG…
+    # so ``align_dataset`` can match SCimilarity’s symbol ``gene_order``.
+    gene_name_id_dict: Geneformer/gf_dicts_v2/gene_name_id_dict_gc104M.pkl

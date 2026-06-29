@@ -1,0 +1,23 @@
+run_id:
+dataset:
+  - brca_full/subtype/dataset_shared.yaml
+classification:
+  - brca_full/subtype/classification_randomforest.yaml
+bases:
+  - refactored/models/geneformer/V1-10M-i2048.yaml
+embedding:
+  params:
+    batch_size: 16
+    continue_training:
+      learning_rate: 0.001
+      do_train: true
+      do_eval: false
+      group_by_length: true
+      length_column_name: length
+      disable_tqdm: false
+      lr_scheduler_type: linear
+      warmup_steps: 10000
+      weight_decay: 0.001
+      per_device_train_batch_size: 16
+      num_train_epochs: 6
+      save_strategy: epoch

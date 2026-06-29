@@ -1,0 +1,30 @@
+dataset:
+  module: data.data_loader
+  class: H5ADLoader
+  path: crc/crc_tcell_tumor_MMRd_vs_MMRp_min200cells.h5ad
+  load_raw: False
+  label_key: MMRStatusTumor
+  batch_key: donor_id
+  layer_name: X
+  train_test_split: data_splits/crc_mmr/train_test_split.json
+  cv_splits: data_splits/crc_mmr/cv_splits.json
+  label_map:
+    MMRd: 0
+    MMRp: 1
+    
+  #subsample for development purposes only
+  # max_cells: 2000
+  # max_cells_stratify: donor_id
+qc:
+  min_genes: 10
+  min_cells: 10
+  
+preprocessing:
+  normalize: true
+  target_sum: 10000
+  apply_log1p: true
+  
+hvg:
+  batch_key: batch
+  n_top_genes: 4096
+  flavor: seurat

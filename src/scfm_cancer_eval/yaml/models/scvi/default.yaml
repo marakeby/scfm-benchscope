@@ -1,0 +1,14 @@
+embedding:
+  method: scVI
+  module: features.scvi_extractor
+  class: scVIEmbeddingExtractor
+  viz: true
+  eval: true
+  params:
+    batch_key: batch #cell_types
+    n_layers: 2
+    n_latent: 100
+    gene_likelihood: nb
+    max_epochs: 10
+    layer_name: null
+    batch_size: 128

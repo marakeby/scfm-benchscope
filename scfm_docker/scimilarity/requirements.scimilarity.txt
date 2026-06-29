@@ -1,0 +1,17 @@
+# SCimilarity core deps are declared in its package metadata; this file adds “environment stabilizers”.
+
+# Single-cell stack stability
+numpy<2
+zarr<3
+
+# Common extras you’ll almost certainly want
+pandas
+scikit-learn
+tqdm
+
+# Optional but often used in SCimilarity workflows
+anndata
+scanpy
+leidenalg
+igraph
+scib==1.1.5

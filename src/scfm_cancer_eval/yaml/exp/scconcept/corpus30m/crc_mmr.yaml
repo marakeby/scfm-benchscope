@@ -1,0 +1,7 @@
+run_id: 'scconcept_corpus30m_crc_mmr'
+dataset:
+  - datasets/luad/crc_mmr.yaml
+model:
+  - models/scconcept/corpus30m.yaml
+classification:
+  - tasks/classification.yaml

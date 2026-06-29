@@ -1,0 +1,7 @@
+run_id: 'cellplm_85M-20231027_brca_subtype'
+dataset:
+  - datasets/brca/cancer_subtype/cancer_cells.yaml
+model:
+  - models/cellplm/85M-20231027.yaml
+classification:
+  - tasks/classification.yaml

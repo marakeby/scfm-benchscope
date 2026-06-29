@@ -1,0 +1,7 @@
+run_id: 'nicheformer_nicheformer_melanoma_response'
+dataset:
+  - datasets/melanoma/response.yaml
+model:
+  - models/nicheformer/nicheformer.yaml
+classification:
+  - tasks/classification.yaml

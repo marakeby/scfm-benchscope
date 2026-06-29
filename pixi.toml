@@ -1,0 +1,323 @@
+# Pixi workspace: multiple environments — one install prefix per `pixi run -e <name>`.
+#
+# “One env per model” here means separate named environments (geneformer, scvi, …),
+# not one conda env for the whole repo. Each [environments] entry is solved and
+# installed independently under `.pixi/envs/<name>/`.
+#
+# Most stacks reuse [dependencies] as the shared evaluation harness (Python, torch,
+# scanpy, anndata, sklearn, …) plus one [feature.*] for that model. If a model needs
+# incompatible pins (old pandas/torch, git-only deps), give it `no-default-feature = true`
+# and list a full dependency set in that feature only — see `scbert`.
+#
+# Usage:
+#   pixi install
+#   pixi run -e geneformer run-exp yaml/brca_full/cell_type/Geneformer-V2-104M.yaml
+#   pixi shell -e scvi
+#
+# Lockfile (commit pixi.lock for reproducible installs):
+#   pixi lock
+#
+# scFoundation: upstream has no root PyPI package. Use env `scf` and run
+# `pixi run install-scfoundation` (or `bash scripts/install_scfoundation_model.sh`)
+# to clone into third_party/scFoundation and pip install -e the model/ subfolder.
+
+[workspace]
+name = "scfm_eval"
+authors = ["scFM_eval contributors"]
+channels = ["conda-forge"]
+# Linux-only workspace (GCP / training VMs). Drop osx-arm64 if you need macOS lockfiles again.
+platforms = ["linux-64"]
+
+[tasks]
+# Pass a YAML path relative to bundled yaml/ (see scfm_cancer_eval.run.run_exp main()).
+run-exp = { cmd = "python -m scfm_cancer_eval.run.run_exp" }
+# Quick sanity check that imports resolve in the active environment.
+check-imports = { cmd = "python -c \"import yaml, numpy, pandas, anndata, scanpy, torch; print('ok')\"" }
+# VM / Docker: clone Hugging Face Geneformer + pip install -e into the `geneformer` env.
+install-packages = { cmd = "bash scripts/install_packages.sh" }
+download-models = { cmd = "bash scripts/download_model_weights.sh" }
+download-data = { cmd = "bash scripts/download_data.sh" }
+verify-gpu = { cmd = "python -c \"import torch; print('cuda_available=', torch.cuda.is_available()); print('torch_cuda=', getattr(torch.version, 'cuda', None))\"" }
+bootstrap-vm = { cmd = "bash scripts/bootstrap_vm.sh" }
+install-scfoundation = { cmd = "bash scripts/install_scfoundation_model.sh" }
+
+# ---------------------------------------------------------------------------
+# Default feature: core harness for run_exp.py (PCA/HVG, viz, eval, classifiers).
+# PyTorch from conda-forge (CPU). Add a CUDA overlay locally if needed.
+# ---------------------------------------------------------------------------
+[dependencies]
+python = "3.11.*"
+pip = "*"
+numpy = ">=1.24"
+pandas = ">=2"
+pyyaml = ">=6"
+scipy = ">=1.10"
+scikit-learn = ">=1.3"
+matplotlib-base = ">=3.8"
+tqdm = "*"
+einops = "*"
+anndata = ">=0.10"
+scanpy = ">=1.9"
+h5py = "*"
+# Keep below conda-forge’s upper bound so `datasets` (Geneformer) is not pinned against fsspec==2026.3.0.
+fsspec = ">=2023.12.0,<2026.3"
+# PyTorch from conda-forge (often CPU-only wheel on some platforms). On a CUDA VM, run
+# `pixi run verify-gpu`; if CUDA is False, add a Linux+CUDA PyTorch channel override or use Docker — see README.
+pytorch = ">=2.1"
+torchvision = ">=0.16"
+jupyterlab = ">=4.5.6,<5"
+ipykernel = ">=7.2.0,<8"
+
+[pypi-dependencies]
+# Editable install of this repo so every Pixi env can run `python -m scfm_cancer_eval.run.run_exp`.
+"scfm-cancer-eval" = { path = ".", editable = true }
+huggingface_hub = ">=0.20"
+# Benchmarking metrics (NMI, ARI, silhouette, …) used by evaluation/eval.py for all experiments.
+scib = "*"
+# Python-only iLISI, cLISI, kBET (no R); see https://scib-metrics.readthedocs.io/
+scib-metrics = ">=0.5"
+
+# --- Model-specific features (each environment below selects one stack on top of default) ---
+
+[feature.scvi.dependencies]
+scvi-tools = ">=1.1"
+
+[feature.geneformer.pypi-dependencies]
+# Geneformer imports SpecialTokensMixin (removed in transformers v5).
+transformers = ">=4.36,<5"
+datasets = ">=2.16"
+# Hugging Face repo (not on PyPI). Weights: scripts/download_model_weights.sh or install_packages.sh.
+geneformer = { git = "https://huggingface.co/ctheodoris/Geneformer" }
+
+# CUDA PyTorch for Geneformer (`cuda = "12"` satisfies conda `__cuda` for GPU builds).
+[feature.geneformer.system-requirements]
+cuda = "12"
+
+[feature.geneformer.dependencies]
+pytorch = { version = ">=2.1", build = "*cuda*" }
+torchvision = { version = ">=0.16", build = "*cuda*" }
+
+# scGPT imports torchtext (C++ ext linked to libtorch). Use conda-forge `torchtext` + matching
+# `pytorch` — PyPI torchtext wheels target pip torch and break against conda-forge libtorch.
+# conda-forge torchtext is linux-only in practice; this feature is linux-64 only.
+# GPU: matchspec `*cuda*` selects CUDA-enabled pytorch/torchvision builds (CPU builds are `cpu_mkl`).
+[feature.scgpt]
+platforms = ["linux-64"]
+
+# PyTorch CUDA builds depend on the conda virtual package `__cuda`; declare a driver/CUDA
+# generation so `pixi lock` / install can resolve GPU stacks (see pixi workspace docs).
+[feature.scgpt.system-requirements]
+cuda = "12"
+
+[feature.scgpt.activation]
+scripts = ["scripts/scgpt_env.sh"]
+
+[feature.scgpt.dependencies]
+pytorch = { version = "2.6.*", build = "*cuda*" }
+torchvision = { version = "0.21.*", build = "*cuda*" }
+torchtext = "0.18.*"
+# Align with pyarrow / pandas wheels pulled in by scGPT stack (NumPy 2 breaks older pyarrow bindings).
+numpy = ">=1.26.0,<2.0.0"
+
+[feature.scgpt.pypi-dependencies]
+scgpt = { git = "https://github.com/bowang-lab/scGPT.git" }
+# scgpt.utils.util imports IPython at import time; not listed in upstream deps.
+ipython = "*"
+
+# scimilarity moves models to GPU; need CUDA-enabled PyTorch (default feature is CPU).
+[feature.scimilarity.system-requirements]
+cuda = "12"
+
+[feature.scimilarity.dependencies]
+pytorch = { version = ">=2.1", build = "*cuda*" }
+torchvision = { version = ">=0.16", build = "*cuda*" }
+# scimilarity cell_embedding.py checks isinstance(..., zarr.core.Array); zarr 3 removed that API.
+zarr = ">=2.18,<3"
+
+[feature.scimilarity.activation]
+scripts = ["scripts/scgpt_env.sh"]
+
+[feature.scimilarity.pypi-dependencies]
+scimilarity = ">=0.2"
+
+# pydance (cellplm dep) lists `louvain`; pip otherwise resolves louvain==0.7.1 sdist and builds
+# igraph via CMake. conda-forge supplies binary louvain + python-igraph.
+[feature.cellplm.system-requirements]
+cuda = "12"
+
+[feature.cellplm.dependencies]
+pytorch = { version = ">=2.1", build = "*cuda*" }
+torchvision = { version = ">=0.16", build = "*cuda*" }
+louvain = ">=0.8.2"
+# conda-forge louvain imports pkg_resources; setuptools>=82 no longer provides it by default.
+setuptools = ">=70,<82"
+
+[feature.cellplm.activation]
+scripts = ["scripts/scgpt_env.sh"]
+
+[feature.cellplm.pypi-dependencies]
+cellplm = ">=0.1"
+mygene = "*"
+
+# --- Isolated stacks (no shared [dependencies]): git install + harness for run_exp / scib ---
+# Use: pixi run -e nicheformer ...  |  pixi run -e scconcept ...
+# Nicheformer pulls dask-cuda / Merlin — use Linux + CUDA for training.
+
+[feature.nicheformer_isolated.dependencies]
+python = "3.11.*"
+pip = "*"
+
+[feature.nicheformer_isolated.activation]
+scripts = ["scripts/pixi_pythonpath_src.sh"]
+
+[feature.nicheformer_isolated.pypi-dependencies]
+# Installs upstream pins (pandas 1.5.3, numpy 1.26.4, torch>=2.5.1, …).
+nicheformer = { git = "https://github.com/theislab/nicheformer.git" }
+# anndata does not support zarr v3+ (ImportError in anndata.compat); pin before pip resolves zarr 3.
+zarr = ">=2.18,<3"
+# scFM_eval pipeline + embedding metrics (run_exp / evaluation/eval.py)
+pyyaml = ">=6"
+matplotlib = "*"
+scikit-learn = ">=1.3"
+scipy = ">=1.10"
+tqdm = "*"
+h5py = "*"
+# scib 1.1.x imports scanpy._utils.deprecated_arg_names (removed in scanpy 1.10+); keep scanpy 1.9.x.
+scanpy = ">=1.9,<1.10"
+anndata = ">=0.10"
+scib = "*"
+# Nicheformer reference panel uses Ensembl IDs; symbol → Ensembl in nicheformer_extractor.
+mygene = "*"
+
+[feature.scconcept_isolated.system-requirements]
+cuda = "12"
+
+[feature.scconcept_isolated.dependencies]
+python = "3.11.*"
+pip = "*"
+# Conda PyTorch must be present before pip builds flash-attn (its setup imports torch).
+pytorch = { version = "2.6.*", build = "*cuda*" }
+torchvision = { version = "0.21.*", build = "*cuda*" }
+# Align with lamindb_setup[aws] (s3fs<=2025.9.0); s3fs 2025.9.x needs fsspec 2025.9.x (not 2025.12 / 2026).
+fsspec = "==2025.9.0"
+
+[feature.scconcept_isolated.activation]
+scripts = ["scripts/scgpt_env.sh", "scripts/pixi_pythonpath_src.sh"]
+
+# flash-attn build runs without isolation so it sees the env torch (see pixi pypi-options docs).
+[feature.scconcept_isolated.pypi-options]
+no-build-isolation = ["flash-attn"]
+
+[feature.scconcept_isolated.pypi-dependencies]
+# concept.api imports lamin_dataloader; same install order as scfm_docker base images.
+"lamin-dataloader" = { git = "https://github.com/theislab/lamin_dataloader.git" }
+# torch==2.6.0 and stack from upstream pyproject.
+scConcept = { git = "https://github.com/theislab/scConcept.git" }
+# Imported by concept.modules.flash_attention_layer; omitted from upstream pyproject.
+"flash-attn" = ">=2.6.0,<3"
+pyyaml = ">=6"
+matplotlib = "*"
+scikit-learn = ">=1.3"
+scipy = ">=1.10"
+tqdm = "*"
+h5py = "*"
+scib = "*"
+# Optional symbol → Ensembl mapping in ScConceptExtractor (`map_symbols_to_ensembl`).
+mygene = "*"
+scib-metrics = ">=0.5.9, <0.6"
+
+# STATE (arc-state / SE-600M): GPU inference needs CUDA-enabled PyTorch (default harness uses CPU builds).
+[feature.state.system-requirements]
+cuda = "12"
+
+[feature.state.dependencies]
+pytorch = { version = ">=2.1", build = "*cuda*" }
+torchvision = { version = ">=0.16", build = "*cuda*" }
+
+[feature.state.activation]
+scripts = ["scripts/scgpt_env.sh"]
+
+[feature.state.pypi-dependencies]
+arc-state = ">=0.10"
+
+# scFoundation model code: install via `pixi run install-scfoundation` (editable
+# install of upstream model/). CUDA PyTorch matches other GPU extractors.
+[feature.scf.system-requirements]
+cuda = "12"
+
+[feature.scf.dependencies]
+pytorch = { version = ">=2.1", build = "*cuda*" }
+torchvision = { version = ">=0.16", build = "*cuda*" }
+
+[feature.scf.activation]
+scripts = ["scripts/scgpt_env.sh"]
+
+[feature.scf.pypi-dependencies]
+# After `pixi run install-scfoundation`, pretrainmodels is provided by editable
+# scfoundation-model; local-attention remains here for lockfile consistency.
+protobuf = "*"
+"local-attention" = "*"
+
+# ---------------------------------------------------------------------------
+# R + Seurat (conda-forge). Isolated from Python/torch stacks.
+# Usage:  pixi run -e r_seurat -- R
+#         pixi shell -e r_seurat
+# In R:   library(Seurat)
+# SeuratDisk: use scripts/install_seuratdisk.sh (fork w/ SeuratObject 5 `layer` fix; upstream master breaks SaveH5Seurat).
+# (r-hdf5r is listed below for HDF5 / h5ad.)
+# ---------------------------------------------------------------------------
+[feature.r_seurat.dependencies]
+r-base = ">=4.3"
+r-seurat = ">=5.0"
+r-hdf5r = "*"
+
+# ---------------------------------------------------------------------------
+# Legacy scBERT stack (torch 1.8 / transformers 4.6) — isolated from default.
+# ---------------------------------------------------------------------------
+[feature.scbert]
+platforms = ["linux-64"]
+
+[feature.scbert.dependencies]
+python = "3.9.*"
+pip = "*"
+
+[feature.scbert.pypi-dependencies]
+torch = "==1.8.1"
+torchvision = "==0.9.1"
+transformers = "==4.6.1"
+scanpy = "==1.7.2"
+scikit-learn = "==0.24.2"
+scipy = "==1.5.4"
+numpy = "==1.20.0"
+pandas = "==1.1.5"
+einops = "==0.6.0"
+matplotlib = "<3.7"
+tqdm = "*"
+h5py = "*"
+anndata = ">=0.7,<0.9"
+pyyaml = ">=5"
+
+# ---------------------------------------------------------------------------
+# Named environments (each = default + listed features, except `scbert`).
+# ---------------------------------------------------------------------------
+# Each environment is solved independently (no shared solve-group) so conflicting
+# stacks (e.g. scgpt vs scvi-tools) do not pin each other.
+[environments]
+default = []
+scvi = ["scvi"]
+geneformer = ["geneformer"]
+scgpt = ["scgpt"]
+scimilarity = ["scimilarity"]
+cellplm = ["cellplm"]
+state = ["state"]
+scf = ["scf"]
+
+# Legacy stack — no shared base with modern torch (pins in feature.scbert).
+scbert = { features = ["scbert"], no-default-feature = true }
+
+# GitHub-only models + incompatible pins vs default — fully isolated features.
+nicheformer = { features = ["nicheformer_isolated"], no-default-feature = true }
+scconcept = { features = ["scconcept_isolated"], no-default-feature = true }
+
+# R + Seurat (see [feature.r_seurat.dependencies])
+r-seurat = { features = ["r_seurat"], no-default-feature = true }

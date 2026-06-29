@@ -1,0 +1,7 @@
+run_id: 'cellplm_85M-20231027_brca_cell_type'
+dataset:
+  - datasets/brca/cell_type/dataset_shared.yaml
+model:
+  - models/cellplm/85M-20231027.yaml
+classification:
+  skip: true

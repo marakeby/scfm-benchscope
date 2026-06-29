@@ -1,0 +1,7 @@
+run_id: 'nicheformer_nicheformer_luad_cancer_stage'
+dataset:
+  - datasets/luad/cancer_stage.yaml
+model:
+  - models/nicheformer/nicheformer.yaml
+classification:
+  - tasks/classification.yaml

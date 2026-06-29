@@ -1,0 +1,13 @@
+embedding:
+  method: scconcept
+  module: features.scconcept_extractor
+  class: ScConceptExtractor
+  viz: True
+  eval: True
+  params:
+    model_name: Corpus-30M
+    embedding_kind: mean   # or cls
+    batch_size: 32
+    # Model vocab uses Ensembl IDs (ENSG…). Map symbols → Ensembl if var_names are not ENSG:
+    map_symbols_to_ensembl: true
+    # gene_id_column: ensembl_id   # default after mapping; omit if var_names are already ENSG

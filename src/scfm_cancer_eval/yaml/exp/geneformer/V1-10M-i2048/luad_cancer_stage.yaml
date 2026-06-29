@@ -1,0 +1,7 @@
+run_id: 'geneformer_V1-10M-i2048_luad_cancer_stage'
+dataset:
+  - datasets/luad/cancer_stage.yaml
+model:
+  - models/geneformer/V1-10M-i2048.yaml
+classification:
+  - tasks/classification.yaml
