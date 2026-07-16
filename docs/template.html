@@ -3,10 +3,12 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Single-Cell Foundation Models</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<title>scFM BenchScope — Single-Cell Foundation Models</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px;background:#f6f8fa;color:#1a1a1a;line-height:1.5;}
+body{font-family:"Plus Jakarta Sans",ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:14px;background:#f5f7fa;color:#111827;line-height:1.5;-webkit-font-smoothing:antialiased;}
 a{color:#0969da;text-decoration:none;}
 a:hover{text-decoration:underline;}
 
@@ -37,6 +39,21 @@ a:hover{text-decoration:underline;}
 .chip:hover{border-color:#0969da;color:#0969da;}
 .chip.on{background:#0969da;color:#fff;border-color:#0969da;}
 .chip .cn{font-size:10px;opacity:.8;margin-left:3px;}
+
+/* ── Availability filter chip variants ── */
+.chip.avail-github.on  { background:#f0fdf4;color:#15803d;border-color:#86efac; }
+.chip.avail-weights.on { background:#faf5ff;color:#7e22ce;border-color:#d8b4fe; }
+.chip.avail-both.on    { background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe; }
+.chip.avail-none.on    { background:#fef2f2;color:#b91c1c;border-color:#fca5a5; }
+
+/* ── Availability pills on cards ── */
+.avail-banner{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 0 2px;}
+.avail-pill{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:20px;font-family:monospace;}
+.avail-pill svg{width:10px;height:10px;flex-shrink:0;}
+.avail-pill.has{background:#f0fdf4;color:#15803d;border:1px solid #86efac;}
+.avail-pill.has svg{stroke:#15803d;fill:none;stroke-width:2.5;}
+.avail-pill.missing{background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;}
+.avail-pill.missing svg{stroke:#b91c1c;fill:none;stroke-width:2;}
 
 /* ── Grid ── */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
@@ -109,6 +126,8 @@ a:hover{text-decoration:underline;}
     <div class="stat"><div class="stat-n" id="sWeights">0</div><div class="stat-l">Has weights</div></div>
     <div class="stat"><div class="stat-n" id="sGithub">0</div><div class="stat-l">Has GitHub</div></div>
     <div class="stat" style="border-color:#1a7f37;"><div class="stat-n" id="sBench" style="color:#1a7f37;">0</div><div class="stat-l">Benchmarked</div></div>
+    <div class="stat"><div class="stat-n" id="sBoth">0</div><div class="stat-l">GitHub + weights</div></div>
+    <div class="stat"><div class="stat-n" id="sNew" style="color:#7c3aed;">0</div><div class="stat-l">New 2026</div></div>
   </div>
 
   <div class="controls">
@@ -130,6 +149,14 @@ a:hover{text-decoration:underline;}
         <option value="name">Name A–Z</option>
         <option value="venue">Venue</option>
       </select>
+    </div>
+    <div class="filter-section">
+      <span class="filter-label">Availability:</span>
+      <button class="chip on"            data-g="avail" data-v="all"     onclick="fc(this)">All <span class="cn" id="cn-avail-all"></span></button>
+      <button class="chip avail-github"  data-g="avail" data-v="github"  onclick="fc(this)">&#10003; Has GitHub <span class="cn" id="cn-avail-github"></span></button>
+      <button class="chip avail-weights" data-g="avail" data-v="weights" onclick="fc(this)">&#10003; Has weights <span class="cn" id="cn-avail-weights"></span></button>
+      <button class="chip avail-both"    data-g="avail" data-v="both"    onclick="fc(this)">&#10003; GitHub + weights <span class="cn" id="cn-avail-both"></span></button>
+      <button class="chip avail-none"    data-g="avail" data-v="none"    onclick="fc(this)">&#10007; Neither yet <span class="cn" id="cn-avail-none"></span></button>
     </div>
     <div class="filter-section">
       <span class="filter-label">Status:</span>
@@ -227,7 +254,7 @@ a:hover{text-decoration:underline;}
 <script>
 const ALL_MODELS = __MODELS_JSON__;
 
-let filters = { status: 'all', cat: 'all', mod: 'all', bench: 'all', arch: 'all', loss: 'all', domain: 'all', prior: 'all' };
+let filters = { status: 'all', cat: 'all', mod: 'all', bench: 'all', arch: 'all', loss: 'all', domain: 'all', prior: 'all', avail: 'all' };
 
 function fc(btn) {
   const g = btn.dataset.g;
@@ -237,6 +264,11 @@ function fc(btn) {
   render();
 }
 
+function hasGithub(m)  { return !!(m.github_url  || m.has_github);  }
+function hasWeights(m) { return !!(m.weights_url || m.has_weights); }
+function hasBoth(m)    { return hasGithub(m) && hasWeights(m); }
+function hasNeither(m) { return !hasGithub(m) && !hasWeights(m); }
+
 function updateStats() {
   const m = ALL_MODELS;
   document.getElementById('sTotal').textContent     = m.length;
@@ -245,7 +277,14 @@ function updateStats() {
   document.getElementById('sWeights').textContent   = m.filter(x => x.weights_url).length;
   document.getElementById('sGithub').textContent    = m.filter(x => x.github_url).length;
   document.getElementById('sBench').textContent     = m.filter(x => x.benchmarked).length;
+  document.getElementById('sBoth').textContent      = m.filter(hasBoth).length;
+  document.getElementById('sNew').textContent       = m.filter(x => x.year >= 2026).length;
   document.getElementById('cn-all').textContent     = m.length;
+  document.getElementById('cn-avail-all').textContent     = m.length;
+  document.getElementById('cn-avail-github').textContent  = m.filter(hasGithub).length;
+  document.getElementById('cn-avail-weights').textContent = m.filter(hasWeights).length;
+  document.getElementById('cn-avail-both').textContent    = m.filter(hasBoth).length;
+  document.getElementById('cn-avail-none').textContent    = m.filter(hasNeither).length;
   document.getElementById('cn-pub').textContent     = m.filter(x => x.status === 'published').length;
   document.getElementById('cn-pre').textContent     = m.filter(x => x.status === 'preprint').length;
 }
@@ -256,6 +295,10 @@ function render() {
   const srt = document.getElementById('sortBy').value;
 
   let data = ALL_MODELS.filter(m => {
+    if (filters.avail === 'github'  && !hasGithub(m))  return false;
+    if (filters.avail === 'weights' && !hasWeights(m)) return false;
+    if (filters.avail === 'both'    && !hasBoth(m))    return false;
+    if (filters.avail === 'none'    && !hasNeither(m)) return false;
     if (filters.status !== 'all' && m.status !== filters.status) return false;
     if (filters.cat !== 'all' && m.category !== filters.cat) return false;
     if (filters.mod !== 'all') {
@@ -332,9 +375,19 @@ function render() {
 
     const benchIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
     const cardClass = 'card' + (isBench ? ' is-benchmarked' : '') + (!isBench && isNew ? ' is-new' : '');
-    const benchBanner = isBench ? '<div class="bench-banner">' + benchIcon + ' Benchmarked by scFM evaluation framework</div>' : '';
+    const benchBanner = isBench ? '<div class="bench-banner">' + benchIcon + ' Benchmarked by scFM Inspector</div>' : '';
+    const checkIcon = '<svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2.5"><polyline points="20 6 9 17 4 12"/></svg>';
+    const xIcon     = '<svg viewBox="0 0 24 24" style="width:10px;height:10px;stroke:currentColor;fill:none;stroke-width:2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    const ghPill = (m.github_url || m.has_github)
+      ? '<span class="avail-pill has">'     + checkIcon + 'GitHub</span>'
+      : '<span class="avail-pill missing">' + xIcon     + 'No GitHub</span>';
+    const wtPill = (m.weights_url || m.has_weights)
+      ? '<span class="avail-pill has">'     + checkIcon + 'Weights</span>'
+      : '<span class="avail-pill missing">' + xIcon     + 'No weights</span>';
+    const availBanner = '<div class="avail-banner">' + ghPill + wtPill + '</div>';
     return `<div class="${cardClass}">
       ${benchBanner}
+      ${availBanner}
       <div class="card-head">
         <span class="model-name">${m.model_name || '?'}</span>
         <div class="badges">
