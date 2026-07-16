@@ -2047,5 +2047,178 @@
     "benchmarked": false,
     "added_date": "2026-07-16",
     "source": "web-search-agent"
+  },
+  {
+    "model_name": "sciLaMA",
+    "paper_title": "sciLaMA: A Single-Cell Representation Learning Framework to Leverage Prior Knowledge from Large Language Models",
+    "status": "preprint",
+    "journal": "ICML 2025",
+    "year": 2025,
+    "paper_url": "https://www.microsoft.com/en-us/research/publication/scilama-a-single-cell-representation-learning-framework-to-leverage-prior-knowledge-from-large-language-models/",
+    "github_url": null,
+    "weights_url": null,
+    "weights_size": null,
+    "has_github": false,
+    "has_weights": false,
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "sciLaMA integrates static gene embeddings from multimodal large language models with scRNA-seq data through a paired-VAE architecture, generating context-aware representations for cells and genes.",
+    "architecture": [
+      "VAE"
+    ],
+    "loss_functions": [
+      "Reconstruction"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "Gene Embeddings"
+    ],
+    "prior_knowledge_detail": "Static gene embeddings from multimodal large language models",
+    "benchmarked": false,
+    "added_date": "2026-07-16",
+    "source": "web-search-agent"
+  },
+  {
+    "model_name": "sCellTransformer",
+    "paper_title": "sCellTransformer: A Long-Range Foundation Model for Zero-Shot Prediction in Single-Cell RNA-seq and Spatial Transcriptomics",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": null,
+    "github_url": null,
+    "weights_url": "https://huggingface.co/InstaDeepAI/sCellTransformer",
+    "weights_size": null,
+    "has_github": false,
+    "has_weights": true,
+    "modalities": [
+      "scRNA-seq",
+      "Spatial Transcriptomics"
+    ],
+    "category": "FM",
+    "description": "sCellTransformer processes raw gene expression profiles across multiple cells to predict discretized gene expression levels for unseen cells without retraining, handling up to 20,000 protein-coding genes and a bag of 50 cells.",
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Masked Gene Modeling"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "",
+    "benchmarked": false,
+    "added_date": "2026-07-16",
+    "source": "web-search-agent"
+  },
+  {
+    "model_name": "PerturbGen",
+    "paper_title": "PerturbGen: A Generative Single-Cell Foundation Model for Predicting Genetic Perturbation Effects on Cellular Trajectories",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2026,
+    "paper_url": "https://bio.rodeo/models/perturbgen",
+    "github_url": "https://github.com/Lotfollahi-lab/Perturbgen",
+    "weights_url": null,
+    "weights_size": null,
+    "has_github": true,
+    "has_weights": false,
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "Perturbation",
+    "description": "PerturbGen predicts how genetic perturbations reshape cellular trajectories over time, modeling the dynamics of cell-state transitions and how interventions disrupt those trajectories.",
+    "architecture": [
+      "Generative Model"
+    ],
+    "loss_functions": [
+      "Trajectory Prediction"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "",
+    "benchmarked": false,
+    "added_date": "2026-07-16",
+    "source": "web-search-agent"
+  },
+  {
+    "model_name": "Tahoe-x1",
+    "paper_title": "Tahoe-x1: Scaling Perturbation-Trained Single-Cell Foundation Models to 3 Billion Parameters",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2025.10.23.683759v1",
+    "github_url": "https://github.com/tahoebio/tahoe-x1",
+    "weights_url": "https://huggingface.co/tahoebio/Tahoe-x1",
+    "weights_size": null,
+    "has_github": true,
+    "has_weights": true,
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "Tahoe-x1 is a single-cell foundation model designed for gigascale datasets, scaling perturbation-trained models to 3 billion parameters.",
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Masked Gene Modeling"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "",
+    "benchmarked": false,
+    "added_date": "2026-07-16",
+    "source": "web-search-agent"
+  },
+  {
+    "model_name": "Nephrobase Cell+",
+    "paper_title": "Nephrobase Cell+: Multimodal Single-Cell Foundation Model for Decoding Kidney Biology",
+    "status": "preprint",
+    "journal": "arXiv",
+    "year": 2025,
+    "paper_url": "https://arxiv.org/abs/2509.26223",
+    "github_url": null,
+    "weights_url": null,
+    "weights_size": null,
+    "has_github": false,
+    "has_weights": false,
+    "modalities": [
+      "scRNA-seq",
+      "scATAC-seq"
+    ],
+    "category": "Multimodal",
+    "description": "Nephrobase Cell+ is the first kidney-focused large foundation model, pretrained on ~100 billion tokens from ~39.5 million single-cell and single-nucleus profiles, achieving superior performance in kidney single-cell analysis.",
+    "architecture": [
+      "Transformer",
+      "Encoder-Decoder"
+    ],
+    "loss_functions": [
+      "Masked Gene Modeling"
+    ],
+    "domain": [
+      "Kidney"
+    ],
+    "prior_knowledge": [
+      "Gene Regulatory Network"
+    ],
+    "prior_knowledge_detail": "Gene regulatory structures specific to kidney biology",
+    "benchmarked": false,
+    "added_date": "2026-07-16",
+    "source": "web-search-agent"
   }
 ]
