@@ -1,14 +1,12 @@
-name: Update SCFM database
+name: Update SCFM Inspector database
 
 on:
   schedule:
-    # Runs every 3 days at 08:00 UTC (Mon/Thu/Sun roughly)
     - cron: '0 8 */3 * *'
   workflow_dispatch:
-    # Allows manual trigger from the GitHub Actions tab
 
 permissions:
-  contents: write   # needed to commit updated files back to the repo
+  contents: write
 
 jobs:
   update:
@@ -25,12 +23,19 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install openai 
+        run: pip install "openai>=1.76.0"
+
+      - name: Debug environment
+        working-directory: docs
+        run: |
+          python --version
+          pip show openai
+          python -c "from openai import OpenAI; print('OpenAI import: OK')"
 
       - name: Run discovery agent
         working-directory: docs
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }} 
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python agent.py
 
       - name: Commit and push changes
@@ -38,6 +43,5 @@ jobs:
           git config user.name  "scfm-agent[bot]"
           git config user.email "scfm-agent@users.noreply.github.com"
           git add docs/models.json docs/index.html
-          # Only commit if there are actual changes
-          git diff --cached --quiet || git commit -m "chore: update SCFM database $(date -u '+%Y-%m-%d')"
+          git diff --cached --quiet || git commit -m "chore: update scFM Inspector $(date -u '+%Y-%m-%d')"
           git push
