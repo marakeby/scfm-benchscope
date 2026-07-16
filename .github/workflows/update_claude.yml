@@ -28,6 +28,7 @@ jobs:
         run: pip install anthropic
 
       - name: Run discovery agent
+        working-directory: docs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python agent.py
