@@ -1,25 +1,7 @@
 """
 scFM Inspector — Discovery Agent (OpenAI version)
 ==================================================
-Runs on a schedule via GitHub Actions (every 3 days).
-
-What it does each run:
-  1. Loads the existing models.json database
-  2. Calls GPT-4o with web search to find new models that have both
-     a public GitHub repo AND publicly available pre-trained weights
-  3. Classifies each new model by architecture, loss function, domain,
-     and prior knowledge type
-  4. Merges new models into the database (deduplicates by model name)
-  5. Renders a fresh static index.html from template.html
-  6. Commits and pushes — GitHub Pages auto-deploys
-
-Benchmarked flag is set manually in models.json and never overwritten here.
-"""
-
-"""
-scFM Inspector — Discovery Agent (OpenAI version)
-==================================================
-Runs on a schedule via GitHub Actions (every 3 days).
+Uses chat.completions API compatible with openai>=1.0.0
 """
 
 import json
@@ -32,7 +14,7 @@ from pathlib import Path
 from openai import OpenAI
 
 # ── Config ────────────────────────────────────────────────────────────────────
-MODEL_ID       = "gpt-4o"
+MODEL_ID       = "gpt-4o-search-preview"   # model with built-in web search
 DB_PATH        = Path("models.json")
 OUTPUT_PATH    = Path("index.html")
 TEMPLATE_PATH  = Path("template.html")
@@ -63,14 +45,13 @@ Use these search angles:
 Models already in the database - DO NOT include these:
 {known_names}
 
-CRITICAL JSON RULES — failure to follow these will break the pipeline:
+CRITICAL JSON RULES:
 - Return ONLY a valid JSON array, nothing else
-- No markdown fences, no preamble, no explanation
+- No markdown fences, no preamble, no explanation before or after the array
 - Every string must be properly closed with a double quote
 - URLs must be complete — never truncate a URL mid-string
-- If you are unsure of a URL, use null rather than a partial URL
-- Escape any double quotes inside strings with backslash
-- Every object must have all fields listed below
+- If unsure of a URL, use null rather than a partial URL
+- Start your response with [ and end with ] with no other text
 
 For each NEW model found, return a JSON object with these exact fields:
 - model_name: short model name string
@@ -79,12 +60,12 @@ For each NEW model found, return a JSON object with these exact fields:
 - journal: journal name or preprint server string
 - year: integer
 - paper_url: full URL string or null
-- github_url: full GitHub URL string (must be verified real URL or null)
-- weights_url: full HuggingFace/Zenodo URL string (must be verified or null)
+- github_url: full GitHub URL string or null
+- weights_url: full HuggingFace/Zenodo URL string or null
 - weights_size: size string like "1.2 GB" or null
 - modalities: array of strings e.g. ["scRNA-seq"]
 - category: one of "FM" "LLM" "Perturbation" "Spatial" "Multimodal"
-- description: 2-3 sentence string (no internal quotes)
+- description: 2-3 sentence string with no internal double quotes
 - architecture: array e.g. ["Transformer", "BERT"]
 - loss_functions: array e.g. ["Masked Gene Modelling", "Contrastive"]
 - domain: array e.g. ["Generic", "Multi-tissue"]
@@ -94,7 +75,6 @@ For each NEW model found, return a JSON object with these exact fields:
 
 Only include models where github_url is a real confirmed URL.
 Find up to {max_models} new models.
-Start your response with [ and end with ] with no other text.
 """
 
 FIELD_DEFAULTS = {
@@ -124,18 +104,9 @@ def save_database(models: list) -> None:
 
 
 def try_repair_json(raw: str) -> list:
-    """Try several strategies to recover a JSON array from a malformed string."""
+    """Try to recover valid objects from a malformed JSON array."""
 
-    # Strategy 1 — direct parse
-    try:
-        result = json.loads(raw)
-        if isinstance(result, list):
-            return result
-    except json.JSONDecodeError:
-        pass
-
-    # Strategy 2 — extract complete objects one by one using regex
-    # Find all {...} blobs and try to parse each independently
+    # Strategy 1 — extract complete objects one by one
     objects = []
     depth = 0
     start = None
@@ -152,36 +123,33 @@ def try_repair_json(raw: str) -> list:
                     obj = json.loads(blob)
                     objects.append(obj)
                 except json.JSONDecodeError:
-                    # Try to salvage by truncating at last complete key-value pair
-                    # Find last comma at depth 1
                     last_comma = blob.rfind(',', 0, len(blob)-1)
                     if last_comma > 0:
-                        truncated = blob[:last_comma] + '}'
                         try:
-                            obj = json.loads(truncated)
+                            obj = json.loads(blob[:last_comma] + '}')
                             objects.append(obj)
-                            print(f"  Repaired truncated object: {obj.get('model_name','?')}")
+                            print(f"  Repaired: {obj.get('model_name','?')}")
                         except json.JSONDecodeError:
-                            print(f"  Could not repair object starting at pos {start}")
+                            pass
                 start = None
 
     if objects:
-        print(f"  Extracted {len(objects)} objects via repair strategy")
+        print(f"  Extracted {len(objects)} objects via repair")
         return objects
 
-    # Strategy 3 — try truncating at last complete object
+    # Strategy 2 — truncate at last complete object
     last_close = raw.rfind('}')
     if last_close > 0:
-        truncated = raw[:last_close+1] + ']'
-        first_open = truncated.find('[')
-        if first_open >= 0:
-            try:
-                result = json.loads(truncated[first_open:])
+        try:
+            candidate = raw[:last_close+1] + ']'
+            first_open = candidate.find('[')
+            if first_open >= 0:
+                result = json.loads(candidate[first_open:])
                 if isinstance(result, list):
-                    print(f"  Recovered {len(result)} objects by truncating at last }}")
+                    print(f"  Recovered {len(result)} via truncation strategy")
                     return result
-            except json.JSONDecodeError:
-                pass
+        except json.JSONDecodeError:
+            pass
 
     print("  All repair strategies failed")
     return []
@@ -200,40 +168,68 @@ def call_agent(known_names: list) -> list:
     )
 
     print("  Calling GPT-4o with web search...")
-    response = client.responses.create(
-        model=MODEL_ID,
-        tools=[{"type": "web_search_preview"}],
-        input=prompt,
-    )
 
-    # Extract the final text output
-    raw = ""
-    for block in response.output:
-        if hasattr(block, "content"):
-            for part in block.content:
-                if hasattr(part, "text"):
-                    raw += part.text
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_ID,
+            web_search_options={},
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a scientific literature discovery agent. Always respond with valid JSON only."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=4096,
+        )
+        raw = response.choices[0].message.content or ""
+
+    except Exception as e:
+        print(f"  API call failed: {e}")
+        print("  Trying fallback without web_search_options...")
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a scientific literature discovery agent. Always respond with valid JSON only."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                max_tokens=4096,
+            )
+            raw = response.choices[0].message.content or ""
+            print("  Fallback succeeded (no web search)")
+        except Exception as e2:
+            print(f"  Fallback also failed: {e2}")
+            return []
 
     raw = raw.strip()
+    print(f"  Raw response length: {len(raw)} chars")
+    print(f"  First 100 chars: {raw[:100]}")
 
-    # Strip markdown fences if present
+    # Strip markdown fences
     raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
     raw = re.sub(r"\s*```$",          "", raw, flags=re.MULTILINE)
     raw = raw.strip()
 
-    # Find JSON array boundaries
     start = raw.find("[")
     end   = raw.rfind("]")
 
     if start == -1:
         print("  WARNING: No JSON array found in response")
-        print("  Raw preview:", raw[:300])
+        print("  Raw preview:", raw[:400])
         return []
 
-    # Use the bounded substring if both brackets found, else everything from [
     json_str = raw[start : end+1] if end > start else raw[start:]
 
-    # First try direct parse
     try:
         models = json.loads(json_str)
         if isinstance(models, list):
@@ -242,6 +238,8 @@ def call_agent(known_names: list) -> list:
     except json.JSONDecodeError as e:
         print(f"  JSON parse error: {e} — attempting repair...")
         return try_repair_json(json_str)
+
+    return []
 
 
 def merge_models(existing: list, new_models: list) -> tuple:
@@ -279,3 +277,51 @@ def render_html(models: list, updated_at: str) -> str:
         template = f.read()
 
     models_json = json.dumps(models, ensure_ascii=True)
+    html = template.replace("__MODELS_JSON__", models_json)
+    html = html.replace("__UPDATED_AT__", updated_at)
+    html = html.replace("__TOTAL_COUNT__", str(len(models)))
+    return html
+
+
+def main():
+    print("=" * 60)
+    print("scFM Inspector - Discovery Agent (OpenAI)")
+    print(f"Run started: {datetime.datetime.utcnow().isoformat()} UTC")
+    print("=" * 60)
+
+    print("\n[1/4] Loading database...")
+    models = load_database()
+    print(f"  Found {len(models)} existing models")
+    print(f"  Benchmarked: {sum(1 for m in models if m.get('benchmarked'))}")
+
+    print("\n[2/4] Searching for new models...")
+    known_names = [m["model_name"] for m in models]
+    new_models  = call_agent(known_names)
+    print(f"  Agent returned {len(new_models)} candidates")
+
+    print("\n[3/4] Merging results...")
+    models, added = merge_models(models, new_models)
+    print(f"  Added {added} new models. Total: {len(models)}")
+
+    save_database(models)
+
+    print("\n[4/4] Rendering index.html...")
+    updated_at = datetime.datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
+    html = render_html(models, updated_at)
+    with open(OUTPUT_PATH, "w") as f:
+        f.write(html)
+    print(f"  Wrote {OUTPUT_PATH} ({len(html):,} bytes)")
+
+    print("\n" + "=" * 60)
+    print("Run complete")
+    print(f"  Total models:   {len(models)}")
+    print(f"  Added this run: {added}")
+    print(f"  Benchmarked:    {sum(1 for m in models if m.get('benchmarked'))}")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    if "OPENAI_API_KEY" not in os.environ:
+        print("ERROR: OPENAI_API_KEY environment variable not set.")
+        sys.exit(1)
+    main()
