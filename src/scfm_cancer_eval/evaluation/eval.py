@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Union, List
+from typing import Dict, List, Sequence, Tuple, Union
 from anndata import AnnData
 import numpy as np
 import scanpy as sc
@@ -20,6 +20,19 @@ logger = get_logger()
 
 from sklearn.metrics import accuracy_score
 from scfm_cancer_eval.utils.sampling import sample_adata
+
+# Coarse grid for Leiden resolution; reused for every embedding evaluation.
+# Tuned to cover under-clustering (low res) and over-clustering (high res) seen in practice.
+DEFAULT_LEIDEN_RESOLUTIONS: Tuple[float, ...] = (
+    0.1,
+    0.2,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.8,
+    1.0,
+)
 
 
 def _graph_connectivity_no_deprecated_pandas(adata: AnnData, *, label_key: str) -> float:
@@ -209,6 +222,91 @@ def _ensure_neighbors(
                 metric=metric,
                 random_state=random_state,
             )
+
+
+def _run_leiden(
+    adata: AnnData,
+    *,
+    resolution: float,
+    cluster_key: str = "cluster",
+    random_state: int = 0,
+) -> None:
+    """Run Leiden clustering (igraph backend when supported by Scanpy)."""
+    try:
+        sc.tl.leiden(
+            adata,
+            key_added=cluster_key,
+            resolution=resolution,
+            random_state=random_state,
+            flavor="igraph",
+            n_iterations=2,
+            directed=False,
+        )
+    except TypeError:
+        sc.tl.leiden(
+            adata,
+            key_added=cluster_key,
+            resolution=resolution,
+            random_state=random_state,
+        )
+
+
+def _optimize_leiden_resolution_for_nmi(
+    adata: AnnData,
+    *,
+    label_key: str,
+    cluster_key: str = "cluster",
+    resolutions: Sequence[float] | None = None,
+    random_state: int = 0,
+) -> Tuple[float, float, int]:
+    """
+    Grid-search Leiden resolution on a precomputed neighbor graph to maximize NMI.
+
+    Reuses the same kNN graph for all resolutions (only Leiden is rerun). Sets
+    ``adata.obs[cluster_key]`` to the clustering at the best resolution.
+
+    Returns:
+        (best_resolution, best_nmi, n_clusters_at_best_resolution)
+    """
+    grid = list(resolutions) if resolutions is not None else list(DEFAULT_LEIDEN_RESOLUTIONS)
+    if not grid:
+        raise ValueError("resolutions must be a non-empty sequence")
+
+    best_res = float(grid[0])
+    best_nmi = -1.0
+    best_labels = None
+
+    for res in grid:
+        _run_leiden(
+            adata,
+            resolution=float(res),
+            cluster_key=cluster_key,
+            random_state=random_state,
+        )
+        score = float(
+            scib.metrics.nmi(
+                adata,
+                cluster_key,
+                label_key,
+                "arithmetic",
+                nmi_dir=None,
+            )
+        )
+        if score > best_nmi:
+            best_nmi = score
+            best_res = float(res)
+            best_labels = adata.obs[cluster_key].copy()
+
+    adata.obs[cluster_key] = best_labels
+    n_clusters = int(adata.obs[cluster_key].nunique())
+    logger.info(
+        "Leiden resolution optimized for NMI: res=%.4f, NMI=%.4f, n_clusters=%d (grid n=%d)",
+        best_res,
+        best_nmi,
+        n_clusters,
+        len(grid),
+    )
+    return best_res, best_nmi, n_clusters
 
 
 def _neighbors_results_for_scib_metrics(adata: AnnData, embedding_key: str):
@@ -448,6 +546,7 @@ def eval_scib_metrics(
     n_jobs: int = -1,
     *,
     random_state: int = 0,
+    leiden_resolutions: Sequence[float] | None = None,
 ) -> Dict:
     
     # in case just one batch scib.metrics.metrics doesn't work 
@@ -455,7 +554,7 @@ def eval_scib_metrics(
     results_dict = dict()
     
 
-    logger.info('leiden')
+    logger.info("leiden (grid search, optimize NMI)")
     _ensure_neighbors(
         adata,
         embedding_key,
@@ -465,53 +564,19 @@ def eval_scib_metrics(
         force_recompute=True,
         n_jobs=n_jobs,
     )
-        
-    # Avoid Scanpy FutureWarning about future default backend.
-    try:
-        sc.tl.leiden(
-            adata,
-            key_added="cluster",
-            random_state=random_state,
-            resolution=0.3,
-            flavor="igraph",
-            n_iterations=2,
-            directed=False,
-        )
-    except TypeError:
-        # Older Scanpy versions don't support these kwargs.
-        sc.tl.leiden(
-            adata,
-            key_added="cluster",
-            random_state=random_state,
-            resolution=0.3,
-        )
-    
-#     sc.pp.neighbors(adata, use_rep=embedding_key)  # or your embedding
-# sc.tl.louvain(adata, resolution=0.3, key_added="louvain_custom")
 
-    
-    # res_max, nmi_max, nmi_all = scib.metrics.clustering.opt_louvain(
-    #         adata,
-    #         label_key=label_key,
-    #         cluster_key="cluster",
-    #         use_rep=embedding_key,
-    #         function=scib.metrics.nmi,
-    #         plot=False,
-    #         verbose=False,
-    #         inplace=True,
-    #         force=True,
-    # )
-    # print('nmi')
-    
-    results_dict["NMI_cluster/label"] = scib.metrics.nmi(
-        adata, 
-        "cluster",
-        label_key,
-        "arithmetic",
-        nmi_dir=None
+    leiden_resolution, nmi_at_best_res, n_leiden_clusters = _optimize_leiden_resolution_for_nmi(
+        adata,
+        label_key=label_key,
+        cluster_key="cluster",
+        resolutions=leiden_resolutions,
+        random_state=random_state,
     )
-    
-    # print('ARI_cluster/label')
+    results_dict["leiden_resolution"] = leiden_resolution
+    results_dict["n_leiden_clusters"] = n_leiden_clusters
+
+    results_dict["NMI_cluster/label"] = nmi_at_best_res
+
     results_dict["ARI_cluster/label"] = scib.metrics.ari(
         adata, 
         "cluster", 

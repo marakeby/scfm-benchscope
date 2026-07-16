@@ -4,4 +4,4 @@ dataset:
 model:
   - models/scconcept/corpus30m.yaml
 classification:
-  - tasks/classification.yaml
+  skip: True

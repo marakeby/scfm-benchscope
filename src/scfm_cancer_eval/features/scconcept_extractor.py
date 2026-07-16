@@ -34,14 +34,55 @@ holds Ensembl IDs, or set ``map_symbols_to_ensembl: true`` (uses mygene; writes
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Dict, FrozenSet, Optional
+import re
+from typing import Any, ClassVar, Dict, FrozenSet, List, Optional
 
 import numpy as np
+import pandas as pd
 
 import anndata as ad
 
+from scfm_cancer_eval.data.data_loader import _stable_ensembl_from_var_label
 from scfm_cancer_eval.features.extractor import EmbeddingExtractor
 from scfm_cancer_eval.utils.logs_ import get_logger
+
+_ENSEMBL_VAR = re.compile(r"^ENS[A-Z]{0,10}G\d{6,}(\.\d+)?$", re.IGNORECASE)
+_ENSEMBL_ID_VAR_CANDIDATES = ("ensembl_id", "ensembl_id_clean", "gene_id")
+
+
+def _var_names_majority_ensembl(var_names) -> bool:
+    """True if most ``var_names`` look like Ensembl gene stable IDs."""
+    s = pd.Index(var_names).astype(str)
+    if len(s) == 0:
+        return False
+    return bool(s.str.match(_ENSEMBL_VAR, na=False).mean() > 0.5)
+
+
+def _fraction_ensembl_like(series) -> float:
+    s = pd.Series(series).astype(str)
+    if len(s) == 0:
+        return 0.0
+    ok = s.map(lambda x: _stable_ensembl_from_var_label(x) is not None)
+    return float(ok.mean())
+
+
+def _find_existing_ensembl_column(adata: ad.AnnData) -> Optional[str]:
+    for col in _ENSEMBL_ID_VAR_CANDIDATES:
+        if col not in adata.var.columns:
+            continue
+        if _fraction_ensembl_like(adata.var[col]) > 0.5:
+            return col
+    return None
+
+
+def _populate_ensembl_id_column(
+    adata: ad.AnnData,
+    labels: List[str],
+    out_column: str,
+) -> ad.AnnData:
+    """Write version-stripped Ensembl stable IDs into ``adata.var[out_column]``."""
+    adata.var[out_column] = [_stable_ensembl_from_var_label(s) for s in labels]
+    return adata
 
 
 def _symbols_to_ensembl_var_column(
@@ -131,22 +172,52 @@ class ScConceptExtractor(EmbeddingExtractor):
         gene_id_column = p.get("gene_id_column")
 
         adata = data_loader.adata
+        out_col = str(p.get("ensembl_id_column", "ensembl_id"))
+
+        if gene_id_column is None:
+            gene_id_column = _find_existing_ensembl_column(adata)
+
         if p.get("map_symbols_to_ensembl"):
-            out_col = str(p.get("ensembl_id_column", "ensembl_id"))
             species = str(p.get("mygene_species", "human"))
             sym_col = p.get("symbol_column")
             if sym_col is not None:
                 sym_col = str(sym_col)
-            self.log.info(
-                "scConcept: mapping gene symbols to Ensembl (%s → %s)",
-                sym_col or "var_names",
-                out_col,
-            )
-            adata = _symbols_to_ensembl_var_column(
-                adata, sym_col, out_col, species=species
-            )
-            if gene_id_column is None:
+
+            if sym_col is None and _var_names_majority_ensembl(adata.var_names):
+                self.log.info(
+                    "scConcept: var_names are Ensembl IDs — skipping mygene symbol mapping"
+                )
+                adata = _populate_ensembl_id_column(
+                    adata, adata.var_names.astype(str).tolist(), out_col
+                )
                 gene_id_column = out_col
+            elif (
+                gene_id_column is not None
+                and gene_id_column in adata.var.columns
+                and _fraction_ensembl_like(adata.var[gene_id_column]) > 0.5
+            ):
+                self.log.info(
+                    "scConcept: using existing var[%r] for Ensembl IDs (skipping mygene)",
+                    gene_id_column,
+                )
+                if gene_id_column != out_col:
+                    adata = _populate_ensembl_id_column(
+                        adata,
+                        adata.var[gene_id_column].astype(str).tolist(),
+                        out_col,
+                    )
+                    gene_id_column = out_col
+            else:
+                self.log.info(
+                    "scConcept: mapping gene symbols to Ensembl (%s → %s)",
+                    sym_col or "var_names",
+                    out_col,
+                )
+                adata = _symbols_to_ensembl_var_column(
+                    adata, sym_col, out_col, species=species
+                )
+                if gene_id_column is None:
+                    gene_id_column = out_col
 
         if gene_id_column is not None and gene_id_column in adata.var.columns:
             # Subset to genes with a usable Ensembl ID (avoids all-NOT_FOUND masks).

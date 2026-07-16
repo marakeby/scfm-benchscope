@@ -1,4 +1,4 @@
-run_id: 'geneformer_V1-10M-i2048_melanoma_response'
+run_id: 'geneformer_V1-10M-i2048_finetune_melanoma_response'
 dataset:
   - datasets/melanoma/response.yaml
 model:

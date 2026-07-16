@@ -5,3 +5,14 @@ model:
   - models/geneformer/V2-316M-i4096.yaml
 classification:
   - tasks/classification.yaml
+preprocessing:
+  skip: true
+  
+hvg:
+  flavor: seurat
+  layer: counts
+  normalize_before_hvg: True
+  n_top_genes: 4096
+  batch_key: batch
+  subset: True
+  preserve_counts: true

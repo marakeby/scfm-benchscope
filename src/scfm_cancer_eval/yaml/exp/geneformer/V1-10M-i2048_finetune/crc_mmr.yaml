@@ -1,4 +1,4 @@
-run_id: 'geneformer_V1-10M-i2048_crc_mmr'
+run_id: 'geneformer_V1-10M-i2048_finetune_crc_mmr'
 dataset:
   - datasets/crc/mmr.yaml
 model:

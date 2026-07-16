@@ -14,8 +14,8 @@ classification:
         weight_decay: 0.00001
         warmup_ratio: 0
         train_funcs: 
-            - avg
-            # - mil
+            # - avg
+            - mil
             # - vote
         cv: True
     viz: True

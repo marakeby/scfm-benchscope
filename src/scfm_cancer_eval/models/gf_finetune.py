@@ -286,8 +286,9 @@ class GFFineTuneModel:
         test_ds = self.tokenized_dataset.filter(lambda x: x[split_col] in test_ids)
         adata_train, adata_test = self.split_data(split_col, train_ids, test_ids)
         
-        train_ds = train_ds.rename_column(split_col, "sample_id")
-        test_ds = test_ds.rename_column(split_col, "sample_id")
+        if split_col != "sample_id":
+            train_ds = train_ds.rename_column(split_col, "sample_id")
+            test_ds = test_ds.rename_column(split_col, "sample_id")
         
         # train_ds.add
         

@@ -96,9 +96,10 @@ methods:
 
   nicheformer:
     metadata:
-      counts_scale: processed_expression_typical
-      gene_ids: gene_symbols
-      gene_panel: tokenizer_sequence_limited
+      counts_scale: >-
+        raw_or_counts_preferred; HF tokenizer applies sf_normalize (10k), technology_mean, log1p
+      gene_ids: ensembl_after_geneformer_dict_map
+      gene_panel: full_vocabulary_via_hub_model_h5ad_alignment
 
   scconcept:
     metadata:

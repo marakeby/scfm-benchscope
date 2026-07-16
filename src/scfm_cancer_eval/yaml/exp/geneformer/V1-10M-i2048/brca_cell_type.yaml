@@ -16,5 +16,3 @@ hvg:
   subset: True
   preserve_counts: true
   
-classification:
-  skip: true

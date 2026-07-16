@@ -15,6 +15,7 @@ import shutil
 import sys
 import time
 from pathlib import Path
+from analysis_utils import EXPERIMENT_NAME_MAP, MODEL_NAME_MAP, map_groups
 
 import anndata as ad
 import pandas as pd
@@ -60,64 +61,64 @@ if not Path(base_dir).exists():
     print(f"Experiment root does not exist: {base_dir}", file=sys.stderr)
     raise SystemExit(2)
 
-# Display names for extracted model stems (aligned with collect_classification_metrics.py)
-MODEL_NAME_MAP: dict[str, str] = {
-    "hvg": "HVG",
-    "pca": "PCA",
-    "scgpt": "scGPT",
-    "scgpt_cancer": "scGPT [cancer]",
-    "scvi": "scVI",
-    "scvi_donor_id": "scVI",
-    "scfoundation": "scFoundation",
-    "scimilarity": "SCimiarity",
-    "cellplm": "CellPLM",
-    "gf-6L-30M-i2048": "GF-V1",
-    "gf-6L-30M-i2048_continue": "GF-V1 [continue]",
-    "Geneformer-V2-104M_CLcancer": "GF-V2 [cancer]",
-    "Geneformer-V2-104M": "GF-V2",
-    "Geneformer-V2-104M_continue": "GF-V2 [continue]",
-    "Geneformer-V2-316M": "GF-V2-Deep",
-    "gf-6L-30M-i2048_finetune": "GF-V1 [finetune]",
-    "Geneformer-V2-104M_finetune": "GF-V2 [finetune]",
-    "hvg_seurat_4096": "HVG",
-    "state_se600m_epoch16": "STATE",
-    "scfoundation_brca_cancer_cells": "scFoundation",
-    "geneformer_V2-104M_CLcancer-i4096": "GF-V2 [cancer]",
-    "geneformer_V2-316M-i4096": "GF-V2-Deep",
-    "continue_geneformer_V1-10M-i2048_continue": "GF-V1 [continue]",
-    "geneformer_V1-10M-i2048": "GF-V1",
-    "continue_geneformer_V2-104M-i4096_continue": "GF-V2 [continue]",
-    "geneformer_V2-104M-i4096": "GF-V2",
-    "scgpt_cancer-i2048": "scGPT [cancer]",
-    "scgpt_human-i2048": "scGPT",
-    "cellplm_85M-20231027": "CellPLM",
-    "scimilarity_v1.1": "SCimiarity",
-    "pca_n100": "PCA [100]",
-    "pca_n50": "PCA [50]",
-    "pca_n20": "PCA [20]",
-    "scconcept_corpus30m": "scConcept",
-    "nicheformer_nicheformer": "Nicheformer",
-}
+# # Display names for extracted model stems (aligned with collect_classification_metrics.py)
+# MODEL_NAME_MAP: dict[str, str] = {
+#     "hvg": "HVG",
+#     "pca": "PCA",
+#     "scgpt": "scGPT",
+#     "scgpt_cancer": "scGPT [cancer]",
+#     "scvi": "scVI",
+#     "scvi_donor_id": "scVI",
+#     "scfoundation": "scFoundation",
+#     "scimilarity": "SCimiarity",
+#     "cellplm": "CellPLM",
+#     "gf-6L-30M-i2048": "GF-V1",
+#     "gf-6L-30M-i2048_continue": "GF-V1 [continue]",
+#     "Geneformer-V2-104M_CLcancer": "GF-V2 [cancer]",
+#     "Geneformer-V2-104M": "GF-V2",
+#     "Geneformer-V2-104M_continue": "GF-V2 [continue]",
+#     "Geneformer-V2-316M": "GF-V2-Deep",
+#     "gf-6L-30M-i2048_finetune": "GF-V1 [finetune]",
+#     "Geneformer-V2-104M_finetune": "GF-V2 [finetune]",
+#     "hvg_seurat_4096": "HVG",
+#     "state_se600m_epoch16": "STATE",
+#     "scfoundation_brca_cancer_cells": "scFoundation",
+#     "geneformer_V2-104M_CLcancer-i4096": "GF-V2 [cancer]",
+#     "geneformer_V2-316M-i4096": "GF-V2-Deep",
+#     "continue_geneformer_V1-10M-i2048_continue": "GF-V1 [continue]",
+#     "geneformer_V1-10M-i2048": "GF-V1",
+#     "continue_geneformer_V2-104M-i4096_continue": "GF-V2 [continue]",
+#     "geneformer_V2-104M-i4096": "GF-V2",
+#     "scgpt_cancer-i2048": "scGPT [cancer]",
+#     "scgpt_human-i2048": "scGPT",
+#     "cellplm_85M-20231027": "CellPLM",
+#     "scimilarity_v1.1": "SCimiarity",
+#     "pca_n100": "PCA [100]",
+#     "pca_n50": "PCA [50]",
+#     "pca_n20": "PCA [20]",
+#     "scconcept_corpus30m": "scConcept",
+#     "nicheformer_nicheformer": "Nicheformer",
+# }
 
 
-def map_groups(model_id: str) -> str:
-    """Broad model family for plotting (same logic as collect_classification_metrics.py)."""
-    exp = model_id.lower()
-    if "gf" in exp:
-        return "Geneformer"
-    if "geneformer" in exp:
-        return "Geneformer"
-    if "scfoundation" in exp:
-        return "Other"
-    if "scimilarity" in exp:
-        return "Other"
-    if "scgpt" in exp:
-        return "scGPT"
-    if "cellplm" in exp:
-        return "Other"
-    if any(x in exp for x in ("hvg", "pca", "scvi")):
-        return "Baseline"
-    return "Other"
+# def map_groups(model_id: str) -> str:
+#     """Broad model family for plotting (same logic as collect_classification_metrics.py)."""
+#     exp = model_id.lower()
+#     if "gf" in exp:
+#         return "Geneformer"
+#     if "geneformer" in exp:
+#         return "Geneformer"
+#     if "scfoundation" in exp:
+#         return "Other"
+#     if "scimilarity" in exp:
+#         return "Other"
+#     if "scgpt" in exp:
+#         return "scGPT"
+#     if "cellplm" in exp:
+#         return "Other"
+#     if any(x in exp for x in ("hvg", "pca", "scvi")):
+#         return "Baseline"
+#     return "Other"
 
 
 def _annotate_by_model_index(df: pd.DataFrame) -> pd.DataFrame:

@@ -3,3 +3,20 @@ dataset:
   - datasets/melanoma/response.yaml
 model:
   - models/geneformer/V2-104M-i4096_finetune.yaml
+  
+embedding:
+    skip: True # dont excute this (embedding) step
+    viz: False
+    eval: False
+    
+preprocessing:
+  skip: true
+
+hvg:
+  flavor: seurat
+  layer: counts
+  normalize_before_hvg: True
+  n_top_genes: 4096
+  batch_key: batch
+  subset: True
+  preserve_counts: true

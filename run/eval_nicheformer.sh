@@ -3,8 +3,10 @@
 cd "$(dirname "$0")/.."
 export PYTHONPATH="${PWD}/src${PYTHONPATH:+:$PYTHONPATH}"
 export PYTHONWARNINGS="ignore::DeprecationWarning:pandas${PYTHONWARNINGS:+,${PYTHONWARNINGS}}"
+# Requires CUDA PyTorch in the nicheformer env (see pixi.toml nicheformer_isolated).
+# pixi run -e nicheformer verify-gpu || true
 #Embedding tasks --------------------       
-pixi run -e nicheformer python -m scfm_cancer_eval.run.run_exp exp/nicheformer/nicheformer/brca_cell_type.yaml 
+# pixi run -e nicheformer python -m scfm_cancer_eval.run.run_exp exp/nicheformer/nicheformer/brca_cell_type.yaml 
 #Classification tasks --------------------
 #BRCA
 pixi run -e nicheformer python -m scfm_cancer_eval.run.run_exp exp/nicheformer/nicheformer/brca_subtype.yaml 

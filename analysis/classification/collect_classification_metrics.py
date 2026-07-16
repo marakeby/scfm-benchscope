@@ -12,97 +12,148 @@ import json
 import os
 import sys
 from pathlib import Path
-
+from analysis_utils import EXPERIMENT_NAME_MAP, MODEL_NAME_MAP, map_groups
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = REPO_ROOT / "results" / "classification.metrics.csv"
 
-EXPERIMENT_NAME_MAP: dict[str, str] = {
-    "pre_post": "Treatment Naive vs Anti PD1",
-    "brca_full_pre_post": "Treatment Naive vs Anti PD1",
-    "brca_pre_post": "Treatment Naive vs Anti PD1",
-    "chemo": "Treatment Naive vs Neoadjuvant Chemo",
-    "brca_full_chemo": "Treatment Naive vs Neoadjuvant Chemo",
-    "brca_chemo": "Treatment Naive vs Neoadjuvant Chemo",
-    "luad2": "Treatment Naive vs TKI treated",
-    "luad_tki": "Treatment Naive vs TKI treated",
-    "luad1": "Early stage vs Late stage",
-    "outcome": "T-cell exhaustion",
-    "brca_full_outcome": "T-cell exhaustion",
-    "brca_outcome": "T-cell exhaustion",
-    "subtype": "ER+ vs TNBC",
-    "brca_full_subtype": "ER+ vs TNBC",
-    "brca_subtype": "ER+ vs TNBC",
-    "brca_cell_type": "BRCA Cell Type",
-    "melanoma_response": "IO Response",
-    "crc_mmr": "MMRd vs MMRp",
-}
+# EXPERIMENT_NAME_MAP: dict[str, str] = {
+#     "pre_post": "Treatment Naive vs Anti PD1",
+#     "brca_full_pre_post": "Treatment Naive vs Anti PD1",
+#     "brca_pre_post": "Treatment Naive vs Anti PD1",
+#     "chemo": "Treatment Naive vs Neoadjuvant Chemo",
+#     "brca_full_chemo": "Treatment Naive vs Neoadjuvant Chemo",
+#     "brca_chemo": "Treatment Naive vs Neoadjuvant Chemo",
+#     "luad2": "Treatment Naive vs TKI treated",
+#     "luad_tki": "Treatment Naive vs TKI treated",
+#     "luad1": "Early stage vs Late stage",
+#     "outcome": "T-cell exhaustion",
+#     "brca_full_outcome": "T-cell exhaustion",
+#     "brca_outcome": "T-cell exhaustion",
+#     "subtype": "ER+ vs TNBC",
+#     "brca_full_subtype": "ER+ vs TNBC",
+#     "brca_subtype": "ER+ vs TNBC",
+#     "brca_cell_type": "BRCA Cell Type",
+#     "melanoma_response": "IO Response",
+#     "crc_mmr": "MMRd vs MMRp",
+# }
 
 # Display names for run_id stems (aligned with collect_classification_metrics.ipynb)
-MODEL_NAME_MAP: dict[str, str] = {
-    "hvg": "HVG",
-    "pca": "PCA",
-    "scgpt": "scGPT",
-    "scgpt_cancer": "scGPT [cancer]",
-    "scvi": "scVI",
-    "scvi_donor_id": "scVI",
-    "scfoundation": "scFoundation",
-    "scimilarity": "SCimiarity",
-    "cellplm": "CellPLM",
-    "gf-6L-30M-i2048": "GF-V1",
-    "gf-6L-30M-i2048_continue": "GF-V1 [continue]",
-    "Geneformer-V2-104M_CLcancer": "GF-V2 [cancer]",
-    "Geneformer-V2-104M": "GF-V2",
-    "Geneformer-V2-104M_continue": "GF-V2 [continue]",
-    "Geneformer-V2-316M": "GF-V2-Deep",
-    "gf-6L-30M-i2048_finetune": "GF-V1 [finetune]",
-    "Geneformer-V2-104M_finetune": "GF-V2 [finetune]",
-    "hvg_seurat_4096": "HVG",
-    "state_se600m_epoch16": "STATE",
-    "scfoundation_brca_cancer_cells": "scFoundation",
-    "geneformer_V2-104M_CLcancer-i4096": "GF-V2 [cancer]",
-    "geneformer_V2-316M-i4096": "GF-V2-Deep",
-    "continue_geneformer_V1-10M-i2048_continue": "GF-V1 [continue]",
-    "geneformer_V1-10M-i2048": "GF-V1",
-    "continue_geneformer_V2-104M-i4096_continue": "GF-V2 [continue]",
-    "geneformer_V2-104M-i4096": "GF-V2",
-    "scgpt_cancer-i2048": "scGPT [cancer]",
-    "scgpt_human-i2048": "scGPT",
-    "cellplm_85M-20231027": "CellPLM",
-    "scimilarity_v1.1": "SCimiarity",
-    "pca_n100": "PCA [100]",
-    "pca_n50": "PCA [50]",
-    "pca_n20": "PCA [20]",
-    "scconcept_corpus30m": "scConcept",
-    "nicheformer_nicheformer": "Nicheformer",
+# MODEL_NAME_MAP: dict[str, str] = {
+#     "hvg": "HVG",
+#     "pca": "PCA",
+#     "scgpt": "scGPT",
+#     "scgpt_cancer": "scGPT [cancer]",
+#     "scvi": "scVI",
+#     "scvi_donor_id": "scVI",
+#     "scfoundation": "scFoundation",
+#     "scimilarity": "SCimiarity",
+#     "cellplm": "CellPLM",
+#     "gf-6L-30M-i2048": "GF-V1",
+#     "gf-6L-30M-i2048_continue": "GF-V1 [continue]",
+#     "Geneformer-V2-104M_CLcancer": "GF-V2 [cancer]",
+#     "Geneformer-V2-104M": "GF-V2",
+#     "Geneformer-V2-104M_continue": "GF-V2 [continue]",
+#     "Geneformer-V2-316M": "GF-V2-Deep",
+#     "gf-6L-30M-i2048_finetune": "GF-V1 [finetune]",
+#     "Geneformer-V2-104M_finetune": "GF-V2 [finetune]",
+#     "hvg_seurat_4096": "HVG",
+#     "state_se600m_epoch16": "STATE",
+#     "scfoundation_brca_cancer_cells": "scFoundation",
+#     "geneformer_V2-104M_CLcancer-i4096": "GF-V2 [cancer]",
+#     "geneformer_V2-316M-i4096": "GF-V2-Deep",
+#     "continue_geneformer_V1-10M-i2048_continue": "GF-V1 [continue]",
+#     "geneformer_V1-10M-i2048": "GF-V1",
+#     "continue_geneformer_V2-104M-i4096_continue": "GF-V2 [continue]",
+#     "geneformer_V2-104M-i4096": "GF-V2",
+#     "scgpt_cancer-i2048": "scGPT [cancer]",
+#     "scgpt_human-i2048": "scGPT",
+#     "cellplm_85M-20231027": "CellPLM",
+#     "scimilarity_v1.1": "SCimiarity",
+#     "pca_n100": "PCA [100]",
+#     "pca_n50": "PCA [50]",
+#     "pca_n20": "PCA [20]",
+#     "scconcept_corpus30m": "scConcept",
+#     "nicheformer_nicheformer": "Nicheformer",
+# }
+
+
+# def map_groups(model_id: str) -> str:
+#     """Broad model family for plotting (same logic as analysis_utils.map_groups)."""
+#     exp = model_id.lower()
+#     if "gf" in exp:
+#         return "Geneformer"
+#     if "geneformer" in exp:
+#         return "Geneformer"
+#     if "scfoundation" in exp:
+#         return "Other"
+#     if "scimilarity" in exp:
+#         return "Other"
+#     if "scgpt" in exp:
+#         return "scGPT"
+#     if "cellplm" in exp:
+#         return "Other"
+#     if any(x in exp for x in ("hvg", "pca", "scvi")):
+#         return "Baseline"
+#     return "Other"
+
+
+# Canonical names first; legacy gf_finetune runs used e.g. milcv_metrics.csv (no underscore).
+CV_METRICS_FILENAMES: dict[str, list[str]] = {
+    "vote": ["vote_cv_metrics.csv", "votecv_metrics.csv"],
+    "avg": ["avg_cv_metrics.csv", "avgcv_metrics.csv"],
+    "MIL": ["mil_cv_metrics.csv", "milcv_metrics.csv"],
 }
 
 
-def map_groups(model_id: str) -> str:
-    """Broad model family for plotting (same logic as analysis_utils.map_groups)."""
-    exp = model_id.lower()
-    if "gf" in exp:
-        return "Geneformer"
-    if "geneformer" in exp:
-        return "Geneformer"
-    if "scfoundation" in exp:
-        return "Other"
-    if "scimilarity" in exp:
-        return "Other"
-    if "scgpt" in exp:
-        return "scGPT"
-    if "cellplm" in exp:
-        return "Other"
-    if any(x in exp for x in ("hvg", "pca", "scvi")):
-        return "Baseline"
-    return "Other"
-
-
-def find_files(root_folder: Path, filename: str) -> list[Path]:
+def find_cv_metrics_files(
+    root_folder: Path,
+    filenames: list[str],
+    *,
+    include_arxiv: bool,
+) -> list[Path]:
     if not root_folder.exists():
         raise FileNotFoundError(f"Folder does not exist: {root_folder}")
-    return list(root_folder.rglob(filename))
+
+    by_run_dir: dict[Path, Path] = {}
+    for priority, filename in enumerate(filenames):
+        for path in root_folder.rglob(filename):
+            if not include_arxiv and "arxiv" in path.as_posix().lower():
+                continue
+            run_dir = path.parent.parent
+            existing = by_run_dir.get(run_dir)
+            if existing is None:
+                by_run_dir[run_dir] = path
+                continue
+            existing_priority = filenames.index(existing.name)
+            if priority < existing_priority:
+                by_run_dir[run_dir] = path
+    return sorted(by_run_dir.values())
+
+
+def run_dir_from_cv_metrics(cv_metrics_path: Path) -> Path:
+    """Absolute filesystem path to the experiment run directory."""
+    return cv_metrics_path.parent.parent.resolve()
+
+
+_META_COLS = frozenset({"Metrics", "fold"})
+
+
+def resolve_score_column(df: pd.DataFrame, preferred: str) -> str | None:
+    """Pick the classifier score column, preferring *preferred* when present."""
+    if preferred in df.columns:
+        return preferred
+    score_cols = [c for c in df.columns if c not in _META_COLS]
+    if len(score_cols) == 1:
+        return score_cols[0]
+    if not score_cols:
+        return None
+    print(
+        f"Ambiguous classifier columns {score_cols!r}; using {score_cols[0]!r}",
+        file=sys.stderr,
+    )
+    return score_cols[0]
 
 
 def _load_run_frame(
@@ -111,14 +162,21 @@ def _load_run_frame(
     score_col: str,
 ) -> pd.DataFrame | None:
     df = pd.read_csv(matched_file)
-    if score_col not in df.columns:
+    resolved_col = resolve_score_column(df, score_col)
+    if resolved_col is None:
         print(
-            f"Skipping {matched_file}: no '{score_col}' column "
+            f"Skipping {matched_file}: no classifier score column "
             f"(have {list(df.columns)})",
             file=sys.stderr,
         )
         return None
-    df = df.pivot(index="Metrics", columns="fold", values=score_col).T
+    if resolved_col != score_col:
+        print(
+            f"Using classifier column {resolved_col!r} for {matched_file} "
+            f"(preferred {score_col!r} not found).",
+            file=sys.stderr,
+        )
+    df = df.pivot(index="Metrics", columns="fold", values=resolved_col).T
     run_summary_path = matched_file.parent.parent / "run_summary.json"
     try:
         with open(run_summary_path, encoding="utf-8") as f:
@@ -135,7 +193,10 @@ def _load_run_frame(
 
     df["model"] = model
     df["exp"] = exp
+    df["exp_path"] = str(run_dir_from_cv_metrics(matched_file))
     df["strategy"] = strategy
+    df["classifier"] = resolved_col
+    df["metrics_path"] = str(matched_file.resolve())
     return df
 
 
@@ -181,12 +242,18 @@ def main() -> int:
     parser.add_argument(
         "--score-col",
         default="randomforest",
-        help="Column name in *cv_metrics.csv holding classifier scores (default: randomforest)",
+        help="Preferred column in *cv_metrics.csv for classifier scores; if missing, "
+        "the sole non-Metrics/fold column is used (default: randomforest)",
     )
     parser.add_argument(
         "--keep-luad-cancer-stage",
         action="store_true",
         help="Do not drop rows where exp == luad_cancer_stage (notebook drops them)",
+    )
+    parser.add_argument(
+        "--include-arxiv",
+        action="store_true",
+        help="Include runs whose path contains 'arxiv' (excluded by default)",
     )
     args = parser.parse_args()
 
@@ -201,13 +268,19 @@ def main() -> int:
             root = alt
 
     try:
-        vote_files = find_files(root, "vote_cv_metrics.csv")
-        avg_files = find_files(root, "avg_cv_metrics.csv")
-        mil_files = find_files(root, "mil_cv_metrics.csv")
+        vote_files = find_cv_metrics_files(
+            root, CV_METRICS_FILENAMES["vote"], include_arxiv=args.include_arxiv
+        )
+        avg_files = find_cv_metrics_files(
+            root, CV_METRICS_FILENAMES["avg"], include_arxiv=args.include_arxiv
+        )
+        mil_files = find_cv_metrics_files(
+            root, CV_METRICS_FILENAMES["MIL"], include_arxiv=args.include_arxiv
+        )
     except FileNotFoundError as e:
         print(e, file=sys.stderr)
         print(
-            "Pass a valid output tree (containing .../cv/*_cv_metrics.csv) or set "
+            "Pass a valid output tree (containing .../cv/*cv_metrics.csv) or set "
             "SCFM_CLASSIFICATION_OUTPUT_ROOT.",
             file=sys.stderr,
         )
@@ -228,8 +301,8 @@ def main() -> int:
         classification_metrics = classification_metrics[classification_metrics["exp"] != "luad_cancer_stage"]
 
     classification_metrics["group"] = classification_metrics["model"].map(map_groups)
-    classification_metrics["model"] = classification_metrics["model"].map(MODEL_NAME_MAP)
-    classification_metrics["exp"] = classification_metrics["exp"].map(EXPERIMENT_NAME_MAP)
+    classification_metrics["model_display"] = classification_metrics["model"].map(MODEL_NAME_MAP)
+    classification_metrics["exp_display"] = classification_metrics["exp"].map(EXPERIMENT_NAME_MAP)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     classification_metrics.to_csv(args.output, index=False)

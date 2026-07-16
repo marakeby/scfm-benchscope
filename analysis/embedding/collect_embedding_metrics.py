@@ -15,94 +15,20 @@ import json
 import os
 import sys
 from pathlib import Path
-
+from analysis_utils import EXPERIMENT_NAME_MAP, MODEL_NAME_MAP, map_groups
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = REPO_ROOT / "results" / "embedding.metrics.csv"
 
-EXPERIMENT_NAME_MAP: dict[str, str] = {
-    "pre_post": "Treatment Naive vs Anti PD1",
-    "brca_full_pre_post": "Treatment Naive vs Anti PD1",
-    "brca_pre_post": "Treatment Naive vs Anti PD1",
-    "chemo": "Treatment Naive vs Neoadjuvant Chemo",
-    "brca_full_chemo": "Treatment Naive vs Neoadjuvant Chemo",
-    "brca_chemo": "Treatment Naive vs Neoadjuvant Chemo",
-    "luad2": "Treatment Naive vs TKI treated",
-    "luad_tki": "Treatment Naive vs TKI treated",
-    "luad1": "Early stage vs Late stage",
-    "outcome": "T-cell exhaustion",
-    "brca_full_outcome": "T-cell exhaustion",
-    "brca_outcome": "T-cell exhaustion",
-    "subtype": "ER+ vs TNBC",
-    "brca_full_subtype": "ER+ vs TNBC",
-    "brca_subtype": "ER+ vs TNBC",
-    "brca_cell_type": "BRCA Cell Type",
-    "melanoma_response": "IO Response",
-    "crc_mmr": "MMRd vs MMRp",
-}
-
-MODEL_NAME_MAP: dict[str, str] = {
-    "hvg": "HVG",
-    "pca": "PCA",
-    "scgpt": "scGPT",
-    "scgpt_cancer": "scGPT [cancer]",
-    "scvi": "scVI",
-    "scvi_donor_id": "scVI",
-    "scfoundation": "scFoundation",
-    "scimilarity": "SCimiarity",
-    "cellplm": "CellPLM",
-    "gf-6L-30M-i2048": "GF-V1",
-    "gf-6L-30M-i2048_continue": "GF-V1 [continue]",
-    "Geneformer-V2-104M_CLcancer": "GF-V2 [cancer]",
-    "Geneformer-V2-104M": "GF-V2",
-    "Geneformer-V2-104M_continue": "GF-V2 [continue]",
-    "Geneformer-V2-316M": "GF-V2-Deep",
-    "gf-6L-30M-i2048_finetune": "GF-V1 [finetune]",
-    "Geneformer-V2-104M_finetune": "GF-V2 [finetune]",
-    "hvg_seurat_4096": "HVG",
-    "state_se600m_epoch16": "STATE",
-    "scfoundation_brca_cancer_cells": "scFoundation",
-    "geneformer_V2-104M_CLcancer-i4096": "GF-V2 [cancer]",
-    "geneformer_V2-316M-i4096": "GF-V2-Deep",
-    "continue_geneformer_V1-10M-i2048_continue": "GF-V1 [continue]",
-    "geneformer_V1-10M-i2048": "GF-V1",
-    "continue_geneformer_V2-104M-i4096_continue": "GF-V2 [continue]",
-    "geneformer_V2-104M-i4096": "GF-V2",
-    "scgpt_cancer-i2048": "scGPT [cancer]",
-    "scgpt_human-i2048": "scGPT",
-    "cellplm_85M-20231027": "CellPLM",
-    "scimilarity_v1.1": "SCimiarity",
-    "pca_n100": "PCA [100]",
-    "pca_n50": "PCA [50]",
-    "pca_n20": "PCA [20]",
-    "scconcept_corpus30m": "scConcept",
-    "nicheformer_nicheformer": "Nicheformer",
-}
-
-
-def map_groups(model_id: str) -> str:
-    exp = model_id.lower()
-    if "gf" in exp:
-        return "Geneformer"
-    if "geneformer" in exp:
-        return "Geneformer"
-    if "scfoundation" in exp:
-        return "Other"
-    if "scimilarity" in exp:
-        return "Other"
-    if "scgpt" in exp:
-        return "scGPT"
-    if "cellplm" in exp:
-        return "Other"
-    if any(x in exp for x in ("hvg", "pca", "scvi")):
-        return "Baseline"
-    return "Other"
-
-
 def path_has_folder_substring(path: Path, needle: str) -> bool:
     nl = needle.lower()
     return any(nl in part.lower() for part in path.parts)
+
+
+def run_dir_from_metrics(csv_path: Path) -> Path:
+    """Absolute filesystem path to the experiment run directory."""
+    return csv_path.parent.resolve()
 
 
 def find_embedding_metrics_files(root: Path, folder_substring: str) -> list[Path]:
@@ -145,8 +71,9 @@ def load_run_row(csv_path: Path) -> dict[str, object] | None:
         "run_id": run_id,
         "model": model,
         "exp": exp,
+        "exp_path": str(run_dir_from_metrics(csv_path)),
         "embedding_key": ",".join(str(c) for c in df.columns),
-        "metrics_path": str(csv_path),
+        "metrics_path": str(csv_path.resolve()),
     }
 
     if df.shape[1] == 1:
@@ -229,6 +156,7 @@ def main() -> int:
         "model_display",
         "group",
         "exp",
+        "exp_path",
         "exp_display",
         "embedding_key",
         "metrics_path",
