@@ -25,11 +25,11 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install openai 
+        run: pip install anthropic
 
       - name: Run discovery agent
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }} 
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python agent.py
 
       - name: Commit and push changes
