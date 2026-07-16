@@ -2015,5 +2015,37 @@
       "Spatial Coordinates"
     ],
     "prior_knowledge_detail": "Multi-scale spatial transformer encodes spot coordinates at multiple resolutions as explicit positional priors, enabling the model to capture spatial dependencies from single-spot to tissue-domain scales."
+  },
+  {
+    "model_name": "stFormer",
+    "paper_title": "stFormer: A Foundation Model for Spatial Transcriptomics",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2024.09.27.615337v1",
+    "github_url": "https://github.com/csh3/stFormer",
+    "weights_url": "https://zenodo.org/record/16731623",
+    "weights_size": null,
+    "modalities": [
+      "Spatial Transcriptomics"
+    ],
+    "category": "Spatial",
+    "description": "stFormer generates contextual gene representations within single cells and spatial niches, enhancing the analysis of spatial transcriptomics data.",
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Contrastive"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "",
+    "benchmarked": false,
+    "added_date": "2026-07-16",
+    "source": "web-search-agent"
   }
 ]
