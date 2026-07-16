@@ -16,6 +16,12 @@ What it does each run:
 Benchmarked flag is set manually in models.json and never overwritten here.
 """
 
+"""
+scFM Inspector — Discovery Agent (OpenAI version)
+==================================================
+Runs on a schedule via GitHub Actions (every 3 days).
+"""
+
 import json
 import os
 import re
@@ -47,7 +53,7 @@ SEARCH_KEYWORDS = [
 
 SEARCH_PROMPT_TEMPLATE = """You are a computational biology literature agent specializing in single-cell genomics.
 
-Search the web for recent (2023-2025) single-cell foundation models that have BOTH:
+Search the web for recent (2023-2026) single-cell foundation models that have BOTH:
 1. A public GitHub code repository
 2. Publicly available pre-trained model weights (HuggingFace, Zenodo, Figshare, or similar)
 
@@ -57,60 +63,40 @@ Use these search angles:
 Models already in the database - DO NOT include these:
 {known_names}
 
+CRITICAL JSON RULES — failure to follow these will break the pipeline:
+- Return ONLY a valid JSON array, nothing else
+- No markdown fences, no preamble, no explanation
+- Every string must be properly closed with a double quote
+- URLs must be complete — never truncate a URL mid-string
+- If you are unsure of a URL, use null rather than a partial URL
+- Escape any double quotes inside strings with backslash
+- Every object must have all fields listed below
+
 For each NEW model found, return a JSON object with these exact fields:
+- model_name: short model name string
+- paper_title: full paper title string
+- status: "published" or "preprint"
+- journal: journal name or preprint server string
+- year: integer
+- paper_url: full URL string or null
+- github_url: full GitHub URL string (must be verified real URL or null)
+- weights_url: full HuggingFace/Zenodo URL string (must be verified or null)
+- weights_size: size string like "1.2 GB" or null
+- modalities: array of strings e.g. ["scRNA-seq"]
+- category: one of "FM" "LLM" "Perturbation" "Spatial" "Multimodal"
+- description: 2-3 sentence string (no internal quotes)
+- architecture: array e.g. ["Transformer", "BERT"]
+- loss_functions: array e.g. ["Masked Gene Modelling", "Contrastive"]
+- domain: array e.g. ["Generic", "Multi-tissue"]
+- prior_knowledge: array e.g. ["None"] or ["Gene Regulatory Network"]
+- prior_knowledge_detail: string or ""
+- benchmarked: false
 
-Basic metadata:
-- model_name: short model name (e.g. "scGPT")
-- paper_title: full paper title
-- status: "published" if in a peer-reviewed journal, "preprint" if bioRxiv/arXiv
-- journal: journal name, conference, or preprint server
-- year: integer publication year
-- paper_url: direct URL to paper
-- github_url: GitHub repository URL (must be real and verified)
-- weights_url: URL to pre-trained weights (must be real HuggingFace/Zenodo/etc URL)
-- weights_size: estimated size string like "1.2 GB" or null if unknown
-- modalities: JSON array, e.g. ["scRNA-seq", "scATAC-seq", "Spatial"]
-- category: one of "FM", "LLM", "Perturbation", "Spatial", "Multimodal"
-- description: 2-3 sentences on what is architecturally or biologically novel
-
-Classification fields:
-- architecture: JSON array, e.g. ["Transformer", "BERT"]
-  Choose from: Transformer, BERT, GPT, Graph Neural Network, VAE, MLP, Hyena,
-  Long Convolution, State Space Model, CNN, Diffusion, Masked Autoencoder,
-  Dual Encoder, Hierarchical Attention, JEPA, Tabular, Metric Learning, LoRA/Adapter
-
-- loss_functions: JSON array, include all that apply:
-  Masked Gene Modelling, Autoregressive, Reconstruction, Contrastive,
-  Multitask, Denoising, Cross-modal Alignment, Self-supervised,
-  Graph Contrastive, ELBO, Triplet Loss, Supervised, In-context Learning,
-  JEPA, Generative
-
-- domain: JSON array, use Generic if broadly trained:
-  Generic, Multi-tissue, Spatial / Tissue, Epigenomics, Cross-species,
-  Cancer, Brain / Neuronal, Immunology, Proteomics, Perturbation,
-  Regulatory, Pathology
-
-- prior_knowledge: JSON array of external biological knowledge incorporated:
-  None, Gene Regulatory Network, Protein-Protein Interaction,
-  Protein Sequence / ESM, DNA Sequence, Genomic Position,
-  Peak-to-Gene Links, Spatial Coordinates, Cell Ontology,
-  Gene Ontology, Text / Literature, Pathway / Metabolic,
-  Cross-species Orthologs, Chromatin Accessibility
-
-- prior_knowledge_detail: one sentence explaining HOW prior knowledge is used,
-  or empty string if prior_knowledge is ["None"].
-
-- benchmarked: always false (set manually by the research team)
-
-STRICT RULES:
-- Only include models where BOTH github_url AND weights_url are real, verified URLs
-- Do not hallucinate URLs — only include links confirmed during web search
-- Skip any model missing either a code repo or pre-trained weights
-- Return ONLY a valid JSON array. No markdown, no preamble, no explanation.
-- Find up to {max_models} new models.
+Only include models where github_url is a real confirmed URL.
+Find up to {max_models} new models.
+Start your response with [ and end with ] with no other text.
 """
 
-# Defaults for any fields a newly discovered model might be missing
 FIELD_DEFAULTS = {
     "architecture":           ["Transformer"],
     "loss_functions":         ["Self-supervised"],
@@ -135,6 +121,70 @@ def save_database(models: list) -> None:
     with open(DB_PATH, "w") as f:
         json.dump(models, f, indent=2, ensure_ascii=False)
     print(f"  Saved {len(models)} models to {DB_PATH}")
+
+
+def try_repair_json(raw: str) -> list:
+    """Try several strategies to recover a JSON array from a malformed string."""
+
+    # Strategy 1 — direct parse
+    try:
+        result = json.loads(raw)
+        if isinstance(result, list):
+            return result
+    except json.JSONDecodeError:
+        pass
+
+    # Strategy 2 — extract complete objects one by one using regex
+    # Find all {...} blobs and try to parse each independently
+    objects = []
+    depth = 0
+    start = None
+    for i, ch in enumerate(raw):
+        if ch == '{':
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0 and start is not None:
+                blob = raw[start:i+1]
+                try:
+                    obj = json.loads(blob)
+                    objects.append(obj)
+                except json.JSONDecodeError:
+                    # Try to salvage by truncating at last complete key-value pair
+                    # Find last comma at depth 1
+                    last_comma = blob.rfind(',', 0, len(blob)-1)
+                    if last_comma > 0:
+                        truncated = blob[:last_comma] + '}'
+                        try:
+                            obj = json.loads(truncated)
+                            objects.append(obj)
+                            print(f"  Repaired truncated object: {obj.get('model_name','?')}")
+                        except json.JSONDecodeError:
+                            print(f"  Could not repair object starting at pos {start}")
+                start = None
+
+    if objects:
+        print(f"  Extracted {len(objects)} objects via repair strategy")
+        return objects
+
+    # Strategy 3 — try truncating at last complete object
+    last_close = raw.rfind('}')
+    if last_close > 0:
+        truncated = raw[:last_close+1] + ']'
+        first_open = truncated.find('[')
+        if first_open >= 0:
+            try:
+                result = json.loads(truncated[first_open:])
+                if isinstance(result, list):
+                    print(f"  Recovered {len(result)} objects by truncating at last }}")
+                    return result
+            except json.JSONDecodeError:
+                pass
+
+    print("  All repair strategies failed")
+    return []
 
 
 def call_agent(known_names: list) -> list:
@@ -171,21 +221,27 @@ def call_agent(known_names: list) -> list:
     raw = re.sub(r"\s*```$",          "", raw, flags=re.MULTILINE)
     raw = raw.strip()
 
-    # Extract JSON array
+    # Find JSON array boundaries
     start = raw.find("[")
     end   = raw.rfind("]")
-    if start == -1 or end == -1:
+
+    if start == -1:
         print("  WARNING: No JSON array found in response")
-        print("  Raw preview:", raw[:400])
+        print("  Raw preview:", raw[:300])
         return []
 
+    # Use the bounded substring if both brackets found, else everything from [
+    json_str = raw[start : end+1] if end > start else raw[start:]
+
+    # First try direct parse
     try:
-        models = json.loads(raw[start : end + 1])
-        return models if isinstance(models, list) else []
+        models = json.loads(json_str)
+        if isinstance(models, list):
+            print(f"  Parsed {len(models)} models cleanly")
+            return models
     except json.JSONDecodeError as e:
-        print(f"  WARNING: JSON parse error: {e}")
-        print("  Raw snippet:", raw[start : start + 300])
-        return []
+        print(f"  JSON parse error: {e} — attempting repair...")
+        return try_repair_json(json_str)
 
 
 def merge_models(existing: list, new_models: list) -> tuple:
@@ -199,15 +255,13 @@ def merge_models(existing: list, new_models: list) -> tuple:
             continue
         if name.lower() in known:
             continue
-        if not m.get("github_url") or not m.get("weights_url"):
-            print(f"  Skipping {name}: missing github_url or weights_url")
+        if not m.get("github_url"):
+            print(f"  Skipping {name}: missing github_url")
             continue
 
-        # Apply defaults for missing classification fields
         for field, default in FIELD_DEFAULTS.items():
             m.setdefault(field, default)
 
-        # Agent must never set benchmarked=True
         m["benchmarked"] = False
         m["added_date"]  = today
         m.setdefault("source", "web-search-agent")
@@ -224,59 +278,4 @@ def render_html(models: list, updated_at: str) -> str:
     with open(TEMPLATE_PATH) as f:
         template = f.read()
 
-    # ensure_ascii keeps special chars as safe \uXXXX in JS
     models_json = json.dumps(models, ensure_ascii=True)
-    html = template.replace("__MODELS_JSON__", models_json)
-    html = html.replace("__UPDATED_AT__", updated_at)
-    html = html.replace("__TOTAL_COUNT__", str(len(models)))
-    return html
-
-
-def main():
-    print("=" * 60)
-    print("scFM Inspector — Discovery Agent (OpenAI)")
-    print(f"Run started: {datetime.datetime.utcnow().isoformat()} UTC")
-    print("=" * 60)
-
-    # 1. Load database
-    print("\n[1/4] Loading database...")
-    models = load_database()
-    print(f"  Found {len(models)} existing models")
-    print(f"  Benchmarked: {sum(1 for m in models if m.get('benchmarked'))}")
-
-    # 2. Search for new models
-    print("\n[2/4] Searching for new models...")
-    known_names = [m["model_name"] for m in models]
-    new_models  = call_agent(known_names)
-    print(f"  Agent returned {len(new_models)} candidates")
-
-    # 3. Merge
-    print("\n[3/4] Merging results...")
-    models, added = merge_models(models, new_models)
-    print(f"  Added {added} new models. Total: {len(models)}")
-
-    # 4. Save database
-    save_database(models)
-
-    # 5. Render HTML
-    print("\n[4/4] Rendering index.html...")
-    updated_at = datetime.datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
-    html = render_html(models, updated_at)
-    with open(OUTPUT_PATH, "w") as f:
-        f.write(html)
-    print(f"  Wrote {OUTPUT_PATH} ({len(html):,} bytes)")
-
-    print("\n" + "=" * 60)
-    print("Run complete")
-    print(f"  Total models:   {len(models)}")
-    print(f"  Added this run: {added}")
-    print(f"  Benchmarked:    {sum(1 for m in models if m.get('benchmarked'))}")
-    print("=" * 60)
-
-
-if __name__ == "__main__":
-    if "OPENAI_API_KEY" not in os.environ:
-        print("ERROR: OPENAI_API_KEY environment variable not set.")
-        print("  Set it with: export OPENAI_API_KEY=sk-...")
-        sys.exit(1)
-    main()
