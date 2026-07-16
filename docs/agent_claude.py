@@ -1,36 +1,36 @@
 """
-scFM Inspector — Discovery Agent (OpenAI version)
-==================================================
+Single-Cell Foundation Model Discovery Agent
+=============================================
 Runs on a schedule via GitHub Actions (every 3 days).
 
 What it does each run:
   1. Loads the existing models.json database
-  2. Calls GPT-4o with web search to find new models that have both
+  2. Calls Claude with web search to find new models that have both
      a public GitHub repo AND publicly available pre-trained weights
   3. Classifies each new model by architecture, loss function, domain,
      and prior knowledge type
   4. Merges new models into the database (deduplicates by model name)
   5. Renders a fresh static index.html from template.html
-  6. Commits and pushes — GitHub Pages auto-deploys
+  6. Commits and pushes both files — GitHub Pages auto-deploys
 
-Benchmarked flag is set manually in models.json and never overwritten here.
+Default display order: benchmarked models first, then by year descending.
+Benchmarked flag is set manually in models.json and never overwritten by this agent.
 """
 
+import anthropic
 import json
 import os
+import datetime
 import re
 import sys
-import datetime
 from pathlib import Path
 
-from openai import OpenAI
-
 # ── Config ────────────────────────────────────────────────────────────────────
-MODEL_ID       = "gpt-4o"
+MODEL_ID       = "claude-sonnet-4-20250514"
 DB_PATH        = Path("models.json")
 OUTPUT_PATH    = Path("index.html")
 TEMPLATE_PATH  = Path("template.html")
-MAX_NEW_MODELS = 15
+MAX_NEW_MODELS = 15   # cap per run to control cost
 
 SEARCH_KEYWORDS = [
     "single-cell foundation model pretrained weights GitHub 2025",
@@ -74,28 +74,28 @@ Basic metadata:
 - description: 2-3 sentences on what is architecturally or biologically novel
 
 Classification fields:
-- architecture: JSON array, e.g. ["Transformer", "BERT"]
-  Choose from: Transformer, BERT, GPT, Graph Neural Network, VAE, MLP, Hyena,
-  Long Convolution, State Space Model, CNN, Diffusion, Masked Autoencoder,
-  Dual Encoder, Hierarchical Attention, JEPA, Tabular, Metric Learning, LoRA/Adapter
+- architecture: JSON array — use the most specific terms that apply:
+    Transformer, BERT, GPT, Graph Neural Network, VAE, MLP, Hyena,
+    Long Convolution, State Space Model, CNN, Diffusion, Masked Autoencoder,
+    Dual Encoder, Hierarchical Attention, JEPA, Tabular, Metric Learning, LoRA/Adapter
 
-- loss_functions: JSON array, include all that apply:
-  Masked Gene Modelling, Autoregressive, Reconstruction, Contrastive,
-  Multitask, Denoising, Cross-modal Alignment, Self-supervised,
-  Graph Contrastive, ELBO, Triplet Loss, Supervised, In-context Learning,
-  JEPA, Generative
+- loss_functions: JSON array — include all that apply:
+    Masked Gene Modelling, Autoregressive, Reconstruction, Contrastive,
+    Multitask, Denoising, Cross-modal Alignment, Self-supervised,
+    Graph Contrastive, ELBO, Triplet Loss, Supervised, In-context Learning,
+    JEPA, Generative
 
-- domain: JSON array, use Generic if broadly trained:
-  Generic, Multi-tissue, Spatial / Tissue, Epigenomics, Cross-species,
-  Cancer, Brain / Neuronal, Immunology, Proteomics, Perturbation,
-  Regulatory, Pathology
+- domain: JSON array — use Generic if broadly trained:
+    Generic, Multi-tissue, Spatial / Tissue, Epigenomics, Cross-species,
+    Cancer, Brain / Neuronal, Immunology, Proteomics, Perturbation,
+    Regulatory, Pathology
 
-- prior_knowledge: JSON array of external biological knowledge incorporated:
-  None, Gene Regulatory Network, Protein-Protein Interaction,
-  Protein Sequence / ESM, DNA Sequence, Genomic Position,
-  Peak-to-Gene Links, Spatial Coordinates, Cell Ontology,
-  Gene Ontology, Text / Literature, Pathway / Metabolic,
-  Cross-species Orthologs, Chromatin Accessibility
+- prior_knowledge: JSON array — what external biological knowledge is injected:
+    None, Gene Regulatory Network, Protein-Protein Interaction,
+    Protein Sequence / ESM, DNA Sequence, Genomic Position,
+    Peak-to-Gene Links, Spatial Coordinates, Cell Ontology,
+    Gene Ontology, Text / Literature, Pathway / Metabolic,
+    Cross-species Orthologs, Chromatin Accessibility
 
 - prior_knowledge_detail: one sentence explaining HOW prior knowledge is used,
   or empty string if prior_knowledge is ["None"].
@@ -104,24 +104,11 @@ Classification fields:
 
 STRICT RULES:
 - Only include models where BOTH github_url AND weights_url are real, verified URLs
-- Do not hallucinate URLs — only include links confirmed during web search
-- Skip any model missing either a code repo or pre-trained weights
+- Do not hallucinate URLs - only include links you confirmed during web search
+- Skip any model that lacks either a code repo or pre-trained weights
 - Return ONLY a valid JSON array. No markdown, no preamble, no explanation.
 - Find up to {max_models} new models.
 """
-
-# Defaults for any fields a newly discovered model might be missing
-FIELD_DEFAULTS = {
-    "architecture":           ["Transformer"],
-    "loss_functions":         ["Self-supervised"],
-    "domain":                 ["Generic"],
-    "prior_knowledge":        ["None"],
-    "prior_knowledge_detail": "",
-    "benchmarked":            False,
-    "weights_size":           None,
-    "modalities":             ["scRNA-seq"],
-    "category":               "FM",
-}
 
 
 def load_database() -> list:
@@ -138,7 +125,7 @@ def save_database(models: list) -> None:
 
 
 def call_agent(known_names: list) -> list:
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
     keywords_str = "\n".join(f"- {kw}" for kw in SEARCH_KEYWORDS)
     known_str    = ", ".join(known_names) if known_names else "(none yet)"
@@ -149,22 +136,21 @@ def call_agent(known_names: list) -> list:
         max_models=MAX_NEW_MODELS,
     )
 
-    print("  Calling GPT-4o with web search...")
-    response = client.responses.create(
+    print("  Calling Claude with web search...")
+    response = client.messages.create(
         model=MODEL_ID,
-        tools=[{"type": "web_search_preview"}],
-        input=prompt,
+        max_tokens=4096,
+        tools=[{"type": "web_search_20250305", "name": "web_search"}],
+        messages=[{"role": "user", "content": prompt}],
     )
 
-    # Extract the final text output
-    raw = ""
-    for block in response.output:
-        if hasattr(block, "content"):
-            for part in block.content:
-                if hasattr(part, "text"):
-                    raw += part.text
-
-    raw = raw.strip()
+    # Extract text blocks (model final answer after all tool-use rounds)
+    text_parts = [
+        block.text
+        for block in response.content
+        if hasattr(block, "text") and block.text
+    ]
+    raw = "\n".join(text_parts).strip()
 
     # Strip markdown fences if present
     raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
@@ -176,7 +162,7 @@ def call_agent(known_names: list) -> list:
     end   = raw.rfind("]")
     if start == -1 or end == -1:
         print("  WARNING: No JSON array found in response")
-        print("  Raw preview:", raw[:400])
+        print("  Raw response preview:", raw[:400])
         return []
 
     try:
@@ -186,6 +172,20 @@ def call_agent(known_names: list) -> list:
         print(f"  WARNING: JSON parse error: {e}")
         print("  Raw snippet:", raw[start : start + 300])
         return []
+
+
+# Sensible defaults for any fields a newly discovered model might be missing
+FIELD_DEFAULTS = {
+    "architecture":           ["Transformer"],
+    "loss_functions":         ["Self-supervised"],
+    "domain":                 ["Generic"],
+    "prior_knowledge":        ["None"],
+    "prior_knowledge_detail": "",
+    "benchmarked":            False,
+    "weights_size":           None,
+    "modalities":             ["scRNA-seq"],
+    "category":               "FM",
+}
 
 
 def merge_models(existing: list, new_models: list) -> tuple:
@@ -203,13 +203,14 @@ def merge_models(existing: list, new_models: list) -> tuple:
             print(f"  Skipping {name}: missing github_url or weights_url")
             continue
 
-        # Apply defaults for missing classification fields
+        # Apply defaults for any missing classification fields
         for field, default in FIELD_DEFAULTS.items():
             m.setdefault(field, default)
 
-        # Agent must never set benchmarked=True
+        # Safety: agent must never set benchmarked=True
         m["benchmarked"] = False
-        m["added_date"]  = today
+
+        m["added_date"] = today
         m.setdefault("source", "web-search-agent")
 
         existing.append(m)
@@ -224,7 +225,7 @@ def render_html(models: list, updated_at: str) -> str:
     with open(TEMPLATE_PATH) as f:
         template = f.read()
 
-    # ensure_ascii keeps special chars as safe \uXXXX in JS
+    # ensure_ascii=True keeps special chars as safe \uXXXX sequences in JS
     models_json = json.dumps(models, ensure_ascii=True)
     html = template.replace("__MODELS_JSON__", models_json)
     html = html.replace("__UPDATED_AT__", updated_at)
@@ -234,11 +235,11 @@ def render_html(models: list, updated_at: str) -> str:
 
 def main():
     print("=" * 60)
-    print("scFM Inspector — Discovery Agent (OpenAI)")
+    print("Single-Cell Foundation Model Discovery Agent")
     print(f"Run started: {datetime.datetime.utcnow().isoformat()} UTC")
     print("=" * 60)
 
-    # 1. Load database
+    # 1. Load existing database
     print("\n[1/4] Loading database...")
     models = load_database()
     print(f"  Found {len(models)} existing models")
@@ -255,10 +256,10 @@ def main():
     models, added = merge_models(models, new_models)
     print(f"  Added {added} new models. Total: {len(models)}")
 
-    # 4. Save database
+    # 4. Save
     save_database(models)
 
-    # 5. Render HTML
+    # 5. Render
     print("\n[4/4] Rendering index.html...")
     updated_at = datetime.datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
     html = render_html(models, updated_at)
@@ -275,8 +276,8 @@ def main():
 
 
 if __name__ == "__main__":
-    if "OPENAI_API_KEY" not in os.environ:
-        print("ERROR: OPENAI_API_KEY environment variable not set.")
-        print("  Set it with: export OPENAI_API_KEY=sk-...")
+    if "ANTHROPIC_API_KEY" not in os.environ:
+        print("ERROR: ANTHROPIC_API_KEY environment variable not set.")
+        print("  Set it with: export ANTHROPIC_API_KEY=sk-ant-...")
         sys.exit(1)
     main()
