@@ -1,0 +1,42 @@
+name: Update SCFM database
+
+on:
+  schedule:
+    # Runs every 3 days at 08:00 UTC (Mon/Thu/Sun roughly)
+    - cron: '0 8 */3 * *'
+  workflow_dispatch:
+    # Allows manual trigger from the GitHub Actions tab
+
+permissions:
+  contents: write   # needed to commit updated files back to the repo
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install anthropic
+
+      - name: Run discovery agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python agent.py
+
+      - name: Commit and push changes
+        run: |
+          git config user.name  "scfm-agent[bot]"
+          git config user.email "scfm-agent@users.noreply.github.com"
+          git add models.json index.html
+          # Only commit if there are actual changes
+          git diff --cached --quiet || git commit -m "chore: update SCFM database $(date -u '+%Y-%m-%d')"
+          git push
