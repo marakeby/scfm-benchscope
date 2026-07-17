@@ -13,7 +13,7 @@ bash "$ROOT/scripts/install_packages.sh"
 
 echo ""
 echo "Smoke checks:"
-pixi run check-imports || true
+pixi run -e default check-imports
 pixi run verify-gpu || true
 
 if command -v nvidia-smi >/dev/null 2>&1; then
@@ -29,4 +29,5 @@ echo "      configure scripts/config/model_weights.env + data_download.env, then
 echo "  bash scripts/download_model_weights.sh"
 echo "  bash scripts/download_data.sh"
 echo "Set SCFM_DATA_PATH / SCFM_OUTPUT_PATH (and optionally SCFM_PARAMS_PATH for custom YAML root), then e.g."
-echo "  pixi run -e default run-exp exp/geneformer/V1-10M-i2048/brca_cell_type.yaml"
+echo "  pixi run -e default run-exp exp/pca/n50/brca_cell_type.yaml"
+echo "  pixi run -e geneformer run-exp exp/geneformer/V1-10M-i2048/brca_cell_type.yaml"

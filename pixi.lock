@@ -937,7 +937,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/6d/c1/e419ef3723a074172b68aaa89c9f3de486ed4c2399e2dbd8113a4fdcaf9e/colorlog-6.10.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/b0/e5/247d094108e42ac26363ab8dc57f168840cf7c05774b40ffeb0d78868fcc/datasets-4.8.4-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/1e/77/dc8c558f7593132cf8fefec57c4f60c83b16941c574ac5f619abb3ae7933/dill-0.4.1-py3-none-any.whl
-      - pypi: git+https://huggingface.co/ctheodoris/Geneformer#fcd26c45fc30fba1989e586bdc46bc366dda8655
+      - pypi: git+https://huggingface.co/ctheodoris/Geneformer?rev=fcd26c45fc30fba1989e586bdc46bc366dda8655#fcd26c45fc30fba1989e586bdc46bc366dda8655
       - pypi: https://files.pythonhosted.org/packages/72/83/3e06a52aca8128bdd4dcd67e932b809e76a96ab8c232a8b025b2850264c5/greenlet-3.3.2-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/25/51/bd267c989f85a17a5b3eea65a6feb4ff672af41ca614e5a0279cc0ea381c/grpcio-1.80.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/df/9a/a24b26dc8a65f0ecc0fe5be981a19e61e7ca963b85e062c083f3a9100529/hf_xet-1.4.3-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
@@ -6241,7 +6241,7 @@ packages:
   license_family: GPL
   size: 81814135
   timestamp: 1771378369317
-- pypi: git+https://huggingface.co/ctheodoris/Geneformer#fcd26c45fc30fba1989e586bdc46bc366dda8655
+- pypi: git+https://huggingface.co/ctheodoris/Geneformer?rev=fcd26c45fc30fba1989e586bdc46bc366dda8655#fcd26c45fc30fba1989e586bdc46bc366dda8655
   name: geneformer
   version: 0.1.0
   requires_dist:

@@ -11,7 +11,8 @@
 #
 # Usage:
 #   pixi install
-#   pixi run -e geneformer run-exp yaml/brca_full/cell_type/Geneformer-V2-104M.yaml
+#   pixi run -e default run-exp exp/pca/n50/brca_cell_type.yaml
+#   pixi run -e geneformer run-exp exp/geneformer/V2-104M-i4096/brca_cell_type.yaml
 #   pixi shell -e scvi
 #
 # Lockfile (commit pixi.lock for reproducible installs):
@@ -32,8 +33,10 @@ platforms = ["linux-64"]
 # Pass a YAML path relative to bundled yaml/ (see scfm_cancer_eval.run.run_exp main()).
 run-exp = { cmd = "python -m scfm_cancer_eval.run.run_exp" }
 # Quick sanity check that imports resolve in the active environment.
-check-imports = { cmd = "python -c \"import yaml, numpy, pandas, anndata, scanpy, torch; print('ok')\"" }
-# VM / Docker: clone Hugging Face Geneformer + pip install -e into the `geneformer` env.
+check-imports = { cmd = "python -c \"import yaml, numpy, pandas, anndata, scanpy, torch, scfm_cancer_eval; print('scfm_eval', scfm_cancer_eval.__version__, 'imports ok')\"" }
+test = { cmd = "python -m unittest discover -s tests -p 'test_*.py' -v" }
+validate-yaml-syntax = { cmd = "python scripts/validate_all_yaml.py --skip-exp" }
+# VM / Docker: install the lockfile; pass the source flag only for upstream development.
 install-packages = { cmd = "bash scripts/install_packages.sh" }
 download-models = { cmd = "bash scripts/download_model_weights.sh" }
 download-data = { cmd = "bash scripts/download_data.sh" }
@@ -86,8 +89,9 @@ scvi-tools = ">=1.1"
 # Geneformer imports SpecialTokensMixin (removed in transformers v5).
 transformers = ">=4.36,<5"
 datasets = ">=2.16"
-# Hugging Face repo (not on PyPI). Weights: scripts/download_model_weights.sh or install_packages.sh.
-geneformer = { git = "https://huggingface.co/ctheodoris/Geneformer" }
+# Hugging Face repo (not on PyPI), pinned to the revision recorded by the lockfile.
+# Weights remain separate: use scripts/download_model_weights.sh.
+geneformer = { git = "https://huggingface.co/ctheodoris/Geneformer", rev = "fcd26c45fc30fba1989e586bdc46bc366dda8655" }
 
 # CUDA PyTorch for Geneformer (`cuda = "12"` satisfies conda `__cuda` for GPU builds).
 [feature.geneformer.system-requirements]
