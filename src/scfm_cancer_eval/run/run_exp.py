@@ -96,7 +96,10 @@ from scfm_cancer_eval.evaluation.eval import EmbeddingEvaluator
 from scfm_cancer_eval.utils.logs_ import set_logging, get_logger
 from scfm_cancer_eval.setup_path import BASE_PATH, OUTPUT_PATH, PARAMS_PATH, DATA_PATH
 from scfm_cancer_eval.utils.sampling import sample_adata
-from scfm_cancer_eval.utils.exp_yaml_merge import load_merged_experiment_config
+from scfm_cancer_eval.utils.exp_yaml_merge import (
+    deep_merge_dicts,
+    load_merged_experiment_config,
+)
 
 embedding_method_map= dict(PCA='X_pca', HVG='X_hvg', scVI='X_scVI', geneformer='X_geneformer', scgpt='X_scGPT')
 
@@ -334,7 +337,11 @@ def get_configs(config_path):
         Tuple containing run_id, data_config, qc_config, preproc_config, hvg_config, feat_config, classification_config.
     """
     config = load_merged_experiment_config(config_path)
+    return _config_sections(config)
 
+
+def _config_sections(config):
+    """Return the legacy section tuple from a resolved experiment mapping."""
     run_id = config.get("run_id", "")
     # Optional: allow a dedicated `task` block for task metadata (label_key, label_map, etc.)
     task_config = config.get("task", None)
@@ -358,13 +365,20 @@ class Experiment:
         seed: int = 42,
         max_cells: Optional[int] = None,
         max_cells_stratify: Optional[str] = None,
+        *,
+        resolved_config=None,
+        model_adapter=None,
+        output_dir=None,
     ):
         """
         Initialize the Experiment with a given config path.
         Sets up directories, logging, and loads configuration.
 
         Args:
-            config_path: Path to the entry YAML (relative to PARAMS_PATH, or absolute).
+            config_path: Optional entry YAML path (relative to PARAMS_PATH, or absolute).
+            resolved_config: Optional already-composed config used by the library API.
+            model_adapter: Optional adapter object implementing ``fit_transform`` and ``output_key``.
+            output_dir: Optional output root override.
             seed: Global RNG seed used when config does not override (e.g. subsampling, classifier).
             max_cells: If set and positive, cap the number of cells after load (overrides dataset.max_cells
                 in YAML). Useful for quick tests without editing the config.
@@ -379,8 +393,18 @@ class Experiment:
             if mc > 0:
                 self._cli_max_cells = mc
         self._cli_max_cells_stratify: Optional[str] = max_cells_stratify
-        self._cli_config_path = config_path
-        self.config_path = _resolve_experiment_config_path(config_path)
+        self.model_adapter = model_adapter
+        self._cli_config_path = config_path or ""
+        self.config_path = (
+            _resolve_experiment_config_path(config_path) if config_path else None
+        )
+        if resolved_config is None:
+            if self.config_path is None:
+                raise ValueError("config_path or resolved_config is required")
+            config_parts = get_configs(self.config_path)
+        else:
+            resolved_copy = deep_merge_dicts({}, dict(resolved_config))
+            config_parts = _config_sections(resolved_copy)
         (
             self.run_id,
             self.data_config,
@@ -391,22 +415,29 @@ class Experiment:
             self.classification_config,
             self.resolved_config,
             self.task_config,
-        ) = get_configs(self.config_path)
+        ) = config_parts
 
         self.vis_embedding = bool(self.feat_config['viz'])
         self.eval_embedding = bool(self.feat_config['eval'])
 
         # Prepare saving dir
-        relative_sav_dir = _output_subdir_for_config(self._cli_config_path, self.config_path)
-        config_filename = os.path.basename(self.config_path)
-        save_dir = join(OUTPUT_PATH, relative_sav_dir)
-        self.save_dir = save_dir + f'_{self.run_id}' if self.run_id else save_dir
+        self.output_root = os.fspath(output_dir) if output_dir is not None else OUTPUT_PATH
+        if self.config_path is not None:
+            relative_sav_dir = _output_subdir_for_config(
+                self._cli_config_path, self.config_path
+            )
+            save_dir = join(self.output_root, relative_sav_dir)
+            self.save_dir = save_dir + f'_{self.run_id}' if self.run_id else save_dir
+        else:
+            self.save_dir = join(self.output_root, "api", self.run_id or "evaluation")
         print(f'save_dir: {self.save_dir}')
         if not exists(self.save_dir):
             os.makedirs(self.save_dir)
 
         # Copy wrapper YAML and also save the fully resolved config
-        shutil.copyfile(self.config_path, join(self.save_dir, config_filename))
+        if self.config_path is not None and os.path.isfile(self.config_path):
+            config_filename = os.path.basename(self.config_path)
+            shutil.copyfile(self.config_path, join(self.save_dir, config_filename))
         with open(join(self.save_dir, "resolved_config.yaml"), "w") as f:
             yaml.safe_dump(self.resolved_config, f, sort_keys=False)
 
@@ -590,8 +621,11 @@ class Experiment:
         # Ensure params exists
         feat_config.setdefault("params", {})
         feat_config["params"]["save_dir"] = self.save_dir
-        ExtractorClass = self.load_class(feat_config['module'], feat_config['class'])
-        extractor = ExtractorClass(feat_config)
+        if self.model_adapter is not None:
+            extractor = self.model_adapter
+        else:
+            ExtractorClass = self.load_class(feat_config['module'], feat_config['class'])
+            extractor = ExtractorClass(feat_config)
         # Prefer extractor-defined key; fall back to legacy mapping.
         self.embedding_key = getattr(extractor, "output_key", None) or (
             extractor.get_output_key() if hasattr(extractor, "get_output_key") else None
@@ -764,10 +798,10 @@ class Experiment:
         except Exception:
             self.log.exception("Failed to write results.json (non-fatal).")
 
-        # Append one row to a global CSV in OUTPUT_PATH
-        metrics_csv = join(OUTPUT_PATH, "metrics_runs.csv")
+        # Append one row to a global CSV in the selected output root.
+        metrics_csv = join(self.output_root, "metrics_runs.csv")
         try:
-            os.makedirs(OUTPUT_PATH, exist_ok=True)
+            os.makedirs(self.output_root, exist_ok=True)
             row = dict(
                 run_id=self.run_id,
                 config_path=self.run_summary.get("config_path"),
