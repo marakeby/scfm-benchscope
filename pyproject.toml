@@ -45,8 +45,8 @@ dependencies = [
 ]
 
 [project.scripts]
-scfm-cancer-eval = "scfm_cancer_eval.run.run_exp:main"
-scfm-eval = "scfm_cancer_eval.run.run_exp:main"
+scfm-cancer-eval = "scfm_cancer_eval.cli:main"
+scfm-eval = "scfm_cancer_eval.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/marakeby/scFM_eval"

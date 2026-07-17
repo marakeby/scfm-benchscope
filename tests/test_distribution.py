@@ -20,11 +20,11 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(installed.metadata["License-Expression"], "GPL-3.0-only")
         self.assertEqual(
             scripts["scfm-cancer-eval"],
-            "scfm_cancer_eval.run.run_exp:main",
+            "scfm_cancer_eval.cli:main",
         )
         self.assertEqual(
             scripts["scfm-eval"],
-            "scfm_cancer_eval.run.run_exp:main",
+            "scfm_cancer_eval.cli:main",
         )
 
     def test_wheel_resources_are_declared(self) -> None:
@@ -51,7 +51,9 @@ class DistributionTests(unittest.TestCase):
             0,
             msg=f"stdout:\n{completed.stdout}\nstderr:\n{completed.stderr}",
         )
-        self.assertIn("Run scFM_eval experiment from YAML.", completed.stdout)
+        self.assertIn("Run scFM_eval experiment from YAML", completed.stdout)
+        self.assertIn("report", completed.stdout)
+        self.assertIn("compare", completed.stdout)
 
 
 if __name__ == "__main__":

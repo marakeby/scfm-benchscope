@@ -106,6 +106,17 @@ The command prints `save_dir` when the run starts. A successful run contains:
 The output root also contains `metrics_runs.csv`, with one summary row per
 completed run.
 
+Generate a browser report and machine-readable comparison exports:
+
+```bash
+scfm-eval report "$SCFM_OUTPUT_PATH"
+```
+
+The command writes `report/report.html`, `report/comparison.json`, and
+`report/comparison.csv` below the output root. See
+[Comparing and visualizing results](reporting.md) for selected-run comparisons,
+strict validation, and the Python reporting API.
+
 ## External configurations
 
 An absolute experiment path is supported:

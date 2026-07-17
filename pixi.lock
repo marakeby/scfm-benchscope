@@ -16402,7 +16402,7 @@ packages:
 - pypi: ./
   name: scfm-cancer-eval
   version: 0.1.0
-  sha256: 1d725594eb4a749dae6acbd4d1a30464771af79b9754e9be6f9c57ce8223f5ae
+  sha256: 2b59aeb5184e2af657ac41b822b8e8f69fb2bc960a6e2dbab5eb6fbd542328f1
   requires_dist:
   - numpy>=1.24
   - pandas>=2

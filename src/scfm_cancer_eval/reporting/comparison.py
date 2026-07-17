@@ -5,12 +5,11 @@ from __future__ import annotations
 import csv
 import io
 import json
-import os
-import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from scfm_cancer_eval.reporting._io import atomic_write_text
 from scfm_cancer_eval.reporting.discovery import DiscoveryResult, RunSummary
 
 COMPARISON_SCHEMA_NAME = "scfm_eval.comparison"
@@ -177,32 +176,6 @@ def comparison_csv_text(records: tuple[ComparisonRecord, ...]) -> str:
     return output.getvalue()
 
 
-def _atomic_write_text(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path: str | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w",
-            encoding="utf-8",
-            dir=path.parent,
-            prefix=f".{path.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as temp_file:
-            temp_path = temp_file.name
-            temp_file.write(text)
-            temp_file.flush()
-            os.fsync(temp_file.fileno())
-        os.replace(temp_path, path)
-        temp_path = None
-    finally:
-        if temp_path is not None:
-            try:
-                os.unlink(temp_path)
-            except FileNotFoundError:
-                pass
-
-
 def write_comparison_exports(
     discovery: DiscoveryResult,
     output_dir: str | Path,
@@ -212,11 +185,11 @@ def write_comparison_exports(
     payload = build_comparison_payload(discovery, records)
     json_path = output_root / "comparison.json"
     csv_path = output_root / "comparison.csv"
-    _atomic_write_text(
+    atomic_write_text(
         json_path,
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
     )
-    _atomic_write_text(csv_path, comparison_csv_text(records))
+    atomic_write_text(csv_path, comparison_csv_text(records))
     return ComparisonArtifacts(
         json_path=json_path,
         csv_path=csv_path,

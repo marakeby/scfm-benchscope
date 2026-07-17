@@ -840,7 +840,7 @@ class Experiment:
             )
 
 
-def main():
+def main(argv=None):
     """
     Main entry point for running an experiment from the command line.
     Sets random seed, parses config path, runs experiment, and saves timing log.
@@ -885,7 +885,7 @@ def main():
             "uniform random sampling instead of stratifying."
         ),
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     seed = args.seed if args.seed is not None else int(os.environ.get("SCFM_EVAL_SEED", "42"))
     set_random_seed(seed)
     experiment = Experiment(

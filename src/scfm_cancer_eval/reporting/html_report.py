@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from scfm_cancer_eval.reporting._io import atomic_write_text
 from scfm_cancer_eval.reporting.comparison import (
-    _atomic_write_text,
     build_comparison_payload,
     build_comparison_records,
 )
@@ -235,6 +235,9 @@ def render_html_report(
   const records = payload.records || [];
   const issues = payload.issues || [];
   const metricNames = [...new Set(records.flatMap(record => Object.keys(record.metrics || {{}})))].sort();
+  const numericMetricNames = metricNames.filter(name =>
+    records.some(record => typeof record.metrics?.[name] === "number")
+  );
   const fixedColumns = [
     ["run_id", "Run"],
     ["model_id", "Model"],
@@ -265,8 +268,8 @@ def render_html_report(
   }}
   addOptions(byId("dataset-filter"), [...new Set(records.map(record => record.dataset_path))]);
   addOptions(byId("kind-filter"), [...new Set(records.map(record => record.evaluation_kind))]);
-  if (metricNames.length) {{
-    metricNames.forEach(name => {{
+  if (numericMetricNames.length) {{
+    numericMetricNames.forEach(name => {{
       const option = document.createElement("option");
       option.value = name;
       option.textContent = name;
@@ -436,5 +439,5 @@ def write_html_report(
     title: str = "scFM evaluation report",
 ) -> Path:
     report_path = Path(output_dir) / filename
-    _atomic_write_text(report_path, render_html_report(discovery, title=title))
+    atomic_write_text(report_path, render_html_report(discovery, title=title))
     return report_path

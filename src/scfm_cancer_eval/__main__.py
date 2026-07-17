@@ -1,6 +1,6 @@
-"""Run the scFM evaluation CLI with ``python -m scfm_cancer_eval``."""
+"""Run the scFM evaluation and reporting CLI."""
 
-from scfm_cancer_eval.run.run_exp import main
+from scfm_cancer_eval.cli import main
 
 
 if __name__ == "__main__":

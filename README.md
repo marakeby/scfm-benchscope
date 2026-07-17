@@ -47,6 +47,15 @@ The runner prints the run directory. Its primary files are:
 Completed runs also append a summary row to
 `$SCFM_OUTPUT_PATH/metrics_runs.csv`.
 
+Create an offline report across completed runs:
+
+```bash
+scfm-eval report "$SCFM_OUTPUT_PATH"
+```
+
+Open `$SCFM_OUTPUT_PATH/report/report.html` to filter runs, compare metrics, and
+download stable JSON or CSV exports.
+
 ## Evaluate your own model
 
 An installed model can be evaluated without adding it to the repository. Pass
@@ -73,6 +82,7 @@ importable model configurations, custom YAML, and checkpoint handling.
 
 - [Installation](docs/installation.md)
 - [Running evaluations](docs/running-evaluations.md)
+- [Comparing and visualizing results](docs/reporting.md)
 - [Adding a model](docs/adding-a-model.md)
 - [Experiment configuration](docs/experiment-configuration.md)
 

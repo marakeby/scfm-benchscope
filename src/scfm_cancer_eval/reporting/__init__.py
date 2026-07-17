@@ -20,6 +20,10 @@ from scfm_cancer_eval.reporting.html_report import (
     render_html_report,
     write_html_report,
 )
+from scfm_cancer_eval.reporting.workflow import (
+    ReportBundle,
+    create_report_bundle,
+)
 
 __all__ = [
     "COMPARISON_SCHEMA_NAME",
@@ -29,9 +33,11 @@ __all__ = [
     "DiscoveryIssue",
     "DiscoveryResult",
     "ResultDiscoveryError",
+    "ReportBundle",
     "RunSummary",
     "build_comparison_payload",
     "build_comparison_records",
+    "create_report_bundle",
     "discover_results",
     "render_html_report",
     "write_comparison_exports",
