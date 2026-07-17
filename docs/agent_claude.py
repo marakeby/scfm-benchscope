@@ -10,8 +10,8 @@ What it does each run:
   3. Classifies each new model by architecture, loss function, domain,
      and prior knowledge type
   4. Merges new models into the database (deduplicates by model name)
-  5. Renders a fresh static index.html from template.html
-  6. Commits and pushes both files — GitHub Pages auto-deploys
+  5. Renders a fresh static models.html from template.html
+  6. Exports validated candidate records for later integration planning
 
 Default display order: benchmarked models first, then by year descending.
 Benchmarked flag is set manually in models.json and never overwritten by this agent.
@@ -25,11 +25,18 @@ import re
 import sys
 from pathlib import Path
 
+from scfm_cancer_eval.discovery import (
+    export_candidate_records,
+    safe_json_for_html,
+)
+
 # ── Config ────────────────────────────────────────────────────────────────────
+DOCS_ROOT      = Path(__file__).resolve().parent
 MODEL_ID       = "claude-sonnet-4-20250514"
-DB_PATH        = Path("models.json")
-OUTPUT_PATH    = Path("index.html")
-TEMPLATE_PATH  = Path("template.html")
+DB_PATH        = DOCS_ROOT / "models.json"
+OUTPUT_PATH    = DOCS_ROOT / "models.html"
+TEMPLATE_PATH  = DOCS_ROOT / "template.html"
+CANDIDATE_PATH = DOCS_ROOT / "candidates"
 MAX_NEW_MODELS = 15   # cap per run to control cost
 
 SEARCH_KEYWORDS = [
@@ -69,6 +76,7 @@ Basic metadata:
 - github_url: GitHub repository URL (must be real and verified)
 - weights_url: URL to pre-trained weights (must be real HuggingFace/Zenodo/etc URL)
 - weights_size: estimated size string like "1.2 GB" or null if unknown
+- confidence: number from 0 to 1 reflecting confidence in the source links
 - modalities: JSON array, e.g. ["scRNA-seq", "scATAC-seq", "Spatial"]
 - category: one of "FM", "LLM", "Perturbation", "Spatial", "Multimodal"
 - description: 2-3 sentences on what is architecturally or biologically novel
@@ -176,10 +184,10 @@ def call_agent(known_names: list) -> list:
 
 # Sensible defaults for any fields a newly discovered model might be missing
 FIELD_DEFAULTS = {
-    "architecture":           ["Transformer"],
-    "loss_functions":         ["Self-supervised"],
-    "domain":                 ["Generic"],
-    "prior_knowledge":        ["None"],
+    "architecture":           [],
+    "loss_functions":         [],
+    "domain":                 [],
+    "prior_knowledge":        [],
     "prior_knowledge_detail": "",
     "benchmarked":            False,
     "weights_size":           None,
@@ -192,6 +200,7 @@ def merge_models(existing: list, new_models: list) -> tuple:
     known = {m["model_name"].lower() for m in existing}
     today = datetime.date.today().isoformat()
     added = 0
+    added_models = []
 
     for m in new_models:
         name = (m.get("model_name") or "").strip()
@@ -214,11 +223,12 @@ def merge_models(existing: list, new_models: list) -> tuple:
         m.setdefault("source", "web-search-agent")
 
         existing.append(m)
+        added_models.append(m)
         known.add(name.lower())
         added += 1
         print(f"  + Added: {name}")
 
-    return existing, added
+    return existing, added, added_models
 
 
 def render_html(models: list, updated_at: str) -> str:
@@ -226,7 +236,7 @@ def render_html(models: list, updated_at: str) -> str:
         template = f.read()
 
     # ensure_ascii=True keeps special chars as safe \uXXXX sequences in JS
-    models_json = json.dumps(models, ensure_ascii=True)
+    models_json = safe_json_for_html(models)
     html = template.replace("__MODELS_JSON__", models_json)
     html = html.replace("__UPDATED_AT__", updated_at)
     html = html.replace("__TOTAL_COUNT__", str(len(models)))
@@ -253,14 +263,27 @@ def main():
 
     # 3. Merge
     print("\n[3/4] Merging results...")
-    models, added = merge_models(models, new_models)
+    models, added, added_models = merge_models(models, new_models)
     print(f"  Added {added} new models. Total: {len(models)}")
 
     # 4. Save
     save_database(models)
+    candidate_export = export_candidate_records(
+        added_models,
+        CANDIDATE_PATH,
+        agent="anthropic-discovery",
+    )
+    print(
+        "  Candidate records: "
+        f"{len(candidate_export.written)} new, "
+        f"{len(candidate_export.existing)} existing, "
+        f"{len(candidate_export.errors)} invalid"
+    )
+    for error in candidate_export.errors:
+        print(f"  Candidate warning: {error}")
 
     # 5. Render
-    print("\n[4/4] Rendering index.html...")
+    print("\n[4/4] Rendering models.html...")
     updated_at = datetime.datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
     html = render_html(models, updated_at)
     with open(OUTPUT_PATH, "w") as f:

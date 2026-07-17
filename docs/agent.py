@@ -15,12 +15,18 @@ import datetime
 from pathlib import Path
 
 from openai import OpenAI
+from scfm_cancer_eval.discovery import (
+    export_candidate_records,
+    safe_json_for_html,
+)
 
 # ── Config ────────────────────────────────────────────────────────────────────
+DOCS_ROOT      = Path(__file__).resolve().parent
 MODEL_ID       = "gpt-4o-search-preview"
-DB_PATH        = Path("models.json")
-OUTPUT_PATH    = Path("models.html")
-TEMPLATE_PATH  = Path("template.html")
+DB_PATH        = DOCS_ROOT / "models.json"
+OUTPUT_PATH    = DOCS_ROOT / "models.html"
+TEMPLATE_PATH  = DOCS_ROOT / "template.html"
+CANDIDATE_PATH = DOCS_ROOT / "candidates"
 MAX_NEW_MODELS = 15
 
 SEARCH_KEYWORDS = [
@@ -71,6 +77,7 @@ For each model return a JSON object with these exact fields:
 - weights_size: size string like "1.2 GB" or null
 - has_github: true if you found a GitHub repo, false otherwise
 - has_weights: true if you found pre-trained weights, false otherwise
+- confidence: number from 0 to 1 reflecting confidence in the source links
 - modalities: array of strings e.g. ["scRNA-seq"]
 - category: one of "FM" "LLM" "Perturbation" "Spatial" "Multimodal"
 - description: 2-3 sentence string with no internal double quotes
@@ -106,10 +113,10 @@ Return ONLY a JSON object with these fields (no markdown, no explanation):
 """
 
 FIELD_DEFAULTS = {
-    "architecture":           ["Transformer"],
-    "loss_functions":         ["Self-supervised"],
-    "domain":                 ["Generic"],
-    "prior_knowledge":        ["None"],
+    "architecture":           [],
+    "loss_functions":         [],
+    "domain":                 [],
+    "prior_knowledge":        [],
     "prior_knowledge_detail": "",
     "benchmarked":            False,
     "weights_size":           None,
@@ -308,6 +315,7 @@ def merge_models(existing: list, new_models: list) -> tuple:
     known = {m["model_name"].lower() for m in existing}
     today = datetime.date.today().isoformat()
     added = 0
+    added_models = []
 
     for m in new_models:
         name = (m.get("model_name") or "").strip()
@@ -329,6 +337,7 @@ def merge_models(existing: list, new_models: list) -> tuple:
         m.setdefault("source", "web-search-agent")
 
         existing.append(m)
+        added_models.append(m)
         known.add(name.lower())
         added += 1
 
@@ -336,14 +345,14 @@ def merge_models(existing: list, new_models: list) -> tuple:
         w   = "✓ weights" if m["has_weights"] else "✗ no weights"
         print(f"  + Added: {name} [{gh}] [{w}]")
 
-    return existing, added
+    return existing, added, added_models
 
 
 def render_html(models: list, updated_at: str) -> str:
     with open(TEMPLATE_PATH) as f:
         template = f.read()
 
-    models_json = json.dumps(models, ensure_ascii=True)
+    models_json = safe_json_for_html(models)
     html = template.replace("__MODELS_JSON__", models_json)
     html = html.replace("__UPDATED_AT__", updated_at)
     html = html.replace("__TOTAL_COUNT__", str(len(models)))
@@ -369,10 +378,24 @@ def main():
     print(f"  Agent returned {len(new_models)} candidates")
 
     print("\n[3/4] Merging results...")
-    models, added = merge_models(models, new_models)
+    models, added, added_models = merge_models(models, new_models)
     print(f"  Added {added} new models. Total: {len(models)}")
 
     save_database(models)
+
+    candidate_export = export_candidate_records(
+        added_models,
+        CANDIDATE_PATH,
+        agent="openai-discovery",
+    )
+    print(
+        "  Candidate records: "
+        f"{len(candidate_export.written)} new, "
+        f"{len(candidate_export.existing)} existing, "
+        f"{len(candidate_export.errors)} invalid"
+    )
+    for error in candidate_export.errors:
+        print(f"  Candidate warning: {error}")
 
     print("\n[4/4] Rendering models.html...")
     updated_at = datetime.datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
