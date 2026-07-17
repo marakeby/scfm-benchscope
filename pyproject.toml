@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,8 +8,23 @@ version = "0.1.0"
 description = "Single-cell foundation model evaluation harness (scFM_eval)"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { file = "LICENSE" }
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
 authors = [{ name = "scFM_eval contributors" }]
+keywords = [
+  "single-cell",
+  "foundation-models",
+  "benchmarking",
+  "bioinformatics",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+]
 dependencies = [
   "numpy>=1.24",
   "pandas>=2",
@@ -31,6 +46,13 @@ dependencies = [
 
 [project.scripts]
 scfm-cancer-eval = "scfm_cancer_eval.run.run_exp:main"
+scfm-eval = "scfm_cancer_eval.run.run_exp:main"
+
+[project.urls]
+Homepage = "https://github.com/marakeby/scFM_eval"
+Repository = "https://github.com/marakeby/scFM_eval"
+Documentation = "https://github.com/marakeby/scFM_eval#readme"
+Issues = "https://github.com/marakeby/scFM_eval/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
