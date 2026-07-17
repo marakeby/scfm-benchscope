@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scfm-eval.org/schemas/integration-plan-v1.0.0.json",
+  "title": "scFM AI integration plan",
+  "type": "object",
+  "required": [
+    "schema",
+    "integration_plan_id",
+    "created_at",
+    "candidate_fingerprint",
+    "model_spec_fingerprint",
+    "planner",
+    "environment",
+    "installation",
+    "generated_files",
+    "smoke_tests",
+    "resources",
+    "assumptions",
+    "risks",
+    "unresolved_fields"
+  ],
+  "properties": {
+    "schema": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "scfm_eval.integration_plan"},
+        "version": {"const": "1.0.0"}
+      },
+      "additionalProperties": false
+    },
+    "integration_plan_id": {"$ref": "#/$defs/id"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "candidate_fingerprint": {"$ref": "#/$defs/sha256"},
+    "model_spec_fingerprint": {"$ref": "#/$defs/sha256"},
+    "planner": {
+      "type": "object",
+      "required": ["agent", "backend", "run_id"],
+      "properties": {
+        "agent": {"type": "string", "minLength": 1},
+        "backend": {"type": "string", "minLength": 1},
+        "run_id": {"$ref": "#/$defs/id"}
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "object",
+      "required": [
+        "name",
+        "platform",
+        "python",
+        "conda_dependencies",
+        "pypi_dependencies"
+      ],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "platform": {"const": "linux-64"},
+        "python": {"type": "string", "minLength": 1},
+        "conda_dependencies": {"$ref": "#/$defs/stringMap"},
+        "pypi_dependencies": {"$ref": "#/$defs/stringMap"}
+      },
+      "additionalProperties": false
+    },
+    "installation": {
+      "type": "object",
+      "required": ["method", "package_path", "editable", "no_deps"],
+      "properties": {
+        "method": {"const": "pixi"},
+        "package_path": {"type": "string", "minLength": 1},
+        "editable": {"type": "boolean"},
+        "no_deps": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "generated_files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/generatedFile"}
+    },
+    "smoke_tests": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["test_id", "kind", "timeout_minutes"],
+        "properties": {
+          "test_id": {"$ref": "#/$defs/id"},
+          "kind": {
+            "enum": ["import", "adapter", "tiny_evaluation"]
+          },
+          "timeout_minutes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "resources": {
+      "type": "object",
+      "required": [
+        "gpu_type",
+        "gpu_count",
+        "gpu_memory_gb",
+        "disk_gb",
+        "runtime_minutes",
+        "estimated_cost_usd"
+      ],
+      "properties": {
+        "gpu_type": {"type": "string", "minLength": 1},
+        "gpu_count": {"type": "integer", "minimum": 1},
+        "gpu_memory_gb": {"type": "number", "minimum": 0},
+        "disk_gb": {"type": "number", "minimum": 0},
+        "runtime_minutes": {"type": "number", "minimum": 0},
+        "estimated_cost_usd": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "assumptions": {"$ref": "#/$defs/stringArray"},
+    "risks": {"$ref": "#/$defs/stringArray"},
+    "unresolved_fields": {"$ref": "#/$defs/stringArray"}
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "stringArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "generatedFile": {
+      "type": "object",
+      "required": ["path", "purpose", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "purpose": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

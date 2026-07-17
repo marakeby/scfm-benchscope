@@ -1,0 +1,26 @@
+{
+  "schema": {
+    "name": "scfm_eval.review_decision",
+    "version": "1.0.0"
+  },
+  "decision_id": "example-cell-model-run-1-review",
+  "decided_at": "2026-07-17T23:30:00Z",
+  "reviewer": {
+    "identity": "example-reviewer",
+    "method": "manual"
+  },
+  "run": {
+    "run_id": "example-cell-model-run-1",
+    "results_sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+    "manifest_fingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "attempt": 1,
+    "previous_run_id": null
+  },
+  "decision": "accepted",
+  "rationale": "The example metrics and artifacts passed scientific review.",
+  "tuning": null,
+  "publication": {
+    "include_in_reports": true,
+    "promote_baseline": false
+  }
+}

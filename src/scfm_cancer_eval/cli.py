@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-_COMMANDS = {"run", "report", "compare", "candidate"}
+_COMMANDS = {"run", "report", "compare", "candidate", "contract"}
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -62,6 +62,29 @@ def _parser() -> argparse.ArgumentParser:
         help="Validate one versioned model-candidate JSON file.",
     )
     validate.add_argument("path", help="Path to model candidate JSON.")
+
+    contract = subparsers.add_parser(
+        "contract",
+        help="Validate planner, execution, or review JSON.",
+    )
+    contract_commands = contract.add_subparsers(
+        dest="contract_command",
+        required=True,
+    )
+    contract_validate = contract_commands.add_parser(
+        "validate",
+        help="Validate one versioned onboarding contract.",
+    )
+    contract_validate.add_argument(
+        "kind",
+        choices=[
+            "model-spec",
+            "integration-plan",
+            "execution-manifest",
+            "review-decision",
+        ],
+    )
+    contract_validate.add_argument("path", help="Path to the JSON document.")
     return parser
 
 
@@ -118,6 +141,26 @@ def _validate_candidate(path: str) -> int:
     return 0
 
 
+def _validate_contract(kind: str, path: str) -> int:
+    from scfm_cancer_eval.onboarding import (
+        load_execution_manifest,
+        load_integration_plan,
+        load_model_spec,
+        load_review_decision,
+    )
+
+    loaders = {
+        "model-spec": load_model_spec,
+        "integration-plan": load_integration_plan,
+        "execution-manifest": load_execution_manifest,
+        "review-decision": load_review_decision,
+    }
+    document = loaders[kind](path)
+    print(f"Valid {kind}: {document.document_id}")
+    print(f"Fingerprint: sha256:{document.fingerprint}")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
 
@@ -170,6 +213,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             and parsed.candidate_command == "validate"
         ):
             return _validate_candidate(parsed.path)
+        if (
+            parsed.command == "contract"
+            and parsed.contract_command == "validate"
+        ):
+            return _validate_contract(parsed.kind, parsed.path)
     except ValueError as exc:
         parser.error(str(exc))
 

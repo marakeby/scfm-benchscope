@@ -38,6 +38,16 @@ class DistributionTests(unittest.TestCase):
                 "schemas/model-candidate-v1.0.0.json"
             ).is_file()
         )
+        for schema_name in (
+            "model-spec-v1.0.0.json",
+            "integration-plan-v1.0.0.json",
+            "execution-manifest-v1.0.0.json",
+            "review-decision-v1.0.0.json",
+        ):
+            with self.subTest(schema=schema_name):
+                self.assertTrue(
+                    package.joinpath(f"schemas/{schema_name}").is_file()
+                )
         self.assertTrue(
             package.joinpath("yaml/exp/pca/n50/brca_cell_type.yaml").is_file()
         )
@@ -60,6 +70,7 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("report", completed.stdout)
         self.assertIn("compare", completed.stdout)
         self.assertIn("candidate", completed.stdout)
+        self.assertIn("contract", completed.stdout)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scfm-eval.org/schemas/execution-manifest-v1.0.0.json",
+  "title": "scFM immutable execution manifest",
+  "type": "object",
+  "required": [
+    "schema",
+    "manifest_id",
+    "created_at",
+    "model_spec_fingerprint",
+    "integration_plan_fingerprint",
+    "repository",
+    "weights",
+    "generated_files",
+    "environment",
+    "evaluation",
+    "steps",
+    "resources",
+    "permissions",
+    "retry_policy",
+    "expected_outputs"
+  ],
+  "properties": {
+    "schema": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "scfm_eval.execution_manifest"},
+        "version": {"const": "1.0.0"}
+      },
+      "additionalProperties": false
+    },
+    "manifest_id": {"$ref": "#/$defs/id"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "model_spec_fingerprint": {"$ref": "#/$defs/sha256"},
+    "integration_plan_fingerprint": {"$ref": "#/$defs/sha256"},
+    "repository": {"$ref": "#/$defs/repository"},
+    "weights": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/weight"}
+    },
+    "generated_files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/generatedFile"}
+    },
+    "environment": {
+      "type": "object",
+      "required": ["name", "lock_path", "lock_sha256"],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "lock_path": {"type": "string", "minLength": 1},
+        "lock_sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    },
+    "evaluation": {
+      "type": "object",
+      "required": [
+        "experiment_path",
+        "adapter_module",
+        "adapter_class",
+        "output_subdir",
+        "tasks"
+      ],
+      "properties": {
+        "experiment_path": {"type": "string", "minLength": 1},
+        "adapter_module": {"type": "string", "minLength": 1},
+        "adapter_class": {"type": "string", "minLength": 1},
+        "output_subdir": {"type": "string", "minLength": 1},
+        "tasks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "steps": {
+      "const": [
+        "checkout",
+        "create_environment",
+        "install",
+        "download_weights",
+        "smoke_test",
+        "evaluate",
+        "collect_results"
+      ]
+    },
+    "resources": {
+      "type": "object",
+      "required": [
+        "gpu_type",
+        "gpu_count",
+        "disk_gb",
+        "max_runtime_minutes",
+        "hourly_rate_usd",
+        "max_budget_usd"
+      ],
+      "properties": {
+        "gpu_type": {"type": "string", "minLength": 1},
+        "gpu_count": {"type": "integer", "minimum": 1},
+        "disk_gb": {"type": "number", "minimum": 0},
+        "max_runtime_minutes": {"type": "number", "minimum": 0},
+        "hourly_rate_usd": {"type": "number", "minimum": 0},
+        "max_budget_usd": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "permissions": {
+      "type": "object",
+      "required": [
+        "network_hosts",
+        "secret_names",
+        "dataset_read_only"
+      ],
+      "properties": {
+        "network_hosts": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "secret_names": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          }
+        },
+        "dataset_read_only": {"const": true}
+      },
+      "additionalProperties": false
+    },
+    "retry_policy": {
+      "type": "object",
+      "required": ["max_attempts", "retryable_steps"],
+      "properties": {
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "retryable_steps": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "checkout",
+              "create_environment",
+              "install",
+              "download_weights",
+              "smoke_test",
+              "evaluate"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "expected_outputs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "repository": {
+      "type": "object",
+      "required": ["url", "commit"],
+      "properties": {
+        "url": {"$ref": "#/$defs/httpsUrl"},
+        "commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "weight": {
+      "type": "object",
+      "required": [
+        "artifact_id",
+        "url",
+        "sha256",
+        "filename",
+        "access"
+      ],
+      "properties": {
+        "artifact_id": {"$ref": "#/$defs/id"},
+        "url": {"$ref": "#/$defs/httpsUrl"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "filename": {"type": "string", "minLength": 1},
+        "access": {"enum": ["public", "gated", "private"]}
+      },
+      "additionalProperties": false
+    },
+    "generatedFile": {
+      "type": "object",
+      "required": ["path", "purpose", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "purpose": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

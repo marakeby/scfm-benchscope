@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scfm-eval.org/schemas/review-decision-v1.0.0.json",
+  "title": "scFM human review decision",
+  "type": "object",
+  "required": [
+    "schema",
+    "decision_id",
+    "decided_at",
+    "reviewer",
+    "run",
+    "decision",
+    "rationale",
+    "tuning",
+    "publication"
+  ],
+  "properties": {
+    "schema": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "scfm_eval.review_decision"},
+        "version": {"const": "1.0.0"}
+      },
+      "additionalProperties": false
+    },
+    "decision_id": {"$ref": "#/$defs/id"},
+    "decided_at": {"type": "string", "format": "date-time"},
+    "reviewer": {
+      "type": "object",
+      "required": ["identity", "method"],
+      "properties": {
+        "identity": {"type": "string", "minLength": 1},
+        "method": {"enum": ["github_pr", "manual"]}
+      },
+      "additionalProperties": false
+    },
+    "run": {
+      "type": "object",
+      "required": [
+        "run_id",
+        "results_sha256",
+        "manifest_fingerprint",
+        "attempt"
+      ],
+      "properties": {
+        "run_id": {"$ref": "#/$defs/id"},
+        "results_sha256": {"$ref": "#/$defs/sha256"},
+        "manifest_fingerprint": {"$ref": "#/$defs/sha256"},
+        "attempt": {"type": "integer", "minimum": 1},
+        "previous_run_id": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/id"}
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "decision": {
+      "enum": ["accepted", "needs_tuning", "rejected"]
+    },
+    "rationale": {"type": "string", "minLength": 1},
+    "tuning": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "required": [
+            "changes",
+            "expected_improvement",
+            "max_additional_budget_usd"
+          ],
+          "properties": {
+            "changes": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "string", "minLength": 1}
+            },
+            "expected_improvement": {
+              "type": "string",
+              "minLength": 1
+            },
+            "max_additional_budget_usd": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "publication": {
+      "type": "object",
+      "required": ["include_in_reports", "promote_baseline"],
+      "properties": {
+        "include_in_reports": {"type": "boolean"},
+        "promote_baseline": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"decision": {"const": "needs_tuning"}}
+      },
+      "then": {
+        "properties": {"tuning": {"type": "object"}}
+      },
+      "else": {
+        "properties": {"tuning": {"type": "null"}}
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "enum": ["needs_tuning", "rejected"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "publication": {
+            "properties": {
+              "include_in_reports": {"const": false},
+              "promote_baseline": {"const": false}
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

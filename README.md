@@ -84,6 +84,7 @@ importable model configurations, custom YAML, and checkpoint handling.
 - [Running evaluations](docs/running-evaluations.md)
 - [Comparing and visualizing results](docs/reporting.md)
 - [Model candidate format](docs/model-candidates.md)
+- [Planning and approval contracts](docs/planning-contracts.md)
 - [Adding a model](docs/adding-a-model.md)
 - [Experiment configuration](docs/experiment-configuration.md)
 

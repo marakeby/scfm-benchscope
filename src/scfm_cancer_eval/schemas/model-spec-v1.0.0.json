@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scfm-eval.org/schemas/model-spec-v1.0.0.json",
+  "title": "scFM enriched model specification",
+  "type": "object",
+  "required": [
+    "schema",
+    "model_spec_id",
+    "created_at",
+    "candidate",
+    "model",
+    "license",
+    "repository",
+    "weights",
+    "adapter",
+    "tasks",
+    "constraints"
+  ],
+  "properties": {
+    "schema": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "scfm_eval.model_spec"},
+        "version": {"const": "1.0.0"}
+      },
+      "additionalProperties": false
+    },
+    "model_spec_id": {"$ref": "#/$defs/id"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "candidate": {
+      "type": "object",
+      "required": ["candidate_id", "fingerprint"],
+      "properties": {
+        "candidate_id": {"$ref": "#/$defs/id"},
+        "fingerprint": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "object",
+      "required": ["model_id", "name", "description"],
+      "properties": {
+        "model_id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "license": {
+      "type": "object",
+      "required": ["expression", "status", "notes"],
+      "properties": {
+        "expression": {"type": "string", "minLength": 1},
+        "status": {
+          "enum": ["compatible", "review_required", "incompatible"]
+        },
+        "notes": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "repository": {"$ref": "#/$defs/repository"},
+    "weights": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/weight"}
+    },
+    "adapter": {
+      "type": "object",
+      "required": ["module", "class", "output_key"],
+      "properties": {
+        "module": {"type": "string", "minLength": 1},
+        "class": {"type": "string", "minLength": 1},
+        "output_key": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/id"}
+    },
+    "constraints": {
+      "type": "object",
+      "required": [
+        "requires_gpu",
+        "min_gpu_memory_gb",
+        "platforms",
+        "notes"
+      ],
+      "properties": {
+        "requires_gpu": {"type": "boolean"},
+        "min_gpu_memory_gb": {"type": "number", "minimum": 0},
+        "platforms": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["linux-64"]}
+        },
+        "notes": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "repository": {
+      "type": "object",
+      "required": ["url", "commit"],
+      "properties": {
+        "url": {"$ref": "#/$defs/httpsUrl"},
+        "commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "weight": {
+      "type": "object",
+      "required": [
+        "artifact_id",
+        "url",
+        "sha256",
+        "filename",
+        "access"
+      ],
+      "properties": {
+        "artifact_id": {"$ref": "#/$defs/id"},
+        "url": {"$ref": "#/$defs/httpsUrl"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "filename": {"type": "string", "minLength": 1},
+        "access": {"enum": ["public", "gated", "private"]}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
