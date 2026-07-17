@@ -80,7 +80,6 @@ if _suppress:
 # from scfm_cancer_eval.setup_path import BASE_PATH, OUTPUT_PATH, PARAMS_PATH, DATA_PATH
 
 #-------good list --
-import copy
 import hashlib
 import json
 import yaml
@@ -97,6 +96,7 @@ from scfm_cancer_eval.evaluation.eval import EmbeddingEvaluator
 from scfm_cancer_eval.utils.logs_ import set_logging, get_logger
 from scfm_cancer_eval.setup_path import BASE_PATH, OUTPUT_PATH, PARAMS_PATH, DATA_PATH
 from scfm_cancer_eval.utils.sampling import sample_adata
+from scfm_cancer_eval.utils.exp_yaml_merge import load_merged_experiment_config
 
 embedding_method_map= dict(PCA='X_pca', HVG='X_hvg', scVI='X_scVI', geneformer='X_geneformer', scgpt='X_scGPT')
 
@@ -321,7 +321,11 @@ def set_random_seed(seed: int, deterministic: bool = True) -> None:
 
 def get_configs(config_path):
     """
-    Load experiment configuration from a YAML file.
+    Load experiment configuration through the shared YAML loader.
+
+    This compatibility wrapper preserves the tuple consumed by ``Experiment``.
+    New code that only needs the resolved mapping should call
+    :func:`load_merged_experiment_config` directly.
 
     Args:
         config_path (str): Path to the YAML config file.
@@ -329,97 +333,7 @@ def get_configs(config_path):
     Returns:
         Tuple containing run_id, data_config, qc_config, preproc_config, hvg_config, feat_config, classification_config.
     """
-    def deep_merge_dicts(base: dict, override: dict) -> dict:
-        """
-        Recursively merge dictionaries.
-        - dict + dict -> recursive merge
-        - otherwise -> override wins (lists/scalars are replaced)
-        """
-        out = copy.deepcopy(base)
-        for k, v in override.items():
-            if k in out and isinstance(out[k], dict) and isinstance(v, dict):
-                out[k] = deep_merge_dicts(out[k], v)
-            else:
-                out[k] = copy.deepcopy(v)
-        return out
-
-    def resolve_base_path(base_path: str, cfg_path: str) -> str:
-        # Allow absolute paths, relative-to-config paths (./ or ../), or relative to PARAMS_PATH.
-        if os.path.isabs(base_path):
-            return base_path
-        if base_path.startswith("."):
-            return os.path.normpath(join(os.path.dirname(cfg_path), base_path))
-        return os.path.normpath(join(PARAMS_PATH, base_path))
-
-    def load_config_with_bases(cfg_path: str, visited: set[str]) -> dict:
-        cfg_path = os.path.abspath(cfg_path)
-        if cfg_path in visited:
-            raise ValueError(f"Cyclic YAML bases detected: {cfg_path}")
-        visited.add(cfg_path)
-
-        with open(cfg_path, "r") as file:
-            config = yaml.safe_load(file) or {}
-
-        # Optional, more readable composition keys:
-        # - dataset: list of dataset fragments (or single string)
-        # - model: list of model (embedding / extractor) fragments (or single string)
-        # - classification: list of classifier fragments (or single string)
-        # Backward compatible with:
-        # - datasets / classifications
-        # - bases / defaults
-        dataset = config.get("dataset", None)
-        model = config.get("model", None)
-        classification = config.get("classification", None)
-        datasets = config.pop("datasets", None)  # deprecated alias
-        classifications = config.pop("classifications", None)  # deprecated alias
-        models = config.pop("models", None)  # optional plural alias for model includes
-        bases = config.pop("bases", None)
-        if bases is None:
-            bases = config.pop("defaults", None)
-
-        def _as_list(x):
-            if x is None:
-                return []
-            if isinstance(x, list):
-                return x
-            return [x]
-
-        # Interpret singular keys as *include lists* only when they are paths (str/list),
-        # not when they are actual config dicts (which should remain in the merged config).
-        dataset_includes = None
-        if isinstance(dataset, (str, list)):
-            dataset_includes = config.pop("dataset", None)
-
-        model_includes = None
-        if isinstance(model, (str, list)):
-            model_includes = config.pop("model", None)
-
-        classification_includes = None
-        if isinstance(classification, (str, list)):
-            classification_includes = config.pop("classification", None)
-
-        # Merge order: dataset -> model (embedding) -> classification -> bases -> local overrides
-        bases_list = (
-            _as_list(dataset_includes)
-            + _as_list(datasets)
-            + _as_list(model_includes)
-            + _as_list(models)
-            + _as_list(classification_includes)
-            + _as_list(classifications)
-            + _as_list(bases)
-        )
-
-        merged: dict = {}
-        for base in bases_list:
-            base_cfg_path = resolve_base_path(str(base), cfg_path)
-            base_cfg = load_config_with_bases(base_cfg_path, visited)
-            merged = deep_merge_dicts(merged, base_cfg)
-
-        merged = deep_merge_dicts(merged, config)
-        visited.remove(cfg_path)
-        return merged
-
-    config = load_config_with_bases(config_path, visited=set())
+    config = load_merged_experiment_config(config_path)
 
     run_id = config.get("run_id", "")
     # Optional: allow a dedicated `task` block for task metadata (label_key, label_map, etc.)
