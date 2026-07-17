@@ -16,6 +16,10 @@ from scfm_cancer_eval.reporting.discovery import (
     RunSummary,
     discover_results,
 )
+from scfm_cancer_eval.reporting.html_report import (
+    render_html_report,
+    write_html_report,
+)
 
 __all__ = [
     "COMPARISON_SCHEMA_NAME",
@@ -29,5 +33,7 @@ __all__ = [
     "build_comparison_payload",
     "build_comparison_records",
     "discover_results",
+    "render_html_report",
     "write_comparison_exports",
+    "write_html_report",
 ]
