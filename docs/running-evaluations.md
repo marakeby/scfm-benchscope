@@ -14,7 +14,10 @@ Some models require source packages that are installed separately:
 pixi run install-packages
 ```
 
-The helper installs the Pixi environments and the Geneformer source package.
+The helper performs a frozen Pixi installation. Geneformer is already pinned
+in the `geneformer` environment; use
+`scripts/install_packages.sh --with-geneformer-source` only when developing
+against an editable upstream checkout.
 scFoundation has its own setup task:
 
 ```bash
@@ -126,6 +129,18 @@ bash scripts/bootstrap_vm.sh
 pixi run verify-gpu
 ```
 
-Use the repository `Dockerfile` when you need a containerized CUDA runtime.
-The host must have NVIDIA Container Toolkit installed for
-`docker run --gpus all`.
+Use the canonical `Dockerfile` when you need a containerized CUDA runtime:
+
+```bash
+docker build -t scfm-eval:default .
+docker run --rm \
+  -v /path/to/data:/data:ro \
+  -v /path/to/models:/models:ro \
+  -v "$PWD/output":/output \
+  scfm-eval:default exp/pca/n50/brca_cell_type.yaml
+```
+
+Build with `--build-arg SCFM_PIXI_ENV=<model-env>` for a pretrained model
+stack. The host must have NVIDIA Container Toolkit installed when using
+`docker run --gpus all`. See [Installation](installation.md) for complete
+examples.

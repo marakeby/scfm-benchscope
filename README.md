@@ -3,13 +3,15 @@
 Evaluate single-cell foundation model embeddings and downstream classifiers
 using reproducible datasets, tasks, and metrics.
 
+See [Installation](docs/installation.md) for pip and Docker alternatives.
+
 ## Quick start
 
 Pixi is the recommended way to run the repository because model dependencies
 are isolated in separate environments.
 
 ```bash
-pixi install
+pixi install --frozen
 
 export SCFM_DATA_PATH=/path/to/datasets
 export SCFM_MODELS_PATH=/path/to/model-weights
@@ -69,6 +71,7 @@ importable model configurations, custom YAML, and checkpoint handling.
 
 ## More documentation
 
+- [Installation](docs/installation.md)
 - [Running evaluations](docs/running-evaluations.md)
 - [Adding a model](docs/adding-a-model.md)
 - [Experiment configuration](docs/experiment-configuration.md)
