@@ -19,7 +19,7 @@ from openai import OpenAI
 # ── Config ────────────────────────────────────────────────────────────────────
 MODEL_ID       = "gpt-4o-search-preview"
 DB_PATH        = Path("models.json")
-OUTPUT_PATH    = Path("index.html")
+OUTPUT_PATH    = Path("models.html")
 TEMPLATE_PATH  = Path("template.html")
 MAX_NEW_MODELS = 15
 
@@ -374,7 +374,7 @@ def main():
 
     save_database(models)
 
-    print("\n[4/4] Rendering index.html...")
+    print("\n[4/4] Rendering models.html...")
     updated_at = datetime.datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
     html = render_html(models, updated_at)
     with open(OUTPUT_PATH, "w") as f:
