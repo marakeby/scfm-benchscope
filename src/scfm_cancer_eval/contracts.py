@@ -55,14 +55,45 @@ class EvaluationModelConfig:
 
 @dataclass(frozen=True)
 class RunResult:
-    """Paths and identity returned by the public evaluation API.
-
-    Stage 3 adds schema validation and parsed result data while retaining these
-    fields.
-    """
+    """Validated paths, identity, and payload returned by the public API."""
 
     run_id: str
     output_dir: Path
     results_path: Path
     metrics_path: Path
+    payload: Mapping[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_path(
+        cls,
+        results_path: str | Path,
+        *,
+        expected_run_id: str | None = None,
+    ) -> "RunResult":
+        """Load and validate a completed run from ``results.json``."""
+        from scfm_cancer_eval.utils.results_json import read_results_json
+
+        resolved_path = Path(results_path)
+        payload = read_results_json(str(resolved_path))
+        run_id = payload["run"]["run_id"]
+        if expected_run_id is not None and run_id != expected_run_id:
+            raise ValueError(
+                f"results run_id {run_id!r} does not match expected "
+                f"{expected_run_id!r}"
+            )
+        return cls(
+            run_id=run_id,
+            output_dir=resolved_path.parent,
+            results_path=resolved_path,
+            metrics_path=resolved_path.parent / "metrics.json",
+            payload=payload,
+        )
+
+    @property
+    def status(self) -> str:
+        return str(self.payload["run"]["status"])
+
+    @property
+    def evaluations(self) -> list[Mapping[str, Any]]:
+        return list(self.payload["evaluations"])
 

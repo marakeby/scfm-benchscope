@@ -6,11 +6,85 @@ import platform
 import re
 import subprocess
 import sys
+import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 Json = Dict[str, Any]
+RESULTS_SCHEMA_NAME = "scfm_eval.results"
+RESULTS_SCHEMA_VERSION = "1.1.0"
+
+
+class ResultsValidationError(ValueError):
+    """Raised when a results payload violates the supported contract."""
+
+    def __init__(self, errors: List[str]):
+        self.errors = errors
+        super().__init__("Invalid results payload: " + "; ".join(errors))
+
+
+def validate_results_payload(payload: Any) -> None:
+    """Validate the stable fields consumed by reporting and automation.
+
+    Unknown fields remain allowed so compatible producers can add metadata
+    without requiring a schema-version change.
+    """
+    errors: List[str] = []
+
+    def require_mapping(value: Any, path: str) -> Optional[Json]:
+        if not isinstance(value, dict):
+            errors.append(f"{path} must be an object")
+            return None
+        return value
+
+    root = require_mapping(payload, "$")
+    if root is None:
+        raise ResultsValidationError(errors)
+
+    schema = require_mapping(root.get("schema"), "$.schema")
+    if schema is not None:
+        if schema.get("name") != RESULTS_SCHEMA_NAME:
+            errors.append(f"$.schema.name must be {RESULTS_SCHEMA_NAME!r}")
+        if schema.get("version") != RESULTS_SCHEMA_VERSION:
+            errors.append(f"$.schema.version must be {RESULTS_SCHEMA_VERSION!r}")
+
+    run = require_mapping(root.get("run"), "$.run")
+    if run is not None:
+        if not isinstance(run.get("run_id"), str) or not run["run_id"].strip():
+            errors.append("$.run.run_id must be a non-empty string")
+        if not isinstance(run.get("status"), str) or not run["status"].strip():
+            errors.append("$.run.status must be a non-empty string")
+        if not isinstance(run.get("errors"), list):
+            errors.append("$.run.errors must be an array")
+
+    for key in ("provenance", "inputs", "artifacts", "timing"):
+        require_mapping(root.get(key), f"$.{key}")
+
+    evaluations = root.get("evaluations")
+    if not isinstance(evaluations, list):
+        errors.append("$.evaluations must be an array")
+    else:
+        for index, evaluation_value in enumerate(evaluations):
+            path = f"$.evaluations[{index}]"
+            evaluation = require_mapping(evaluation_value, path)
+            if evaluation is None:
+                continue
+            for key in ("kind", "variant", "split", "status"):
+                if not isinstance(evaluation.get(key), str) or not evaluation[key].strip():
+                    errors.append(f"{path}.{key} must be a non-empty string")
+            for key in ("target", "aggregate", "artifacts"):
+                require_mapping(evaluation.get(key), f"{path}.{key}")
+            aggregate = evaluation.get("aggregate")
+            if isinstance(aggregate, dict):
+                require_mapping(aggregate.get("metrics"), f"{path}.aggregate.metrics")
+            if not isinstance(evaluation.get("folds"), list):
+                errors.append(f"{path}.folds must be an array")
+            if not isinstance(evaluation.get("errors"), list):
+                errors.append(f"{path}.errors must be an array")
+
+    if errors:
+        raise ResultsValidationError(errors)
 
 
 def _utc_now_rfc3339() -> str:
@@ -323,7 +397,7 @@ def build_results_json(
     errors = errors or []
 
     results: Json = {
-        "schema": {"name": "scfm_eval.results", "version": "1.1.0"},
+        "schema": {"name": RESULTS_SCHEMA_NAME, "version": RESULTS_SCHEMA_VERSION},
         "run": {
             "run_id": run_id,
             "started_at": started_at or _utc_now_rfc3339(),
@@ -396,11 +470,44 @@ def build_results_json(
 
 
 def write_results_json(path: str, payload: Json) -> None:
+    """Validate and atomically replace a results file."""
+    validate_results_payload(payload)
     parent = os.path.dirname(path)
     if parent:
         os.makedirs(parent, exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(payload, f, indent=2, default=_maybe_float)
+    target_dir = parent or "."
+    temp_path: Optional[str] = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=target_dir,
+            prefix=f".{os.path.basename(path)}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temp_file:
+            temp_path = temp_file.name
+            json.dump(payload, temp_file, indent=2, default=_maybe_float)
+            temp_file.write("\n")
+            temp_file.flush()
+            os.fsync(temp_file.fileno())
+        os.replace(temp_path, path)
+        temp_path = None
+    finally:
+        if temp_path is not None:
+            try:
+                os.unlink(temp_path)
+            except FileNotFoundError:
+                pass
+
+
+def read_results_json(path: str, *, validate: bool = True) -> Json:
+    """Read a results file and validate it by default."""
+    with open(path, encoding="utf-8") as results_file:
+        payload = json.load(results_file)
+    if validate:
+        validate_results_payload(payload)
+    return payload
 
 
 def read_run_inputs_for_results_json(

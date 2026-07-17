@@ -794,9 +794,11 @@ class Experiment:
                 status="success",
             )
             write_results_json(join(self.save_dir, "results.json"), results_payload)
+            self.results_payload = results_payload
             self.log.info("Wrote results.json: %s", join(self.save_dir, "results.json"))
         except Exception:
-            self.log.exception("Failed to write results.json (non-fatal).")
+            self.log.exception("Failed to write required results.json.")
+            raise
 
         # Append one row to a global CSV in the selected output root.
         metrics_csv = join(self.output_root, "metrics_runs.csv")

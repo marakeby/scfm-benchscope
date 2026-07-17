@@ -14,6 +14,19 @@ from scfm_cancer_eval import (
     evaluate,
 )
 from scfm_cancer_eval import api
+from scfm_cancer_eval.utils.results_json import write_results_json
+
+
+def _results_payload(run_id: str, output_dir: str) -> dict:
+    return {
+        "schema": {"name": "scfm_eval.results", "version": "1.1.0"},
+        "run": {"run_id": run_id, "status": "success", "errors": []},
+        "provenance": {},
+        "inputs": {},
+        "artifacts": {"run_dir": output_dir},
+        "evaluations": [],
+        "timing": {},
+    }
 
 
 class FakeAdapter:
@@ -85,6 +98,11 @@ class PublicApiTests(unittest.TestCase):
 
             def _write_standard_reports(self):
                 self.reported = True
+                Path(self.save_dir).mkdir(parents=True, exist_ok=True)
+                write_results_json(
+                    str(Path(self.save_dir) / "results.json"),
+                    _results_payload(self.run_id, self.save_dir),
+                )
 
         seeded = []
         with tempfile.TemporaryDirectory() as tmp:
@@ -106,6 +124,7 @@ class PublicApiTests(unittest.TestCase):
         self.assertTrue(run.reported)
         self.assertEqual(seeded, [42])
         self.assertEqual(result.run_id, "new_model_evaluation")
+        self.assertEqual(result.status, "success")
         self.assertEqual(result.results_path.name, "results.json")
 
     def test_requires_exactly_one_config_source(self) -> None:

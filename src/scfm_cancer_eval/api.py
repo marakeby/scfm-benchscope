@@ -153,10 +153,8 @@ def evaluate(
     run._write_standard_reports()
 
     output_path = Path(run.save_dir)
-    return RunResult(
-        run_id=run.run_id,
-        output_dir=output_path,
-        results_path=output_path / "results.json",
-        metrics_path=output_path / "metrics.json",
+    return RunResult.from_path(
+        output_path / "results.json",
+        expected_run_id=run.run_id,
     )
 

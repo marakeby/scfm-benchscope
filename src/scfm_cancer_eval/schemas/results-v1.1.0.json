@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scfm-eval.org/schemas/results-v1.1.0.json",
+  "title": "scFM evaluation result",
+  "type": "object",
+  "required": [
+    "schema",
+    "run",
+    "provenance",
+    "inputs",
+    "artifacts",
+    "evaluations",
+    "timing"
+  ],
+  "properties": {
+    "schema": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "scfm_eval.results"},
+        "version": {"const": "1.1.0"}
+      },
+      "additionalProperties": true
+    },
+    "run": {
+      "type": "object",
+      "required": ["run_id", "status", "errors"],
+      "properties": {
+        "run_id": {"type": "string", "minLength": 1},
+        "status": {"type": "string", "minLength": 1},
+        "errors": {"type": "array"}
+      },
+      "additionalProperties": true
+    },
+    "provenance": {"type": "object"},
+    "inputs": {"type": "object"},
+    "artifacts": {"type": "object"},
+    "evaluations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "variant",
+          "split",
+          "target",
+          "aggregate",
+          "folds",
+          "artifacts",
+          "status",
+          "errors"
+        ],
+        "properties": {
+          "kind": {"type": "string", "minLength": 1},
+          "variant": {"type": "string", "minLength": 1},
+          "split": {"type": "string", "minLength": 1},
+          "target": {"type": "object"},
+          "aggregate": {
+            "type": "object",
+            "required": ["metrics"],
+            "properties": {"metrics": {"type": "object"}},
+            "additionalProperties": true
+          },
+          "folds": {"type": "array"},
+          "artifacts": {"type": "object"},
+          "status": {"type": "string", "minLength": 1},
+          "errors": {"type": "array"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "timing": {"type": "object"}
+  },
+  "additionalProperties": true
+}

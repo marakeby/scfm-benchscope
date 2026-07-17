@@ -36,4 +36,4 @@ scfm-cancer-eval = "scfm_cancer_eval.run.run_exp:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-scfm_cancer_eval = ["yaml/**/*.yaml"]
+scfm_cancer_eval = ["yaml/**/*.yaml", "schemas/*.json"]
