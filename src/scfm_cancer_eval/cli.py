@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-_COMMANDS = {"run", "report", "compare"}
+_COMMANDS = {"run", "report", "compare", "candidate"}
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -48,6 +48,20 @@ def _parser() -> argparse.ArgumentParser:
         help="One or more results.json files or directories to search.",
     )
     _add_report_options(compare)
+
+    candidate = subparsers.add_parser(
+        "candidate",
+        help="Validate model evidence produced by a discovery agent.",
+    )
+    candidate_commands = candidate.add_subparsers(
+        dest="candidate_command",
+        required=True,
+    )
+    validate = candidate_commands.add_parser(
+        "validate",
+        help="Validate one versioned model-candidate JSON file.",
+    )
+    validate.add_argument("path", help="Path to model candidate JSON.")
     return parser
 
 
@@ -91,6 +105,16 @@ def _run_report(
     print(f"HTML report: {bundle.html_path}")
     print(f"JSON export: {bundle.comparison.json_path}")
     print(f"CSV export: {bundle.comparison.csv_path}")
+    return 0
+
+
+def _validate_candidate(path: str) -> int:
+    from scfm_cancer_eval.onboarding import load_model_candidate
+
+    candidate = load_model_candidate(path)
+    print(f"Valid candidate: {candidate.candidate_id}")
+    print(f"Model: {candidate.model_name}")
+    print(f"Fingerprint: sha256:{candidate.fingerprint}")
     return 0
 
 
@@ -141,6 +165,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 strict=parsed.strict,
                 title=parsed.title,
             )
+        if (
+            parsed.command == "candidate"
+            and parsed.candidate_command == "validate"
+        ):
+            return _validate_candidate(parsed.path)
     except ValueError as exc:
         parser.error(str(exc))
 

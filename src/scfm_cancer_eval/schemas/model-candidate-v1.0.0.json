@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scfm-eval.org/schemas/model-candidate-v1.0.0.json",
+  "title": "scFM model candidate",
+  "description": "Evidence proposed by a discovery agent for later AI-assisted integration planning.",
+  "type": "object",
+  "required": [
+    "schema",
+    "candidate_id",
+    "discovered_at",
+    "discovery",
+    "model",
+    "sources",
+    "suggested_tasks",
+    "unresolved_fields"
+  ],
+  "properties": {
+    "schema": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "scfm_eval.model_candidate"},
+        "version": {"const": "1.0.0"}
+      },
+      "additionalProperties": false
+    },
+    "candidate_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "maxLength": 128
+    },
+    "discovered_at": {"type": "string", "format": "date-time"},
+    "discovery": {
+      "type": "object",
+      "required": ["agent", "source_type", "confidence"],
+      "properties": {
+        "agent": {"type": "string", "minLength": 1},
+        "source_type": {
+          "enum": [
+            "scheduled_search",
+            "manual",
+            "citation",
+            "repository",
+            "other"
+          ]
+        },
+        "source_url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "query": {"type": "string"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "summary": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "sources": {
+      "type": "object",
+      "required": ["paper", "repository", "weights"],
+      "properties": {
+        "paper": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "required": ["url"],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "pattern": "^https://"
+                },
+                "title": {"type": "string"},
+                "identifier": {"type": "string"}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "repository": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "required": ["url"],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "pattern": "^https://"
+                },
+                "revision_hint": {"type": "string"}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "weights": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["url", "kind", "access"],
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "^https://"
+              },
+              "kind": {
+                "enum": [
+                  "checkpoint",
+                  "tokenizer",
+                  "vocabulary",
+                  "config",
+                  "archive",
+                  "other"
+                ]
+              },
+              "access": {
+                "enum": ["public", "gated", "private", "unknown"]
+              },
+              "notes": {"type": "string"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "anyOf": [
+        {"properties": {"paper": {"type": "object"}}},
+        {"properties": {"repository": {"type": "object"}}},
+        {"properties": {"weights": {"minItems": 1}}}
+      ],
+      "additionalProperties": false
+    },
+    "suggested_tasks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+      },
+      "uniqueItems": true
+    },
+    "unresolved_fields": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": false
+}

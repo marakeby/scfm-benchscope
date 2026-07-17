@@ -1,0 +1,47 @@
+{
+  "schema": {
+    "name": "scfm_eval.model_candidate",
+    "version": "1.0.0"
+  },
+  "candidate_id": "scgpt",
+  "discovered_at": "2026-07-17T21:30:00Z",
+  "discovery": {
+    "agent": "manual-example",
+    "source_type": "manual",
+    "source_url": "https://www.nature.com/articles/s41592-024-02201-0",
+    "confidence": 0.9
+  },
+  "model": {
+    "name": "scGPT",
+    "summary": "A generative pretrained transformer for single-cell biology."
+  },
+  "sources": {
+    "paper": {
+      "url": "https://www.nature.com/articles/s41592-024-02201-0",
+      "title": "scGPT: toward building a foundation model for single-cell multi-omics using generative AI",
+      "identifier": "doi:10.1038/s41592-024-02201-0"
+    },
+    "repository": {
+      "url": "https://github.com/bowang-lab/scGPT",
+      "revision_hint": "main"
+    },
+    "weights": [
+      {
+        "url": "https://github.com/bowang-lab/scGPT/tree/main/scgpt/pretrained",
+        "kind": "checkpoint",
+        "access": "public",
+        "notes": "Discovery link only; the planner must resolve immutable files and checksums."
+      }
+    ]
+  },
+  "suggested_tasks": [
+    "cell_type"
+  ],
+  "unresolved_fields": [
+    "immutable_repository_revision",
+    "weight_file_checksums",
+    "license_compatibility",
+    "gpu_memory_estimate"
+  ],
+  "notes": "This candidate is evidence for the integration planner, not an approved execution plan."
+}

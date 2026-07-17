@@ -83,6 +83,7 @@ importable model configurations, custom YAML, and checkpoint handling.
 - [Installation](docs/installation.md)
 - [Running evaluations](docs/running-evaluations.md)
 - [Comparing and visualizing results](docs/reporting.md)
+- [Model candidate format](docs/model-candidates.md)
 - [Adding a model](docs/adding-a-model.md)
 - [Experiment configuration](docs/experiment-configuration.md)
 

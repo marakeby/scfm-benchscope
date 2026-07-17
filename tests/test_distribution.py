@@ -34,6 +34,11 @@ class DistributionTests(unittest.TestCase):
             package.joinpath("schemas/results-v1.1.0.json").is_file()
         )
         self.assertTrue(
+            package.joinpath(
+                "schemas/model-candidate-v1.0.0.json"
+            ).is_file()
+        )
+        self.assertTrue(
             package.joinpath("yaml/exp/pca/n50/brca_cell_type.yaml").is_file()
         )
 
@@ -54,6 +59,7 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("Run scFM_eval experiment from YAML", completed.stdout)
         self.assertIn("report", completed.stdout)
         self.assertIn("compare", completed.stdout)
+        self.assertIn("candidate", completed.stdout)
 
 
 if __name__ == "__main__":
