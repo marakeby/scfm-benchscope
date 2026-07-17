@@ -1,16 +1,20 @@
-# GPU-oriented image: CUDA runtime + Pixi + locked envs + optional Geneformer (HF clone).
-#
-# Build:  docker build -t scfm-eval .
-# Run:    docker run --gpus all -v "$PWD":/workspace -w /workspace scfm-eval \
-#           pixi run -e default run-exp yaml/examples/mock_subtype_eval.yaml
-#
-# Install NVIDIA Container Toolkit on the host so `--gpus all` works.
-# Align CUDA major with the host driver if you see CUDA loader errors.
+# Canonical GPU-capable runtime. The default image installs the core environment.
+# Build another locked model environment with:
+#   docker build --build-arg SCFM_PIXI_ENV=geneformer -t scfm-eval:geneformer .
 
 FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
+ARG PIXI_VERSION=0.66.0
+ARG SCFM_PIXI_ENV=default
+
 ENV DEBIAN_FRONTEND=noninteractive \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PIXI_HOME=/opt/pixi \
+    PATH="/opt/pixi/bin:${PATH}" \
+    SCFM_DATA_PATH=/data \
+    SCFM_MODELS_PATH=/models \
+    SCFM_OUTPUT_PATH=/output \
+    SCFM_PIXI_ENV=${SCFM_PIXI_ENV}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -20,18 +24,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && git lfs install
 
-RUN curl -fsSL https://pixi.sh/install.sh | bash
+RUN curl -fsSL https://pixi.sh/install.sh \
+    | PIXI_VERSION="v${PIXI_VERSION}" PIXI_HOME="${PIXI_HOME}" PIXI_NO_PATH_UPDATE=1 bash
 
-ENV PATH="/root/.pixi/bin:$PATH"
+WORKDIR /opt/scfm-eval
 
-WORKDIR /workspace
-
-# Cache Pixi solve layer
-COPY pixi.toml pixi.lock ./
-RUN pixi install --frozen
+# The local editable package is part of the Pixi lock, so its metadata and source
+# must be present before a frozen installation can be materialized.
+COPY pyproject.toml README.md LICENSE pixi.toml pixi.lock ./
+COPY src ./src
+RUN pixi install --frozen -e "${SCFM_PIXI_ENV}" \
+    && pixi clean cache -y
 
 COPY . .
 
-RUN bash scripts/install_packages.sh || echo "install_packages skipped — run inside container: pixi run install-packages"
+VOLUME ["/data", "/models", "/output"]
 
-CMD ["pixi", "run", "-e", "default", "run-exp", "yaml/examples/mock_subtype_eval.yaml"]
+ENTRYPOINT ["bash", "/opt/scfm-eval/scripts/docker_entrypoint.sh"]
+CMD ["--help"]
