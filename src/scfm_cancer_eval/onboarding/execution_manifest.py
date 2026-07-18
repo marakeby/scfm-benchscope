@@ -190,13 +190,18 @@ def _resources(
         minimum=1,
         integer=True,
     )
-    for key in (
-        "disk_gb",
-        "max_runtime_minutes",
-        "hourly_rate_usd",
-        "max_budget_usd",
-    ):
-        values[key] = validator.number(item.get(key), f"$.resources.{key}")
+    for key in ("disk_gb", "max_runtime_minutes"):
+        values[key] = validator.number(
+            item.get(key),
+            f"$.resources.{key}",
+            minimum=0.01,
+        )
+    for key in ("hourly_rate_usd", "max_budget_usd"):
+        values[key] = validator.number(
+            item.get(key),
+            f"$.resources.{key}",
+            minimum=0,
+        )
     return values
 
 

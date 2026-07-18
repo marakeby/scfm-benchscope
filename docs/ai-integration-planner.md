@@ -61,7 +61,7 @@ no adapter or environment files are accepted.
 
 The planner does not generate an execution manifest or `pixi.lock`. Those
 require deterministic materialization and human review in the next approval
-stage.
+stage. See [Pre-run approval](pre-run-approval.md).
 
 ## Add another provider
 

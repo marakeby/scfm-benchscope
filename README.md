@@ -86,6 +86,7 @@ importable model configurations, custom YAML, and checkpoint handling.
 - [Model candidate format](docs/model-candidates.md)
 - [Model discovery agent](docs/discovery-agent.md)
 - [AI integration planner](docs/ai-integration-planner.md)
+- [Pre-run approval](docs/pre-run-approval.md)
 - [Planning and approval contracts](docs/planning-contracts.md)
 - [Adding a model](docs/adding-a-model.md)
 - [Experiment configuration](docs/experiment-configuration.md)

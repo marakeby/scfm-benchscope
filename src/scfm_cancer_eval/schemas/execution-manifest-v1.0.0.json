@@ -102,8 +102,8 @@
       "properties": {
         "gpu_type": {"type": "string", "minLength": 1},
         "gpu_count": {"type": "integer", "minimum": 1},
-        "disk_gb": {"type": "number", "minimum": 0},
-        "max_runtime_minutes": {"type": "number", "minimum": 0},
+        "disk_gb": {"type": "number", "minimum": 0.01},
+        "max_runtime_minutes": {"type": "number", "minimum": 0.01},
         "hourly_rate_usd": {"type": "number", "minimum": 0},
         "max_budget_usd": {"type": "number", "minimum": 0}
       },

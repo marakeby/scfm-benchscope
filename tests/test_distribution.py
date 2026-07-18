@@ -43,6 +43,7 @@ class DistributionTests(unittest.TestCase):
             "integration-plan-v1.0.0.json",
             "execution-manifest-v1.0.0.json",
             "review-decision-v1.0.0.json",
+            "approval-request-v1.0.0.json",
         ):
             with self.subTest(schema=schema_name):
                 self.assertTrue(
@@ -72,6 +73,7 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("candidate", completed.stdout)
         self.assertIn("contract", completed.stdout)
         self.assertIn("plan", completed.stdout)
+        self.assertIn("approval", completed.stdout)
 
 
 if __name__ == "__main__":

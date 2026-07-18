@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/marakeby/scFM_eval/schemas/approval-request-v1.0.0.json",
+  "title": "scFM evaluation approval request",
+  "type": "object",
+  "required": [
+    "schema",
+    "request_id",
+    "created_at",
+    "status",
+    "candidate_fingerprint",
+    "model_spec_fingerprint",
+    "proposed_integration_plan_fingerprint",
+    "integration_plan_fingerprint",
+    "manifest_fingerprint",
+    "planner_evidence",
+    "budget",
+    "review_checks"
+  ],
+  "properties": {
+    "schema": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "scfm_eval.approval_request"},
+        "version": {"const": "1.0.0"}
+      },
+      "additionalProperties": false
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "status": {"const": "pending_human_review"},
+    "candidate_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "model_spec_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "proposed_integration_plan_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "integration_plan_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "manifest_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "planner_evidence": {
+      "type": "object",
+      "required": ["proposal.json", "planning-status.json"],
+      "properties": {
+        "proposal.json": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "planning-status.json": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "budget": {
+      "type": "object",
+      "required": [
+        "gpu_type",
+        "gpu_count",
+        "disk_gb",
+        "max_runtime_minutes",
+        "hourly_rate_usd",
+        "max_budget_usd"
+      ],
+      "properties": {
+        "gpu_type": {"type": "string", "minLength": 1},
+        "gpu_count": {"type": "integer", "minimum": 1},
+        "disk_gb": {"type": "number", "minimum": 0.01},
+        "max_runtime_minutes": {"type": "number", "minimum": 0.01},
+        "hourly_rate_usd": {"type": "number", "minimum": 0},
+        "max_budget_usd": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "review_checks": {
+      "type": "array",
+      "prefixItems": [
+        {"const": "sources_and_licenses"},
+        {"const": "generated_code_and_dependencies"},
+        {"const": "datasets_tasks_and_permissions"},
+        {"const": "runtime_retries_and_budget"}
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    }
+  },
+  "additionalProperties": false
+}

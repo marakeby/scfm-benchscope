@@ -1,0 +1,29 @@
+name: Validate model approval
+
+on:
+  pull_request:
+    paths:
+      - "approvals/**"
+
+permissions:
+  contents: read
+
+jobs:
+  approval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install contract validator
+        run: python -m pip install --no-deps -e .
+
+      - name: Validate one immutable approval bundle
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python scripts/validate_approval_bundles.py approvals --base "$BASE_SHA"

@@ -15,6 +15,7 @@ _COMMANDS = {
     "candidate",
     "contract",
     "plan",
+    "approval",
 }
 
 
@@ -112,6 +113,51 @@ def _parser() -> argparse.ArgumentParser:
         "--output",
         help="New workspace directory (default: planning/<candidate>-<time>).",
     )
+
+    approval = subparsers.add_parser(
+        "approval",
+        help="Prepare or verify a human-reviewable execution bundle.",
+    )
+    approval_commands = approval.add_subparsers(
+        dest="approval_command",
+        required=True,
+    )
+    prepare = approval_commands.add_parser(
+        "prepare",
+        help="Resolve pixi.lock and build a bounded execution manifest.",
+    )
+    prepare.add_argument("candidate", help="Validated model candidate JSON.")
+    prepare.add_argument("workspace", help="Ready planner workspace.")
+    prepare.add_argument("-o", "--output", required=True)
+    prepare.add_argument("--manifest-id", required=True)
+    prepare.add_argument("--gpu-type", required=True)
+    prepare.add_argument("--gpu-count", type=int, required=True)
+    prepare.add_argument("--disk-gb", type=float, required=True)
+    prepare.add_argument("--max-runtime-minutes", type=float, required=True)
+    prepare.add_argument("--hourly-rate-usd", type=float, required=True)
+    prepare.add_argument("--max-budget-usd", type=float, required=True)
+    prepare.add_argument("--max-attempts", type=int, default=1)
+    prepare.add_argument(
+        "--retryable-step",
+        action="append",
+        choices=[
+            "checkout",
+            "create_environment",
+            "install",
+            "download_weights",
+            "smoke_test",
+            "evaluate",
+        ],
+    )
+    prepare.add_argument("--secret", action="append", default=[])
+    prepare.add_argument("--allow-host", action="append", default=[])
+    prepare.add_argument("--experiment-path")
+
+    verify = approval_commands.add_parser(
+        "verify",
+        help="Recheck an approval bundle before review or execution.",
+    )
+    verify.add_argument("bundle", help="Approval bundle directory.")
     return parser
 
 
@@ -221,6 +267,51 @@ def _plan_candidate(
     return 0
 
 
+def _prepare_approval(parsed: argparse.Namespace) -> int:
+    from scfm_cancer_eval.onboarding import (
+        ApprovalOptions,
+        prepare_approval_bundle,
+    )
+
+    options = ApprovalOptions(
+        manifest_id=parsed.manifest_id,
+        gpu_type=parsed.gpu_type,
+        gpu_count=parsed.gpu_count,
+        disk_gb=parsed.disk_gb,
+        max_runtime_minutes=parsed.max_runtime_minutes,
+        hourly_rate_usd=parsed.hourly_rate_usd,
+        max_budget_usd=parsed.max_budget_usd,
+        max_attempts=parsed.max_attempts,
+        retryable_steps=tuple(
+            parsed.retryable_step
+            or ("download_weights", "evaluate")
+        ),
+        secret_names=tuple(parsed.secret),
+        additional_network_hosts=tuple(parsed.allow_host),
+        experiment_path=parsed.experiment_path,
+    )
+    bundle = prepare_approval_bundle(
+        parsed.candidate,
+        parsed.workspace,
+        parsed.output,
+        options,
+    )
+    print(f"Approval bundle: {bundle.root}")
+    print(f"Manifest: {bundle.root / 'execution-manifest.json'}")
+    print(f"Fingerprint: sha256:{bundle.manifest.fingerprint}")
+    print("Status: pending human review in one model-specific pull request")
+    return 0
+
+
+def _verify_approval(path: str) -> int:
+    from scfm_cancer_eval.onboarding import verify_approval_bundle
+
+    bundle = verify_approval_bundle(path)
+    print(f"Valid approval bundle: {bundle.root}")
+    print(f"Manifest fingerprint: sha256:{bundle.manifest.fingerprint}")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
 
@@ -285,6 +376,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 model=parsed.model,
                 output=parsed.output,
             )
+        if parsed.command == "approval":
+            if parsed.approval_command == "prepare":
+                return _prepare_approval(parsed)
+            if parsed.approval_command == "verify":
+                return _verify_approval(parsed.bundle)
     except ValueError as exc:
         parser.error(str(exc))
 
