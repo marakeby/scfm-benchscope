@@ -29,6 +29,18 @@ scfm-eval report ./output \
   --title "BRCA model comparison"
 ```
 
+Draft reports include every valid run and label each with `review_status`.
+Official publication keeps only scientifically accepted runs:
+
+```bash
+scfm-eval report ./output \
+  --accepted-only \
+  --output ./published-report \
+  --title "Accepted BRCA model comparison"
+```
+
+See [Scientific review](scientific-review.md) for the post-run decision gate.
+
 ## Compare selected runs
 
 Pass individual `results.json` files, run directories, or a mixture:
@@ -63,7 +75,8 @@ embedding-only or extraction-only runs remain visible.
 Records carry the run, model, dataset, task, evaluation kind, variant, split,
 status, source path, and aggregate metrics. CSV metric columns use the
 `metric__<name>` prefix and are sorted for stable downstream imports. The JSON
-export uses the `scfm_eval.comparison` v1.0.0 contract.
+export uses the `scfm_eval.comparison` v1.1.0 contract and includes
+`review_status` on every record.
 
 ## Python API
 

@@ -79,7 +79,9 @@ Allowed decisions are:
 
 Only accepted runs may be included in published reports or promoted as
 baselines. `needs_tuning` requires proposed changes and an additional budget;
-other decisions cannot contain tuning instructions.
+other decisions cannot contain tuning instructions. Use
+`scfm-eval review decide` to write the decision against a completed run; see
+[Scientific review](scientific-review.md).
 
 ```bash
 scfm-eval contract validate review-decision \

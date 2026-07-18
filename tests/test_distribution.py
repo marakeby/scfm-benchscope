@@ -76,6 +76,7 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("plan", completed.stdout)
         self.assertIn("approval", completed.stdout)
         self.assertIn("execute", completed.stdout)
+        self.assertIn("review", completed.stdout)
 
 
 if __name__ == "__main__":

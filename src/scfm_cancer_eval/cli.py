@@ -17,6 +17,7 @@ _COMMANDS = {
     "plan",
     "approval",
     "execute",
+    "review",
 }
 
 
@@ -205,6 +206,57 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Leave the remote/local job directory in place after the run.",
     )
+
+    review = subparsers.add_parser(
+        "review",
+        help="Record a post-run scientific decision for one execution.",
+    )
+    review_commands = review.add_subparsers(
+        dest="review_command",
+        required=True,
+    )
+    decide = review_commands.add_parser(
+        "decide",
+        help="Accept, reject, or request tuning for one completed run.",
+    )
+    decide.add_argument("run_dir", help="Execution output directory.")
+    decide.add_argument("--decision-id", required=True)
+    decide.add_argument(
+        "--decision",
+        required=True,
+        choices=["accepted", "needs_tuning", "rejected"],
+    )
+    decide.add_argument("--identity", required=True)
+    decide.add_argument(
+        "--method",
+        choices=["github_pr", "manual"],
+        default="manual",
+    )
+    decide.add_argument("--rationale", required=True)
+    decide.add_argument(
+        "--include-in-reports",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Publication flag (defaults to true only for accepted).",
+    )
+    decide.add_argument(
+        "--promote-baseline",
+        action="store_true",
+        help="Allowed only for accepted decisions.",
+    )
+    decide.add_argument(
+        "--change",
+        action="append",
+        default=[],
+        help="Tuning change (repeatable; required for needs_tuning).",
+    )
+    decide.add_argument("--expected-improvement")
+    decide.add_argument(
+        "--max-additional-budget-usd",
+        type=float,
+    )
+    decide.add_argument("--previous-run-id")
+    decide.add_argument("--attempt", type=int)
     return parser
 
 
@@ -220,6 +272,11 @@ def _add_report_options(parser: argparse.ArgumentParser) -> None:
         help="Fail if any requested result is missing or invalid.",
     )
     parser.add_argument(
+        "--accepted-only",
+        action="store_true",
+        help="Publish only runs with an accepted scientific review.",
+    )
+    parser.add_argument(
         "--title",
         default="scFM evaluation report",
         help="Title displayed in the HTML report.",
@@ -231,6 +288,7 @@ def _run_report(
     output_dir: Path,
     *,
     strict: bool,
+    accepted_only: bool,
     title: str,
 ) -> int:
     from scfm_cancer_eval.reporting import create_report_bundle
@@ -239,10 +297,12 @@ def _run_report(
         roots,
         output_dir,
         strict=strict,
+        accepted_only=accepted_only,
         title=title,
     )
+    mode = "accepted-only" if accepted_only else "draft"
     print(
-        f"Discovered {bundle.discovery.valid_count} valid run(s); "
+        f"Discovered {bundle.discovery.valid_count} valid run(s) ({mode}); "
         f"skipped {len(bundle.discovery.issues)} issue(s)."
     )
     print(f"HTML report: {bundle.html_path}")
@@ -419,6 +479,35 @@ def _execute_approved(parsed: argparse.Namespace) -> int:
     return 0
 
 
+def _review_decide(parsed: argparse.Namespace) -> int:
+    from scfm_cancer_eval.onboarding import ReviewOptions, record_review
+
+    outcome = record_review(
+        parsed.run_dir,
+        ReviewOptions(
+            decision_id=parsed.decision_id,
+            decision=parsed.decision,
+            identity=parsed.identity,
+            rationale=parsed.rationale,
+            method=parsed.method,
+            include_in_reports=parsed.include_in_reports,
+            promote_baseline=parsed.promote_baseline,
+            tuning_changes=tuple(parsed.change),
+            expected_improvement=parsed.expected_improvement,
+            max_additional_budget_usd=parsed.max_additional_budget_usd,
+            previous_run_id=parsed.previous_run_id,
+            attempt=parsed.attempt,
+        ),
+    )
+    print(f"Review decision: {outcome.decision.to_dict()['decision']}")
+    print(f"Decision file: {outcome.decision_path}")
+    print(f"Fingerprint: sha256:{outcome.decision.fingerprint}")
+    if outcome.lineage_path is not None:
+        print(f"Tuning lineage: {outcome.lineage_path}")
+        print("Material changes still require a new pre-run approval PR")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
 
@@ -452,6 +541,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 [parsed.root],
                 output_dir,
                 strict=parsed.strict,
+                accepted_only=parsed.accepted_only,
                 title=parsed.title,
             )
         if parsed.command == "compare":
@@ -464,6 +554,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 parsed.paths,
                 output_dir,
                 strict=parsed.strict,
+                accepted_only=parsed.accepted_only,
                 title=parsed.title,
             )
         if (
@@ -492,6 +583,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return _grant_approval(parsed)
         if parsed.command == "execute":
             return _execute_approved(parsed)
+        if parsed.command == "review" and parsed.review_command == "decide":
+            return _review_decide(parsed)
     except ValueError as exc:
         parser.error(str(exc))
 

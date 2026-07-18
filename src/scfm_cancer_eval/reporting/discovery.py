@@ -36,6 +36,7 @@ class RunSummary:
     task_id: str | None
     started_at: str | None
     finished_at: str | None
+    review_status: str = "local"
 
     @property
     def run_id(self) -> str:
@@ -47,6 +48,8 @@ class RunSummary:
 
     @classmethod
     def from_result(cls, result: RunResult) -> "RunSummary":
+        from scfm_cancer_eval.onboarding.review import load_run_review_status
+
         payload = result.payload
         inputs = _mapping(payload.get("inputs"))
         embedding = _mapping(inputs.get("embedding"))
@@ -75,6 +78,7 @@ class RunSummary:
             task_id=task_id,
             started_at=_optional_text(run.get("started_at")),
             finished_at=_optional_text(run.get("finished_at")),
+            review_status=load_run_review_status(result.results_path),
         )
 
 
@@ -117,16 +121,25 @@ def discover_results(
     roots: Iterable[str | Path],
     *,
     strict: bool = False,
+    accepted_only: bool = False,
 ) -> DiscoveryResult:
     """Recursively load validated result files from files or directories."""
+    from scfm_cancer_eval.onboarding.review import is_publishable_review_status
+
     candidates, issues = _candidate_paths(roots)
     runs: list[RunSummary] = []
 
     for path in candidates:
         try:
-            runs.append(RunSummary.from_result(RunResult.from_path(path)))
+            summary = RunSummary.from_result(RunResult.from_path(path))
         except Exception as exc:
             issues.append(DiscoveryIssue(path, f"{type(exc).__name__}: {exc}"))
+            continue
+        if accepted_only and not is_publishable_review_status(
+            summary.review_status
+        ):
+            continue
+        runs.append(summary)
 
     runs.sort(
         key=lambda summary: (

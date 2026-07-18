@@ -92,7 +92,7 @@ def render_html_report(
     .summary-label {{ color: var(--muted); font-size: 12px; }}
     .controls {{
       display: grid;
-      grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(150px, 1fr));
+      grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(140px, 1fr));
       gap: 12px;
       margin-bottom: 16px;
     }}
@@ -170,7 +170,7 @@ def render_html_report(
   <header>
     <div>
       <h1>{escaped_title}</h1>
-      <p>Validated runs grouped by dataset, task, evaluation, and model.</p>
+      <p>Validated runs grouped by dataset, task, evaluation, model, and review status.</p>
     </div>
     <nav class="exports" aria-label="Report exports">
       <a href="comparison.csv">Download CSV</a>
@@ -184,6 +184,7 @@ def render_html_report(
     <div class="summary-item"><span class="summary-value" id="record-count">0</span><span class="summary-label">Evaluation records</span></div>
     <div class="summary-item"><span class="summary-value" id="issue-count">0</span><span class="summary-label">Discovery issues</span></div>
   </section>
+  <p id="review-summary" class="summary-label" style="margin:0 0 16px"></p>
 
   <section aria-labelledby="comparison-title">
     <h2 id="comparison-title">Comparison</h2>
@@ -196,6 +197,9 @@ def render_html_report(
       </label>
       <label>Evaluation
         <select id="kind-filter"><option value="">All evaluations</option></select>
+      </label>
+      <label>Review status
+        <select id="review-filter"><option value="">All review statuses</option></select>
       </label>
       <label>Chart metric
         <select id="metric-filter"></select>
@@ -240,6 +244,7 @@ def render_html_report(
   );
   const fixedColumns = [
     ["run_id", "Run"],
+    ["review_status", "Review"],
     ["model_id", "Model"],
     ["dataset_path", "Dataset"],
     ["task_id", "Task"],
@@ -257,6 +262,13 @@ def render_html_report(
   byId("model-count").textContent = String(new Set(records.map(record => record.model_id)).size);
   byId("record-count").textContent = String(payload.summary.record_count);
   byId("issue-count").textContent = String(payload.summary.issue_count);
+  const reviewCounts = payload.summary.review_status_counts || {{}};
+  const reviewSummary = Object.keys(reviewCounts).sort().map(
+    key => `${{key}}: ${{reviewCounts[key]}}`
+  ).join(" · ");
+  byId("review-summary").textContent = reviewSummary
+    ? `Review mix: ${{reviewSummary}}`
+    : "Review mix: none";
 
   function addOptions(select, values) {{
     values.filter(Boolean).sort().forEach(value => {{
@@ -268,6 +280,7 @@ def render_html_report(
   }}
   addOptions(byId("dataset-filter"), [...new Set(records.map(record => record.dataset_path))]);
   addOptions(byId("kind-filter"), [...new Set(records.map(record => record.evaluation_kind))]);
+  addOptions(byId("review-filter"), [...new Set(records.map(record => record.review_status))]);
   if (numericMetricNames.length) {{
     numericMetricNames.forEach(name => {{
       const option = document.createElement("option");
@@ -291,9 +304,11 @@ def render_html_report(
     const query = byId("search").value.trim().toLowerCase();
     const dataset = byId("dataset-filter").value;
     const kind = byId("kind-filter").value;
+    const review = byId("review-filter").value;
     return records.filter(record => {{
       const searchable = [
         record.run_id,
+        record.review_status,
         record.model_id,
         record.dataset_path,
         record.task_id,
@@ -301,7 +316,8 @@ def render_html_report(
       ].filter(Boolean).join(" ").toLowerCase();
       return (!query || searchable.includes(query))
         && (!dataset || record.dataset_path === dataset)
-        && (!kind || record.evaluation_kind === kind);
+        && (!kind || record.evaluation_kind === kind)
+        && (!review || record.review_status === review);
     }}).sort((left, right) => {{
       const a = valueFor(left, sortKey);
       const b = valueFor(right, sortKey);
@@ -419,7 +435,7 @@ def render_html_report(
     renderTable(rows);
     renderChart(rows);
   }}
-  ["search", "dataset-filter", "kind-filter", "metric-filter"].forEach(id => {{
+  ["search", "dataset-filter", "kind-filter", "review-filter", "metric-filter"].forEach(id => {{
     byId(id).addEventListener(id === "search" ? "input" : "change", render);
   }});
   renderIssues();

@@ -88,6 +88,7 @@ importable model configurations, custom YAML, and checkpoint handling.
 - [AI integration planner](docs/ai-integration-planner.md)
 - [Pre-run approval](docs/pre-run-approval.md)
 - [Approved execution](docs/approved-execution.md)
+- [Scientific review](docs/scientific-review.md)
 - [Planning and approval contracts](docs/planning-contracts.md)
 - [Adding a model](docs/adding-a-model.md)
 - [Experiment configuration](docs/experiment-configuration.md)

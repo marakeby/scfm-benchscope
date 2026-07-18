@@ -13,13 +13,14 @@ from scfm_cancer_eval.reporting._io import atomic_write_text
 from scfm_cancer_eval.reporting.discovery import DiscoveryResult, RunSummary
 
 COMPARISON_SCHEMA_NAME = "scfm_eval.comparison"
-COMPARISON_SCHEMA_VERSION = "1.0.0"
+COMPARISON_SCHEMA_VERSION = "1.1.0"
 
 
 @dataclass(frozen=True)
 class ComparisonRecord:
     run_id: str
     run_status: str
+    review_status: str
     model_id: str
     dataset_path: str | None
     task_id: str | None
@@ -68,6 +69,7 @@ def _record_for_evaluation(
     return ComparisonRecord(
         run_id=summary.run_id,
         run_status=summary.status,
+        review_status=summary.review_status,
         model_id=summary.model_id,
         dataset_path=summary.dataset_path,
         task_id=summary.task_id,
@@ -114,6 +116,11 @@ def build_comparison_payload(
     records: tuple[ComparisonRecord, ...] | None = None,
 ) -> dict[str, Any]:
     resolved_records = records or build_comparison_records(discovery)
+    review_counts: dict[str, int] = {}
+    for summary in discovery.runs:
+        review_counts[summary.review_status] = (
+            review_counts.get(summary.review_status, 0) + 1
+        )
     return {
         "schema": {
             "name": COMPARISON_SCHEMA_NAME,
@@ -123,6 +130,7 @@ def build_comparison_payload(
             "run_count": discovery.valid_count,
             "record_count": len(resolved_records),
             "issue_count": len(discovery.issues),
+            "review_status_counts": dict(sorted(review_counts.items())),
         },
         "issues": [
             {"path": str(issue.path), "message": issue.message}
@@ -142,6 +150,7 @@ def comparison_csv_text(records: tuple[ComparisonRecord, ...]) -> str:
     fixed_columns = [
         "run_id",
         "run_status",
+        "review_status",
         "model_id",
         "dataset_path",
         "task_id",

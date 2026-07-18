@@ -62,5 +62,6 @@ The executor:
 5. stops when estimated GPU cost exceeds `max_budget_usd`;
 6. writes `execution-record.json` with status `completed_unreviewed`.
 
-Successful technical completion is not scientific acceptance. Stage 19 records
-`accepted`, `needs_tuning`, or `rejected` before report publication.
+Successful technical completion is not scientific acceptance. Record
+`accepted`, `needs_tuning`, or `rejected` with
+[Scientific review](scientific-review.md) before report publication.
