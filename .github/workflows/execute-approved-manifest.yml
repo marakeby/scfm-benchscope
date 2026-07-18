@@ -1,0 +1,86 @@
+name: Execute approved manifest
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle:
+        description: Path to the verified approval bundle
+        required: true
+        type: string
+      approval:
+        description: Path to the execution-approval JSON
+        required: true
+        type: string
+      transport:
+        description: Job host transport
+        required: true
+        type: choice
+        options:
+          - fake
+          - ssh
+        default: fake
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scfm-eval-execute-${{ inputs.bundle }}
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: python -m pip install --no-deps -e .
+
+      - name: Verify approval inputs
+        run: |
+          scfm-eval approval verify "${{ inputs.bundle }}"
+          scfm-eval contract validate execution-approval "${{ inputs.approval }}"
+
+      - name: Execute with fake transport
+        if: ${{ inputs.transport == 'fake' }}
+        run: |
+          scfm-eval execute "${{ inputs.bundle }}" \
+            --approval "${{ inputs.approval }}" \
+            --output "runs/${{ github.run_id }}" \
+            --transport fake
+
+      - name: Execute over SSH
+        if: ${{ inputs.transport == 'ssh' }}
+        env:
+          SSH_HOST: ${{ secrets.SCFM_SSH_HOST }}
+          SSH_USER: ${{ secrets.SCFM_SSH_USER }}
+          SSH_REMOTE_ROOT: ${{ secrets.SCFM_SSH_REMOTE_ROOT }}
+          SSH_IDENTITY: ${{ secrets.SCFM_SSH_IDENTITY }}
+        run: |
+          test -n "$SSH_HOST"
+          test -n "$SSH_USER"
+          test -n "$SSH_REMOTE_ROOT"
+          test -n "$SSH_IDENTITY"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_IDENTITY" > ~/.ssh/scfm_eval
+          chmod 600 ~/.ssh/scfm_eval
+          scfm-eval execute "${{ inputs.bundle }}" \
+            --approval "${{ inputs.approval }}" \
+            --output "runs/${{ github.run_id }}" \
+            --transport ssh \
+            --ssh-host "$SSH_HOST" \
+            --ssh-user "$SSH_USER" \
+            --ssh-remote-root "$SSH_REMOTE_ROOT" \
+            --ssh-identity-file ~/.ssh/scfm_eval
+
+      - name: Upload execution artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: execution-${{ github.run_id }}
+          path: runs/${{ github.run_id }}
+          if-no-files-found: ignore

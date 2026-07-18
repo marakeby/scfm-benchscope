@@ -57,8 +57,9 @@ approval. It pins:
 - GPU, disk, timeout, hourly rate, total budget, and bounded retries
 
 Validation rejects plans whose worst-case retry cost exceeds the approved
-budget. A valid manifest is still not approved; the pre-run approval workflow
-will record approval of its exact fingerprint.
+budget. A valid manifest is still not approved; `scfm-eval approval grant`
+records approval of its exact fingerprint before
+[approved execution](approved-execution.md).
 
 ```bash
 scfm-eval contract validate execution-manifest \

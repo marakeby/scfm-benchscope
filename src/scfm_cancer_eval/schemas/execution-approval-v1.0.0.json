@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scfm-eval.local/schemas/execution-approval-v1.0.0.json",
+  "title": "scFM evaluation execution approval",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "approval_id",
+    "approved_at",
+    "manifest_fingerprint",
+    "bundle_path",
+    "approver",
+    "pull_request",
+    "status"
+  ],
+  "properties": {
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "const": "scfm_eval.execution_approval" },
+        "version": { "const": "1.0.0" }
+      }
+    },
+    "approval_id": { "type": "string", "minLength": 1 },
+    "approved_at": { "type": "string", "minLength": 1 },
+    "manifest_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "bundle_path": { "type": "string", "minLength": 1 },
+    "approver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "method"],
+      "properties": {
+        "identity": { "type": "string", "minLength": 1 },
+        "method": { "enum": ["github_pr", "manual"] }
+      }
+    },
+    "pull_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "merge_commit"],
+      "properties": {
+        "url": { "type": "string", "minLength": 1 },
+        "merge_commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        }
+      }
+    },
+    "status": { "const": "approved" }
+  }
+}

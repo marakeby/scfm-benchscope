@@ -9,6 +9,7 @@ from pathlib import Path
 
 from scfm_cancer_eval import cli
 from scfm_cancer_eval.onboarding import (
+    EXECUTION_APPROVAL_SCHEMA_NAME,
     EXECUTION_MANIFEST_SCHEMA_NAME,
     INTEGRATION_PLAN_SCHEMA_NAME,
     MODEL_SPEC_SCHEMA_NAME,
@@ -18,6 +19,7 @@ from scfm_cancer_eval.onboarding import (
     IntegrationPlan,
     ModelSpec,
     ReviewDecision,
+    load_execution_approval,
     load_execution_manifest,
     load_integration_plan,
     load_model_candidate,
@@ -63,6 +65,12 @@ class PlanningContractTests(unittest.TestCase):
                 EXECUTION_MANIFEST_SCHEMA_NAME,
                 load_execution_manifest,
                 "execution-manifest.json",
+            ),
+            (
+                "execution_approval",
+                EXECUTION_APPROVAL_SCHEMA_NAME,
+                load_execution_approval,
+                "execution-approval.json",
             ),
             (
                 "review_decision",

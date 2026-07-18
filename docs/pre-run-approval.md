@@ -64,4 +64,6 @@ protection, a merge is not a reliable human-approval boundary.
 
 Any change to code, dependencies, sources, weights, datasets, permissions,
 runtime, retries, or budget requires a new manifest and a new pull request.
-Result publication remains separately blocked until post-run scientific review.
+After merge, record the approval and run the job with
+[Approved execution](approved-execution.md). Result publication remains
+separately blocked until post-run scientific review.

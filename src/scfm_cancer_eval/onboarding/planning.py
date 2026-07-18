@@ -43,6 +43,7 @@ def planning_schema(name: str) -> dict:
         "model_spec": "model-spec-v1.0.0.json",
         "integration_plan": "integration-plan-v1.0.0.json",
         "execution_manifest": "execution-manifest-v1.0.0.json",
+        "execution_approval": "execution-approval-v1.0.0.json",
         "review_decision": "review-decision-v1.0.0.json",
     }
     try:

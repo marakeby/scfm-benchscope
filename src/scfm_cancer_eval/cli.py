@@ -16,6 +16,7 @@ _COMMANDS = {
     "contract",
     "plan",
     "approval",
+    "execute",
 }
 
 
@@ -89,6 +90,7 @@ def _parser() -> argparse.ArgumentParser:
             "model-spec",
             "integration-plan",
             "execution-manifest",
+            "execution-approval",
             "review-decision",
         ],
     )
@@ -158,6 +160,51 @@ def _parser() -> argparse.ArgumentParser:
         help="Recheck an approval bundle before review or execution.",
     )
     verify.add_argument("bundle", help="Approval bundle directory.")
+
+    grant = approval_commands.add_parser(
+        "grant",
+        help="Record that one verified bundle was approved by a merged PR.",
+    )
+    grant.add_argument("bundle", help="Verified approval bundle.")
+    grant.add_argument("-o", "--output", required=True)
+    grant.add_argument("--approval-id", required=True)
+    grant.add_argument("--identity", required=True)
+    grant.add_argument(
+        "--method",
+        choices=["github_pr", "manual"],
+        default="github_pr",
+    )
+    grant.add_argument("--pr-url", required=True)
+    grant.add_argument("--merge-commit", required=True)
+    grant.add_argument(
+        "--bundle-path",
+        required=True,
+        help="Relative repository path of the approved bundle.",
+    )
+
+    execute = subparsers.add_parser(
+        "execute",
+        help="Run one human-approved execution manifest with bounded retries.",
+    )
+    execute.add_argument("bundle", help="Verified approval bundle.")
+    execute.add_argument("--approval", required=True)
+    execute.add_argument("-o", "--output", required=True)
+    execute.add_argument(
+        "--transport",
+        choices=["fake", "local", "ssh"],
+        default="fake",
+    )
+    execute.add_argument("--local-root")
+    execute.add_argument("--ssh-host")
+    execute.add_argument("--ssh-user")
+    execute.add_argument("--ssh-remote-root")
+    execute.add_argument("--ssh-identity-file")
+    execute.add_argument("--ssh-port", type=int, default=22)
+    execute.add_argument(
+        "--keep-job",
+        action="store_true",
+        help="Leave the remote/local job directory in place after the run.",
+    )
     return parser
 
 
@@ -216,6 +263,7 @@ def _validate_candidate(path: str) -> int:
 
 def _validate_contract(kind: str, path: str) -> int:
     from scfm_cancer_eval.onboarding import (
+        load_execution_approval,
         load_execution_manifest,
         load_integration_plan,
         load_model_spec,
@@ -226,6 +274,7 @@ def _validate_contract(kind: str, path: str) -> int:
         "model-spec": load_model_spec,
         "integration-plan": load_integration_plan,
         "execution-manifest": load_execution_manifest,
+        "execution-approval": load_execution_approval,
         "review-decision": load_review_decision,
     }
     document = loaders[kind](path)
@@ -312,6 +361,64 @@ def _verify_approval(path: str) -> int:
     return 0
 
 
+def _grant_approval(parsed: argparse.Namespace) -> int:
+    from datetime import datetime, timezone
+
+    from scfm_cancer_eval.onboarding import (
+        build_execution_approval,
+        verify_approval_bundle,
+        write_execution_approval,
+    )
+
+    bundle = verify_approval_bundle(parsed.bundle)
+    approval = build_execution_approval(
+        approval_id=parsed.approval_id,
+        approved_at=datetime.now(timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z"),
+        manifest_fingerprint=bundle.manifest.fingerprint,
+        bundle_path=parsed.bundle_path,
+        identity=parsed.identity,
+        method=parsed.method,
+        pull_request_url=parsed.pr_url,
+        merge_commit=parsed.merge_commit,
+    )
+    path = write_execution_approval(parsed.output, approval)
+    print(f"Execution approval: {path}")
+    print(f"Manifest fingerprint: sha256:{approval.manifest_fingerprint}")
+    return 0
+
+
+def _execute_approved(parsed: argparse.Namespace) -> int:
+    from scfm_cancer_eval.onboarding import (
+        execute_approved_bundle,
+        load_job_host,
+    )
+
+    host = load_job_host(
+        parsed.transport,
+        local_root=parsed.local_root,
+        ssh_host=parsed.ssh_host,
+        ssh_user=parsed.ssh_user,
+        ssh_remote_root=parsed.ssh_remote_root,
+        ssh_identity_file=parsed.ssh_identity_file,
+        ssh_port=parsed.ssh_port,
+    )
+    outcome = execute_approved_bundle(
+        parsed.bundle,
+        parsed.approval,
+        parsed.output,
+        host,
+        cleanup=not parsed.keep_job,
+    )
+    print(f"Execution status: {outcome.status}")
+    print(f"Attempts: {outcome.attempts}")
+    print(f"Estimated cost USD: {outcome.estimated_cost_usd}")
+    print(f"Record: {outcome.record_path}")
+    print("Scientific review is still required before publication")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
 
@@ -381,6 +488,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return _prepare_approval(parsed)
             if parsed.approval_command == "verify":
                 return _verify_approval(parsed.bundle)
+            if parsed.approval_command == "grant":
+                return _grant_approval(parsed)
+        if parsed.command == "execute":
+            return _execute_approved(parsed)
     except ValueError as exc:
         parser.error(str(exc))
 

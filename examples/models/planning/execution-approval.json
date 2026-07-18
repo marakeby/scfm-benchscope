@@ -1,0 +1,19 @@
+{
+  "schema": {
+    "name": "scfm_eval.execution_approval",
+    "version": "1.0.0"
+  },
+  "approval_id": "example-cell-model-run-v1-approval",
+  "approved_at": "2026-07-17T22:30:00Z",
+  "manifest_fingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "bundle_path": "approvals/example-cell-model/run-v1",
+  "approver": {
+    "identity": "example-reviewer",
+    "method": "github_pr"
+  },
+  "pull_request": {
+    "url": "https://github.com/example/scFM_eval/pull/17",
+    "merge_commit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "status": "approved"
+}
