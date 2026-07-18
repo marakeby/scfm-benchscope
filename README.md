@@ -89,6 +89,7 @@ importable model configurations, custom YAML, and checkpoint handling.
 - [Pre-run approval](docs/pre-run-approval.md)
 - [Approved execution](docs/approved-execution.md)
 - [Scientific review](docs/scientific-review.md)
+- [Verification and rollout](docs/verification-rollout.md)
 - [Planning and approval contracts](docs/planning-contracts.md)
 - [Adding a model](docs/adding-a-model.md)
 - [Experiment configuration](docs/experiment-configuration.md)
