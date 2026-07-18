@@ -8,7 +8,14 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-_COMMANDS = {"run", "report", "compare", "candidate", "contract"}
+_COMMANDS = {
+    "run",
+    "report",
+    "compare",
+    "candidate",
+    "contract",
+    "plan",
+}
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -85,6 +92,26 @@ def _parser() -> argparse.ArgumentParser:
         ],
     )
     contract_validate.add_argument("path", help="Path to the JSON document.")
+
+    plan = subparsers.add_parser(
+        "plan",
+        help="Ask a selected AI provider for a proposal-only integration plan.",
+    )
+    plan.add_argument("candidate", help="Validated model candidate JSON.")
+    plan.add_argument(
+        "--provider",
+        default=os.environ.get("SCFM_PLANNER_PROVIDER", "openai"),
+        help="openai, anthropic, or module:attribute (default: openai).",
+    )
+    plan.add_argument(
+        "--model",
+        help="Provider model override.",
+    )
+    plan.add_argument(
+        "-o",
+        "--output",
+        help="New workspace directory (default: planning/<candidate>-<time>).",
+    )
     return parser
 
 
@@ -161,6 +188,39 @@ def _validate_contract(kind: str, path: str) -> int:
     return 0
 
 
+def _plan_candidate(
+    candidate_path: str,
+    *,
+    provider_name: str,
+    model: str | None,
+    output: str | None,
+) -> int:
+    from datetime import datetime, timezone
+
+    from scfm_cancer_eval.onboarding import (
+        load_model_candidate,
+        load_planner_provider,
+        plan_candidate,
+    )
+
+    candidate = load_model_candidate(candidate_path)
+    provider = load_planner_provider(provider_name, model=model)
+    if output is None:
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        output_path = Path("planning") / (
+            f"{candidate.candidate_id}-{timestamp}"
+        )
+    else:
+        output_path = Path(output)
+    outcome = plan_candidate(candidate, provider, output_path)
+    print(f"Planning status: {outcome.status}")
+    print(f"Provider: {outcome.provider} ({outcome.model})")
+    print(f"Workspace: {outcome.workspace}")
+    for issue in outcome.issues:
+        print(f"Issue: {issue}")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
 
@@ -218,6 +278,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             and parsed.contract_command == "validate"
         ):
             return _validate_contract(parsed.kind, parsed.path)
+        if parsed.command == "plan":
+            return _plan_candidate(
+                parsed.candidate,
+                provider_name=parsed.provider,
+                model=parsed.model,
+                output=parsed.output,
+            )
     except ValueError as exc:
         parser.error(str(exc))
 

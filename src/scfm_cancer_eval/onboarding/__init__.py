@@ -1,5 +1,11 @@
 """Contracts used by model discovery and integration planning."""
 
+from scfm_cancer_eval.onboarding.ai_planner import (
+    PlannerError,
+    PlannerOutcome,
+    build_planner_prompt,
+    plan_candidate,
+)
 from scfm_cancer_eval.onboarding.candidate import (
     MODEL_CANDIDATE_SCHEMA_NAME,
     MODEL_CANDIDATE_SCHEMA_VERSION,
@@ -34,6 +40,10 @@ from scfm_cancer_eval.onboarding.planning import (
     validate_planning_chain,
     validate_review_decision,
 )
+from scfm_cancer_eval.onboarding.providers import (
+    PlannerProvider,
+    load_planner_provider,
+)
 
 __all__ = [
     "MODEL_CANDIDATE_SCHEMA_NAME",
@@ -52,14 +62,20 @@ __all__ = [
     "IntegrationPlan",
     "ModelCandidate",
     "ModelSpec",
+    "PlannerError",
+    "PlannerOutcome",
+    "PlannerProvider",
     "ReviewDecision",
     "load_execution_manifest",
     "load_integration_plan",
     "load_model_candidate",
     "load_model_spec",
+    "load_planner_provider",
     "load_review_decision",
     "model_candidate_schema",
     "planning_schema",
+    "plan_candidate",
+    "build_planner_prompt",
     "validate_execution_manifest",
     "validate_integration_plan",
     "validate_model_candidate",

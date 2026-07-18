@@ -71,6 +71,7 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("compare", completed.stdout)
         self.assertIn("candidate", completed.stdout)
         self.assertIn("contract", completed.stdout)
+        self.assertIn("plan", completed.stdout)
 
 
 if __name__ == "__main__":
