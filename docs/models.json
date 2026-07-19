@@ -2324,5 +2324,40 @@
     "benchmarked": false,
     "added_date": "2026-07-17",
     "source": "web-search-agent"
+  },
+  {
+    "model_name": "scMamba",
+    "paper_title": "scMamba: A Scalable Foundation Model for Single-Cell Multi-Omics Integration Beyond Highly Variable Feature Selection",
+    "status": "preprint",
+    "journal": "arXiv",
+    "year": 2025,
+    "paper_url": "https://arxiv.org/abs/2506.20697",
+    "github_url": null,
+    "weights_url": null,
+    "weights_size": null,
+    "has_github": false,
+    "has_weights": false,
+    "modalities": [
+      "scRNA-seq",
+      "scATAC-seq"
+    ],
+    "category": "Multimodal",
+    "description": "scMamba is a foundation model designed for integrating single-cell multi-omics data without prior feature selection, utilizing a patch-based cell tokenization strategy and contrastive learning for superior alignment across omics layers.",
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Contrastive Learning"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "",
+    "benchmarked": false,
+    "added_date": "2026-07-19",
+    "source": "web-search-agent"
   }
 ]
