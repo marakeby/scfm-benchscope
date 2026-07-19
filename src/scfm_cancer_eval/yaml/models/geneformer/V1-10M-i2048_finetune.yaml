@@ -10,10 +10,13 @@ classification:
         model_dir: Geneformer   # MODELS_PATH root (see setup_path.MODELS_PATH)
         dict_dir: Geneformer/gf_dicts_v1 #genefromer 2
         model_input_size: 2048
-        batch_size: 64
+        max_number_genes: 2048  # MIL gene truncate; match model_input_size (was hardcoded 512)
+        batch_size: 64          # used by cell-level paths (avg/vote); MIL uses bag batch_size=1
         epoch: 5
         freeze_layers: 2
         learning_rate: 0.00001
+        weight_decay: 0.01
+        warmup_ratio: 0.0
         train_funcs: 
             # - avg
             - mil

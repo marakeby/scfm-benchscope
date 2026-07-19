@@ -67,6 +67,13 @@ class GFFineTuneModel:
         self.batch_size = self.params['batch_size']
         self.model_version = self.params.get('version', "V1")
         self.freeze_layers = self.params.get('freeze_layers', 0)
+        self.learning_rate = float(self.params.get('learning_rate', 2e-5))
+        self.weight_decay = float(self.params.get('weight_decay', 0.01))
+        self.warmup_ratio = float(self.params.get('warmup_ratio', 0.0))
+        # MIL gene truncate; default to full model context (not the old hardcoded 512).
+        self.max_number_genes = int(
+            self.params.get('max_number_genes', self.model_input_size)
+        )
         self.label_map = self.params['label_map'] #dictionary e.g. # {'Pre': 0, 'Post': 1}
         self.cv = self.params.get('cv', False)
         self.onesplit = self.params.get('onesplit', False)
@@ -255,7 +262,21 @@ class GFFineTuneModel:
         device = self.device
         vocab_dir = self.model_files['model_vocab']
         
-        trainer, y_test, y_pred, y_pred_score = train_classifier_cell(train_ds, test_ds, model_dir, vocab_dir, output_dir, num_labels, device, freeze_layers=self.freeze_layers, batch_size=self.batch_size, num_train_epochs= self.epoch)
+        trainer, y_test, y_pred, y_pred_score = train_classifier_cell(
+            train_ds,
+            test_ds,
+            model_dir,
+            vocab_dir,
+            output_dir,
+            num_labels,
+            device,
+            freeze_layers=self.freeze_layers,
+            batch_size=self.batch_size,
+            num_train_epochs=self.epoch,
+            learning_rate=self.learning_rate,
+            weight_decay=self.weight_decay,
+            warmup_ratio=self.warmup_ratio,
+        )
         
         
         adata_test.obs['pred'] = y_pred
@@ -301,7 +322,22 @@ class GFFineTuneModel:
         device = self.device
         vocab_dir = self.model_files['model_vocab']
         
-        trainer,sample_ids,  y_test, y_pred, y_pred_score = train_patient_classifier(train_ds, test_ds,split_col, model_dir, vocab_dir, output_dir, num_labels, device, epochs= self.epoch)
+        trainer, sample_ids, y_test, y_pred, y_pred_score = train_patient_classifier(
+            train_ds,
+            test_ds,
+            split_col,
+            model_dir,
+            vocab_dir,
+            output_dir,
+            num_labels,
+            device,
+            epochs=self.epoch,
+            learning_rate=self.learning_rate,
+            weight_decay=self.weight_decay,
+            freeze_layers=self.freeze_layers,
+            warmup_ratio=self.warmup_ratio,
+            max_number_genes=self.max_number_genes,
+        )
 
         logger.info(y_test)
         logger.info(y_pred)

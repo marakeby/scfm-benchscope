@@ -1,0 +1,16 @@
+# Small V2-104M MIL finetune grid.
+#
+# Usage (from repo root):
+#   pixi run -e geneformer python -m scfm_cancer_eval.run.grid_search_finetune \
+#       grids/gf_finetune_v2_small.yaml
+
+base_exp: exp/geneformer/V2-104M-i4096_finetune/crc_mmr.yaml
+metric: AUC
+
+grid:
+  learning_rate: [1.0e-5, 2.0e-5, 5.0e-5]
+  epoch: [2, 3]
+  freeze_layers: [0, 6]
+  weight_decay: [1.0e-5]
+  warmup_ratio: [0.0, 0.1]
+  max_number_genes: [4096]  # match V2 model_input_size; e.g. [512, 2048, 4096] to sweep

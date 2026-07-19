@@ -120,8 +120,29 @@ def collate_patient_level(batch):
         "sample_ids" : sample_ids
     }
 
+def freeze_encoder_layers(bert_for_seq_cls, freeze_layers: int) -> int:
+    """Freeze the first ``freeze_layers`` transformer blocks of a BertForSequenceClassification.
+
+    Returns the number of layers frozen (0 if ``freeze_layers`` <= 0).
+    """
+    if freeze_layers is None or freeze_layers <= 0:
+        return 0
+    modules_to_freeze = bert_for_seq_cls.bert.encoder.layer[:freeze_layers]
+    for module in modules_to_freeze:
+        for param in module.parameters():
+            param.requires_grad = False
+    return len(modules_to_freeze)
+
+
 class ChunkedBertMILClassifier_check(nn.Module):
-    def __init__(self, pretrained_model_path="bert-base-uncased", num_labels=1, chunk_size=128, device='cpu'):
+    def __init__(
+        self,
+        pretrained_model_path="bert-base-uncased",
+        num_labels=1,
+        chunk_size=128,
+        device='cpu',
+        freeze_layers: int = 0,
+    ):
         super().__init__()
         self.chunk_size = chunk_size
         self.device = device
@@ -131,6 +152,10 @@ class ChunkedBertMILClassifier_check(nn.Module):
             num_labels=num_labels,
             problem_type="single_label_classification"
         )
+
+        n_frozen = freeze_encoder_layers(self.bert, freeze_layers)
+        if n_frozen:
+            logger.info(f"Frozen first {n_frozen} encoder layer(s) for MIL finetune")
 
         # TODO: check if this is needed. Enable gradient checkpointing to reduce memory
         self.bert.gradient_checkpointing_enable()
@@ -359,7 +384,7 @@ def evaluate_model(model, dataloader, device, threshold=0.5):
     logger.info(sample_ids)
     return metrics,sample_ids, y_true, y_pred, y_score
 
-def train_model(model, dataloader, optimizer, device, epochs):
+def train_model(model, dataloader, optimizer, device, epochs, scheduler=None):
     """
     Train a PyTorch model with binary classification.
 
@@ -369,7 +394,7 @@ def train_model(model, dataloader, optimizer, device, epochs):
         optimizer (torch.optim.Optimizer): Optimizer for training.
         device (torch.device): The device to use (e.g., 'cuda' or 'cpu').
         epochs (int): Number of training epochs.
-        logger (logging.Logger): Logger for output.
+        scheduler: Optional LR scheduler stepped once per optimizer step.
 
     Returns:
         model (torch.nn.Module): The trained model.
@@ -393,6 +418,8 @@ def train_model(model, dataloader, optimizer, device, epochs):
             loss = F.binary_cross_entropy_with_logits(outputs, labels)
             loss.backward()
             optimizer.step()
+            if scheduler is not None:
+                scheduler.step()
 
             total_loss += loss.item()
             all_preds.extend(torch.sigmoid(outputs).detach().cpu().numpy())
@@ -402,42 +429,123 @@ def train_model(model, dataloader, optimizer, device, epochs):
 
         train_auc = roc_auc_score(all_labels, all_preds)
         train_acc = accuracy_score(all_labels, [p > 0.5 for p in all_preds])
+        lr_now = optimizer.param_groups[0]["lr"]
 
-        logger.info(f"[Epoch {epoch+1}] Train Loss: {total_loss:.4f} | AUC: {train_auc:.4f} | ACC: {train_acc:.4f}")
+        logger.info(
+            f"[Epoch {epoch+1}] Train Loss: {total_loss:.4f} | AUC: {train_auc:.4f} | "
+            f"ACC: {train_acc:.4f} | LR: {lr_now:.2e}"
+        )
 
     return model
 
-def train_patient_classifier(train_ds, test_ds, sample_id, model_dir, vocab_dir, output_dir, num_labels, device, epochs):
-    # import logging
-    # logger = logging.getLogger(__name__)
-    logger.info('Training Patient-Level MIL Classifier')
+def train_patient_classifier(
+    train_ds,
+    test_ds,
+    sample_id,
+    model_dir,
+    vocab_dir,
+    output_dir,
+    num_labels,
+    device,
+    epochs,
+    learning_rate: float = 2e-5,
+    weight_decay: float = 0.01,
+    freeze_layers: int = 0,
+    warmup_ratio: float = 0.0,
+    max_number_genes: int = 512,
+    max_cells_per_bag: int = 500,
+    max_cells_per_patient: int = 1000,
+):
+    """Train patient-level MIL classifier with YAML-wired optimizer/freeze knobs."""
+    logger.info(
+        "Training Patient-Level MIL Classifier "
+        f"(lr={learning_rate}, weight_decay={weight_decay}, epochs={epochs}, "
+        f"freeze_layers={freeze_layers}, warmup_ratio={warmup_ratio}, "
+        f"max_number_genes={max_number_genes}, max_cells_per_bag={max_cells_per_bag}, "
+        f"max_cells_per_patient={max_cells_per_patient})"
+    )
     
-    train_patient_dataset = SubsampledPatientDataset(train_ds)
-    val_patient_dataset = SubsampledPatientDataset(test_ds)
+    train_patient_dataset = SubsampledPatientDataset(
+        train_ds,
+        max_cells_per_bag=max_cells_per_bag,
+        max_cells_per_patient=max_cells_per_patient,
+        max_number_genes=max_number_genes,
+    )
+    val_patient_dataset = SubsampledPatientDataset(
+        test_ds,
+        max_cells_per_bag=max_cells_per_bag,
+        max_cells_per_patient=max_cells_per_patient,
+        max_number_genes=max_number_genes,
+    )
     dataloader = DataLoader(train_patient_dataset, batch_size=1, collate_fn=collate_patient_level)
 
-    model = ChunkedBertMILClassifier_check(model_dir, device= device, num_labels=num_labels)
+    model = ChunkedBertMILClassifier_check(
+        model_dir,
+        device=device,
+        num_labels=num_labels,
+        freeze_layers=freeze_layers,
+    )
    
-    optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
+    optimizer = torch.optim.AdamW(
+        (p for p in model.parameters() if p.requires_grad),
+        lr=learning_rate,
+        weight_decay=weight_decay,
+    )
 
-    # epochs=1
-    
-    model = train_model(model, dataloader, optimizer, device, epochs=epochs)
+    scheduler = None
+    if warmup_ratio and warmup_ratio > 0 and epochs > 0 and len(dataloader) > 0:
+        from transformers import get_linear_schedule_with_warmup
+
+        num_training_steps = max(1, int(epochs) * len(dataloader))
+        num_warmup_steps = int(float(warmup_ratio) * num_training_steps)
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=num_warmup_steps,
+            num_training_steps=num_training_steps,
+        )
+        logger.info(
+            f"Linear warmup scheduler: warmup_steps={num_warmup_steps}/{num_training_steps}"
+        )
+
+    model = train_model(
+        model, dataloader, optimizer, device, epochs=epochs, scheduler=scheduler
+    )
     
     test_dataloader = DataLoader(val_patient_dataset, batch_size=1, collate_fn=collate_patient_level)
     metrics, sample_ids, y_true, y_pred, y_score = evaluate_model(model, test_dataloader, device, threshold=0.5)
     logger.info(sample_ids)
     return model, sample_ids, y_true, y_pred, y_score
 
-def train_classifier_cell(train_ds, test_ds, model_dir, vocab_dir, output_dir, num_labels, device, freeze_layers, batch_size, num_train_epochs):
+def train_classifier_cell(
+    train_ds,
+    test_ds,
+    model_dir,
+    vocab_dir,
+    output_dir,
+    num_labels,
+    device,
+    freeze_layers,
+    batch_size,
+    num_train_epochs,
+    learning_rate: float = 5e-5,
+    weight_decay: float = 0.0,
+    warmup_ratio: float = 0.0,
+):
     # logger = logging.getLogger(__name__)
-    logger.info('Fine Tuning Model')
+    logger.info(
+        "Fine Tuning Model (cell) "
+        f"(lr={learning_rate}, weight_decay={weight_decay}, epochs={num_train_epochs}, "
+        f"freeze_layers={freeze_layers}, warmup_ratio={warmup_ratio}, batch_size={batch_size})"
+    )
     training_args ={}
     training_args['output_dir'] = output_dir
     training_args['logging_dir'] = output_dir
     training_args['per_device_train_batch_size']=batch_size
     training_args['per_device_eval_batch_size']=batch_size
     training_args['num_train_epochs'] = num_train_epochs
+    training_args['learning_rate'] = learning_rate
+    training_args['weight_decay'] = weight_decay
+    training_args['warmup_ratio'] = warmup_ratio
     
     y_test = np.array(test_ds['label'])
     with open(vocab_dir, "rb") as f:
@@ -449,11 +557,7 @@ def train_classifier_cell(train_ds, test_ds, model_dir, vocab_dir, output_dir, n
         output_hidden_states=False,
         torch_dtype=torch.float32
     ).to(device)
-    if freeze_layers > 0:
-        modules_to_freeze = model.bert.encoder.layer[:freeze_layers]
-        for module in modules_to_freeze:
-            for param in module.parameters():
-                param.requires_grad = False
+    freeze_encoder_layers(model, freeze_layers)
     training_args_init = TrainingArguments(**training_args)
     trainer = Trainer(
         model= model,
