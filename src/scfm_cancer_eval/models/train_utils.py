@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from scfm_cancer_eval.evaluation.eval import eval_classifier, plot_classifier
-import gc
 from torch.utils.data import Dataset as TorchDataset
 from datasets import Dataset as HFDataset
 from torch.nn.utils.rnn import pad_sequence
@@ -33,62 +32,56 @@ class SubsampledPatientDataset(TorchDataset):
         self.bags = []  # List of dicts: each represents a bag
         self.data = data
 
-        sample_ids = list(set(data["sample_id"]))
-        for sample_id in sample_ids:
-            patient_data = data.filter(lambda x: x["sample_id"] == sample_id)
+        # Index once — avoid HF Dataset.filter() per patient (that was extremely slow).
+        by_sample = defaultdict(list)
+        for i, sid in enumerate(data["sample_id"]):
+            by_sample[sid].append(i)
 
-            # Create custom mask as well (can be same as attention_mask or based on 'length')
+        def pad_or_truncate(seq, max_len):
+            return seq[:max_len] + [0] * max(0, max_len - len(seq))
+
+        logger.info(
+            f"Building MIL bags for {len(by_sample)} patients "
+            f"(max_cells_per_bag={max_cells_per_bag}, max_number_genes={max_number_genes})"
+        )
+        for sample_id, row_indices in by_sample.items():
+            if max_cells_per_patient > 0:
+                row_indices = row_indices[:max_cells_per_patient]
+            patient_data = data.select(row_indices)
+
             lengths = patient_data["length"]
-            mask = [[1]*min(l, max_number_genes) + [0]*max(0, max_number_genes - l) for l in lengths]
-            
-            # Truncate or pad each 'input_ids' and 'attention_mask' to max_number_genes
-            def pad_or_truncate(seq, max_len):
-                return seq[:max_len] + [0] * max(0, max_len - len(seq))
+            mask = [
+                [1] * min(l, max_number_genes) + [0] * max(0, max_number_genes - l)
+                for l in lengths
+            ]
+            input_ids = [
+                pad_or_truncate(seq, max_number_genes) for seq in patient_data["input_ids"]
+            ]
+            label = patient_data[0]["label"]
 
-            input_ids = [pad_or_truncate(seq, max_number_genes) for seq in patient_data["input_ids"]]
-            # attention_mask = [pad_or_truncate(seq, max_number_genes) for seq in patient_data["attention_mask"]]
-
-           
-
-            # Add/replace columns
-            patient_data = patient_data.remove_columns(["input_ids"])
-            patient_data = patient_data.add_column("input_ids", input_ids)
-            
-            patient_data = patient_data.add_column("attention_mask", mask)
-            
-            num_cells = len(patient_data)
-            if max_cells_per_patient>0:
-                num_cells = min(num_cells, max_cells_per_patient)
-            num_bags = (num_cells + max_cells_per_bag - 1) // max_cells_per_bag
-
-            indices = list(range(num_cells))
-
-            for i in range(num_bags):
-                start = i * max_cells_per_bag
-                end = min((i + 1) * max_cells_per_bag, num_cells)
-                bag_indices = indices[start:end]
-
+            num_cells = len(input_ids)
+            for start in range(0, num_cells, max_cells_per_bag):
+                end = min(start + max_cells_per_bag, num_cells)
                 self.bags.append({
-                    "input_ids": [patient_data[i]["input_ids"] for i in bag_indices],
-                    "attention_mask": [patient_data[i]["attention_mask"] for i in bag_indices],
-                    "label": patient_data[0]["label"],  # same for all bags of this patient
-                    "sample_id": sample_id
+                    "input_ids": input_ids[start:end],
+                    "attention_mask": mask[start:end],
+                    "label": label,
+                    "sample_id": sample_id,
                 })
+        logger.info(f"Built {len(self.bags)} MIL bags")
 
     def __len__(self):
         return len(self.bags)
 
     def __getitem__(self, idx):
         bag = self.bags[idx]
-        ret = {
+        return {
             "input_ids": torch.tensor(bag["input_ids"]),
             "attention_mask": torch.tensor(bag["attention_mask"]),
             "label": torch.tensor(bag["label"], dtype=torch.float),
             "bag_size": len(bag["input_ids"]),
             "sample_id": bag['sample_id']
         }
-        print(bag['sample_id'])
-        return ret
 
 def collate_patient_level(batch):
     """
@@ -97,19 +90,20 @@ def collate_patient_level(batch):
     input_ids, attention_masks, labels, bag_sizes, sample_ids = [], [], [], [], []
 
     for patient in batch:
-        # print(patient)
-        # ds = patient["dataset"]  # Hugging Face dataset
         ds = patient
         input_ids.extend(ds["input_ids"])
         attention_masks.extend(ds["attention_mask"])  # assuming this is attention_mask
-        bag_sizes.append(len(ds))
+        bag_sizes.append(len(ds["input_ids"]))
         labels.append(ds["label"])  # all cells should share same label
         sample_ids.append(ds["sample_id"])
 
-    # Pad cell sequences
-    input_ids = pad_sequence([torch.tensor(x) for x in input_ids], batch_first=True)
-    attention_masks = pad_sequence([torch.tensor(x) for x in attention_masks], batch_first=True)
-    labels = torch.tensor(labels, dtype=torch.float)
+    # Pad cell sequences (items are already tensors)
+    def _as_tensor(x):
+        return x if torch.is_tensor(x) else torch.tensor(x)
+
+    input_ids = pad_sequence([_as_tensor(x) for x in input_ids], batch_first=True)
+    attention_masks = pad_sequence([_as_tensor(x) for x in attention_masks], batch_first=True)
+    labels = torch.stack([_as_tensor(x).float() for x in labels])
     bag_sizes = torch.tensor(bag_sizes)
 
     return {
@@ -139,12 +133,13 @@ class ChunkedBertMILClassifier_check(nn.Module):
         self,
         pretrained_model_path="bert-base-uncased",
         num_labels=1,
-        chunk_size=128,
+        chunk_size=16,
         device='cpu',
         freeze_layers: int = 0,
+        gradient_checkpointing: bool = True,
     ):
         super().__init__()
-        self.chunk_size = chunk_size
+        self.chunk_size = int(chunk_size)
         self.device = device
 
         self.bert = BertForSequenceClassification.from_pretrained(
@@ -157,8 +152,17 @@ class ChunkedBertMILClassifier_check(nn.Module):
         if n_frozen:
             logger.info(f"Frozen first {n_frozen} encoder layer(s) for MIL finetune")
 
-        # TODO: check if this is needed. Enable gradient checkpointing to reduce memory
-        self.bert.gradient_checkpointing_enable()
+        # Needed for long gene context (2048/4096) × multi-cell bags.
+        if gradient_checkpointing:
+            self.bert.gradient_checkpointing_enable()
+            logger.info("Enabled gradient checkpointing for MIL finetune")
+
+    def _forward_chunk(self, chunk_input_ids, chunk_attention_mask):
+        return self.bert(
+            chunk_input_ids,
+            attention_mask=chunk_attention_mask,
+            return_dict=True,
+        ).logits
 
     def forward(self, input_ids, attention_mask, bag_sizes=None):
         """
@@ -168,32 +172,39 @@ class ChunkedBertMILClassifier_check(nn.Module):
         Returns:
             - patient_logits: [1]
         """
-        chunk_size = self.chunk_size
+        chunk_size = max(1, int(self.chunk_size))
         device = self.device
+
+        # Move once; avoid empty_cache/gc in the hot loop (they were the main slowdown).
+        if input_ids.device != device:
+            input_ids = input_ids.to(device, non_blocking=True)
+        if attention_mask.device != device:
+            attention_mask = attention_mask.to(device, non_blocking=True)
 
         logits_sum = None
         total_cells = input_ids.size(0)
+        use_ckpt = self.training and total_cells > chunk_size
 
         for i in range(0, total_cells, chunk_size):
-            # print(f'cell {i+1}-{(i+1)*chunk_size} of {total_cells} per bag')
+            chunk_ids = input_ids[i:i + chunk_size]
+            chunk_mask = attention_mask[i:i + chunk_size]
+            if use_ckpt:
+                # Recompute activations in backward so peak VRAM ~ one chunk, not full bag.
+                from torch.utils.checkpoint import checkpoint
 
-            chunk_input_ids = input_ids[i:i + chunk_size].to(device)
-            chunk_attention_mask = attention_mask[i:i + chunk_size].to(device)
-
-            # Forward with gradient tracking
-            chunk_logits = self.bert(chunk_input_ids,
-                                     attention_mask=chunk_attention_mask,
-                                     return_dict=True).logits  # [chunk_size, 1]
+                chunk_logits = checkpoint(
+                    self._forward_chunk,
+                    chunk_ids,
+                    chunk_mask,
+                    use_reentrant=False,
+                )
+            else:
+                chunk_logits = self._forward_chunk(chunk_ids, chunk_mask)
 
             if logits_sum is None:
                 logits_sum = chunk_logits.sum(dim=0)
             else:
                 logits_sum = logits_sum + chunk_logits.sum(dim=0)
-
-            # Free up GPU memory immediately
-            del chunk_input_ids, chunk_attention_mask, chunk_logits
-            torch.cuda.empty_cache()
-            gc.collect()
 
         patient_logit = logits_sum / total_cells  # [1]
         return patient_logit.view(-1)
@@ -354,19 +365,18 @@ def evaluate_model(model, dataloader, device, threshold=0.5):
     model.eval()
     y_true, y_score, sample_ids = [], [], []
 
-    with torch.no_grad():
+    with torch.inference_mode():
         for i, batch in enumerate(dataloader):
-            logger.info(f"Predicting batch {i}")
-            input_ids = batch["input_ids"].to(device)
-            masks = batch["attention_mask"].to(device)
+            input_ids = batch["input_ids"].to(device, non_blocking=True)
+            masks = batch["attention_mask"].to(device, non_blocking=True)
             bag_sizes = batch["bag_sizes"]
-            labels = batch["labels"].to(device)
+            labels = batch["labels"].to(device, non_blocking=True)
             sample_id = batch["sample_ids"][0]
-            
+
             outputs = model(input_ids, masks, bag_sizes)
-            probs = torch.sigmoid(outputs).cpu().numpy()
+            probs = torch.sigmoid(outputs).detach().cpu().numpy()
             y_score.extend(probs)
-            y_true.extend(labels.cpu().numpy())
+            y_true.extend(labels.detach().cpu().numpy())
             sample_ids.append(sample_id)
 
     y_score = np.array(y_score)
@@ -384,7 +394,7 @@ def evaluate_model(model, dataloader, device, threshold=0.5):
     logger.info(sample_ids)
     return metrics,sample_ids, y_true, y_pred, y_score
 
-def train_model(model, dataloader, optimizer, device, epochs, scheduler=None):
+def train_model(model, dataloader, optimizer, device, epochs, scheduler=None, use_amp: bool = True):
     """
     Train a PyTorch model with binary classification.
 
@@ -395,37 +405,44 @@ def train_model(model, dataloader, optimizer, device, epochs, scheduler=None):
         device (torch.device): The device to use (e.g., 'cuda' or 'cpu').
         epochs (int): Number of training epochs.
         scheduler: Optional LR scheduler stepped once per optimizer step.
+        use_amp: Use CUDA autocast + GradScaler when device is CUDA.
 
     Returns:
         model (torch.nn.Module): The trained model.
     """
     model.to(device)
+    amp_enabled = bool(use_amp) and torch.cuda.is_available() and str(device).startswith("cuda")
+    scaler = torch.cuda.amp.GradScaler(enabled=amp_enabled)
     
     for epoch in range(epochs):
         model.train()
         total_loss, all_preds, all_labels = 0.0, [], []
 
         for i, batch in enumerate(dataloader):
-            print(f"--------------batch {i} --------------")
-            optimizer.zero_grad()
+            optimizer.zero_grad(set_to_none=True)
 
-            input_ids = batch["input_ids"].to(device)
-            masks = batch["attention_mask"].to(device)
+            input_ids = batch["input_ids"].to(device, non_blocking=True)
+            masks = batch["attention_mask"].to(device, non_blocking=True)
             bag_sizes = batch["bag_sizes"]
-            labels = batch["labels"].to(device)
+            labels = batch["labels"].to(device, non_blocking=True)
 
-            outputs = model(input_ids, masks, bag_sizes)
-            loss = F.binary_cross_entropy_with_logits(outputs, labels)
-            loss.backward()
-            optimizer.step()
+            with torch.cuda.amp.autocast(enabled=amp_enabled):
+                outputs = model(input_ids, masks, bag_sizes)
+                loss = F.binary_cross_entropy_with_logits(outputs, labels)
+
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             if scheduler is not None:
                 scheduler.step()
 
             total_loss += loss.item()
-            all_preds.extend(torch.sigmoid(outputs).detach().cpu().numpy())
+            all_preds.extend(torch.sigmoid(outputs.detach().float()).cpu().numpy())
             all_labels.extend(labels.detach().cpu().numpy())
-
-            print(f"done {i}")
+            # Drop bag graph / free fragmentation between patients (cheap vs per-chunk empty_cache).
+            del outputs, loss, input_ids, masks, labels
+            if amp_enabled:
+                torch.cuda.empty_cache()
 
         train_auc = roc_auc_score(all_labels, all_preds)
         train_acc = accuracy_score(all_labels, [p > 0.5 for p in all_preds])
@@ -433,7 +450,7 @@ def train_model(model, dataloader, optimizer, device, epochs, scheduler=None):
 
         logger.info(
             f"[Epoch {epoch+1}] Train Loss: {total_loss:.4f} | AUC: {train_auc:.4f} | "
-            f"ACC: {train_acc:.4f} | LR: {lr_now:.2e}"
+            f"ACC: {train_acc:.4f} | LR: {lr_now:.2e} | AMP={amp_enabled}"
         )
 
     return model
@@ -455,6 +472,9 @@ def train_patient_classifier(
     max_number_genes: int = 512,
     max_cells_per_bag: int = 500,
     max_cells_per_patient: int = 1000,
+    mil_chunk_size: int = 16,
+    gradient_checkpointing: bool = True,
+    use_amp: bool = True,
 ):
     """Train patient-level MIL classifier with YAML-wired optimizer/freeze knobs."""
     logger.info(
@@ -462,7 +482,8 @@ def train_patient_classifier(
         f"(lr={learning_rate}, weight_decay={weight_decay}, epochs={epochs}, "
         f"freeze_layers={freeze_layers}, warmup_ratio={warmup_ratio}, "
         f"max_number_genes={max_number_genes}, max_cells_per_bag={max_cells_per_bag}, "
-        f"max_cells_per_patient={max_cells_per_patient})"
+        f"max_cells_per_patient={max_cells_per_patient}, mil_chunk_size={mil_chunk_size}, "
+        f"gradient_checkpointing={gradient_checkpointing}, use_amp={use_amp})"
     )
     
     train_patient_dataset = SubsampledPatientDataset(
@@ -477,13 +498,20 @@ def train_patient_classifier(
         max_cells_per_patient=max_cells_per_patient,
         max_number_genes=max_number_genes,
     )
-    dataloader = DataLoader(train_patient_dataset, batch_size=1, collate_fn=collate_patient_level)
+    dataloader = DataLoader(
+        train_patient_dataset,
+        batch_size=1,
+        collate_fn=collate_patient_level,
+        pin_memory=torch.cuda.is_available(),
+    )
 
     model = ChunkedBertMILClassifier_check(
         model_dir,
         device=device,
         num_labels=num_labels,
         freeze_layers=freeze_layers,
+        chunk_size=mil_chunk_size,
+        gradient_checkpointing=gradient_checkpointing,
     )
    
     optimizer = torch.optim.AdamW(
@@ -508,10 +536,21 @@ def train_patient_classifier(
         )
 
     model = train_model(
-        model, dataloader, optimizer, device, epochs=epochs, scheduler=scheduler
+        model,
+        dataloader,
+        optimizer,
+        device,
+        epochs=epochs,
+        scheduler=scheduler,
+        use_amp=use_amp,
     )
     
-    test_dataloader = DataLoader(val_patient_dataset, batch_size=1, collate_fn=collate_patient_level)
+    test_dataloader = DataLoader(
+        val_patient_dataset,
+        batch_size=1,
+        collate_fn=collate_patient_level,
+        pin_memory=torch.cuda.is_available(),
+    )
     metrics, sample_ids, y_true, y_pred, y_score = evaluate_model(model, test_dataloader, device, threshold=0.5)
     logger.info(sample_ids)
     return model, sample_ids, y_true, y_pred, y_score

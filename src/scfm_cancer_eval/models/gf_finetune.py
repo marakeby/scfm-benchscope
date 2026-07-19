@@ -32,6 +32,22 @@ from scfm_cancer_eval.models.train_utils import (
     get_splits_cv
 )
 
+
+def _as_bool(value, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "y", "on"}:
+        return True
+    if text in {"0", "false", "no", "n", "off"}:
+        return False
+    return default
+
+
 class GFFineTuneModel:
     """Geneformer Fine-tuning Model for cell type classification.
     
@@ -70,10 +86,17 @@ class GFFineTuneModel:
         self.learning_rate = float(self.params.get('learning_rate', 2e-5))
         self.weight_decay = float(self.params.get('weight_decay', 0.01))
         self.warmup_ratio = float(self.params.get('warmup_ratio', 0.0))
-        # MIL gene truncate; default to full model context (not the old hardcoded 512).
+        # MIL knobs (all overridable via classification.params in YAML).
         self.max_number_genes = int(
             self.params.get('max_number_genes', self.model_input_size)
         )
+        self.max_cells_per_bag = int(self.params.get('max_cells_per_bag', 500))
+        self.max_cells_per_patient = int(self.params.get('max_cells_per_patient', 1000))
+        self.mil_chunk_size = int(self.params.get('mil_chunk_size', 16))
+        self.gradient_checkpointing = _as_bool(
+            self.params.get('gradient_checkpointing', True)
+        )
+        self.use_amp = _as_bool(self.params.get('use_amp', True))
         self.label_map = self.params['label_map'] #dictionary e.g. # {'Pre': 0, 'Post': 1}
         self.cv = self.params.get('cv', False)
         self.onesplit = self.params.get('onesplit', False)
@@ -337,6 +360,11 @@ class GFFineTuneModel:
             freeze_layers=self.freeze_layers,
             warmup_ratio=self.warmup_ratio,
             max_number_genes=self.max_number_genes,
+            max_cells_per_bag=self.max_cells_per_bag,
+            max_cells_per_patient=self.max_cells_per_patient,
+            mil_chunk_size=self.mil_chunk_size,
+            gradient_checkpointing=self.gradient_checkpointing,
+            use_amp=self.use_amp,
         )
 
         logger.info(y_test)

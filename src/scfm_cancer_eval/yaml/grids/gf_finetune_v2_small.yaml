@@ -13,4 +13,10 @@ grid:
   freeze_layers: [0, 6]
   weight_decay: [1.0e-5]
   warmup_ratio: [0.0, 0.1]
-  max_number_genes: [4096]  # match V2 model_input_size; e.g. [512, 2048, 4096] to sweep
+  # Memory / throughput (single-valued so they don't multiply the grid):
+  max_number_genes: [4096]
+  max_cells_per_bag: [500]
+  max_cells_per_patient: [1000]
+  mil_chunk_size: [8]               # lower to [4] if OOM
+  gradient_checkpointing: [true]
+  use_amp: [true]

@@ -39,6 +39,11 @@ _PARAM_KEYS = (
     "weight_decay",
     "warmup_ratio",
     "max_number_genes",
+    "max_cells_per_bag",
+    "max_cells_per_patient",
+    "mil_chunk_size",
+    "gradient_checkpointing",
+    "use_amp",
 )
 
 
@@ -70,6 +75,11 @@ def _trial_tag(params: dict[str, Any]) -> str:
                 "weight_decay": "wd",
                 "warmup_ratio": "wu",
                 "max_number_genes": "ng",
+                "max_cells_per_bag": "bag",
+                "max_cells_per_patient": "mcp",
+                "mil_chunk_size": "chk",
+                "gradient_checkpointing": "gc",
+                "use_amp": "amp",
             }[key]
             parts.append(f"{short}{_slug(params[key])}")
     return "_".join(parts) if parts else "default"
@@ -136,14 +146,19 @@ def _metric_from_mean_csv(csv_path: Path, metric: str, model_col: str | None) ->
         return None
 
 
-def run_trial_inprocess(trial_yaml: Path, *, seed: int) -> tuple[int, Path | None]:
+def run_trial_inprocess(trial_yaml: Path, *, seed: int) -> tuple[int, Path | None, str | None]:
     from scfm_cancer_eval.run.run_exp import Experiment, set_random_seed
 
     set_random_seed(seed)
-    experiment = Experiment(str(trial_yaml), seed=seed)
-    experiment.run()
-    experiment._write_standard_reports()
-    return 0, Path(experiment.save_dir)
+    experiment = None
+    try:
+        experiment = Experiment(str(trial_yaml), seed=seed)
+        experiment.run()
+        experiment._write_standard_reports()
+        return 0, Path(experiment.save_dir), None
+    except Exception as exc:
+        save_dir = Path(experiment.save_dir) if experiment is not None else None
+        return 1, save_dir, f"{type(exc).__name__}: {exc}"
 
 
 def run_trial_subprocess(trial_yaml: Path, *, runner: list[str]) -> tuple[int, Path | None]:
@@ -232,10 +247,37 @@ def main(argv: list[str] | None = None) -> int:
     base_run_id = str(base_merged.get("run_id") or base_exp_path.stem)
 
     rows: list[dict[str, Any]] = []
+    summary_path = workdir / "grid_summary.csv"
+    best_path = workdir / "best_trial.json"
+    status_path = workdir / "grid_status.json"
+
+    def _flush_summary() -> None:
+        summary = pd.DataFrame(rows)
+        if metric in summary.columns and not summary.empty:
+            summary = summary.sort_values(by=metric, ascending=False, na_position="last")
+        summary.to_csv(summary_path, index=False)
+        status = {
+            "workdir": str(workdir),
+            "output_path": str(OUTPUT_PATH),
+            "n_trials_planned": len(trials),
+            "n_trials_recorded": len(rows),
+            "metric": metric,
+            "summary_csv": str(summary_path),
+        }
+        if metric in summary.columns and summary[metric].notna().any():
+            best_row = summary.loc[summary[metric].idxmax()]
+            best = best_row.to_dict()
+            with open(best_path, "w", encoding="utf-8") as f:
+                json.dump(best, f, indent=2, default=str)
+            status["best"] = best
+        with open(status_path, "w", encoding="utf-8") as f:
+            json.dump(status, f, indent=2, default=str)
 
     print(f"[grid] base_exp={base_exp_path}")
     print(f"[grid] n_trials={len(trials)} workdir={workdir}")
+    print(f"[grid] OUTPUT_PATH={OUTPUT_PATH}")
     print(f"[grid] metric={metric}")
+    print(f"[grid] summary will be written to {summary_path}", flush=True)
 
     for i, params in enumerate(trials, start=1):
         tag = _trial_tag(params)
@@ -254,57 +296,63 @@ def main(argv: list[str] | None = None) -> int:
             metric: None,
             "metrics_csv": None,
             "save_dir": None,
+            "error": None,
         }
 
         print(f"[grid] trial {i}/{len(trials)} {tag}", flush=True)
         if args.dry_run:
             print(f"[grid] dry-run would train {trial_path}", flush=True)
             rows.append(row)
+            _flush_summary()
             continue
 
+        save_dir: Path | None = None
+        rc = 1
+        err: str | None = None
         try:
             if args.runner:
                 rc, save_dir = run_trial_subprocess(
                     trial_path, runner=args.runner.split()
                 )
             else:
-                rc, save_dir = run_trial_inprocess(trial_path, seed=args.seed)
+                rc, save_dir, err = run_trial_inprocess(trial_path, seed=args.seed)
         except Exception as exc:
-            print(f"[grid] trial failed: {exc}", flush=True)
-            rc, save_dir = 1, None
+            err = f"{type(exc).__name__}: {exc}"
+            print(f"[grid] trial failed: {err}", flush=True)
+            rc = 1
+            if save_dir is None:
+                matches = sorted(Path(OUTPUT_PATH).rglob(f"*_{run_id}"))
+                if matches:
+                    save_dir = matches[-1]
+
+        if err:
+            row["error"] = err
+            print(f"[grid] trial error: {err}", flush=True)
 
         row["returncode"] = rc
         if save_dir is not None:
             row["save_dir"] = str(save_dir)
+            # Persist pointer next to trial YAML for easy discovery mid-run.
+            with open(trials_dir / f"{i:03d}_{tag}.save_dir", "w", encoding="utf-8") as f:
+                f.write(str(save_dir) + "\n")
             metrics_csv = _find_metrics_csv(save_dir)
             if metrics_csv is not None:
                 row["metrics_csv"] = str(metrics_csv)
                 row[metric] = _metric_from_mean_csv(metrics_csv, metric, model_col)
 
         rows.append(row)
+        _flush_summary()
         print(
-            f"[grid] trial {i}/{len(trials)} rc={rc} {tag} {metric}={row.get(metric)}",
+            f"[grid] trial {i}/{len(trials)} rc={rc} {tag} {metric}={row.get(metric)} "
+            f"save_dir={row.get('save_dir')}",
             flush=True,
         )
 
-    summary = pd.DataFrame(rows)
-    if metric in summary.columns:
-        summary = summary.sort_values(by=metric, ascending=False, na_position="last")
-    summary_path = workdir / "grid_summary.csv"
-    summary.to_csv(summary_path, index=False)
-
-    best_path = workdir / "best_trial.json"
-    best = None
-    if metric in summary.columns and summary[metric].notna().any():
-        best_row = summary.loc[summary[metric].idxmax()]
-        best = best_row.to_dict()
-        with open(best_path, "w", encoding="utf-8") as f:
-            json.dump(best, f, indent=2, default=str)
-
+    _flush_summary()
     print(f"[grid] wrote {summary_path}")
-    if best is not None:
-        print(f"[grid] best {metric}={best.get(metric)} run_id={best.get('run_id')}")
+    if best_path.is_file():
         print(f"[grid] wrote {best_path}")
+    print(f"[grid] wrote {status_path}")
 
     if args.dry_run:
         return 0
