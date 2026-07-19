@@ -49,3 +49,24 @@ python -m unittest discover -s tests -p 'test_*.py' -v
    `approval grant` → `execute` → `review decide` →
    `report --accepted-only`.
 4. Only then enable periodic discovery publishing on a schedule.
+
+### scGPT interactive checklist (this VM)
+
+Defaults are filled for the A100 host `va-ml-sc-a100-gpu-spotb`, repo paths under
+`/home/haitham/scFM_eval`, and runtime mounts from
+`scripts/config/runtime_paths.env`.
+
+```bash
+# Print every command without running them
+bash scripts/rollout_scgpt_checklist.sh --dry-run
+
+# Contract smoke only (no install / GPU)
+TRANSPORT=fake bash scripts/rollout_scgpt_checklist.sh
+
+# Real execution on this A100 (recommended after a merged approval PR)
+TRANSPORT=local bash scripts/rollout_scgpt_checklist.sh
+```
+
+The script pauses at each human gate (planner review, PR merge, scientific
+decision). Override any path or budget with environment variables; see the
+CONFIG block at the top of `scripts/rollout_scgpt_checklist.sh`.

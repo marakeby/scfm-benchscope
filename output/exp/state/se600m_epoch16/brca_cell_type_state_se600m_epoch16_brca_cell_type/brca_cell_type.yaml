@@ -1,0 +1,7 @@
+run_id: 'state_se600m_epoch16_brca_cell_type'
+dataset:
+  - datasets/brca/cell_type/dataset_shared.yaml
+model:
+  - models/state/se600m_epoch16.yaml
+classification:
+  - tasks/classification.yaml

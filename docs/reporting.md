@@ -41,6 +41,39 @@ scfm-eval report ./output \
 
 See [Scientific review](scientific-review.md) for the post-run decision gate.
 
+## Collect dashboard metric tables
+
+Aggregate embedding and classification metric CSVs the same way as the analysis
+collectors (`collect_embedding_metrics.py`,
+`collect_classification_metrics.py`):
+
+```bash
+scfm-eval report "$SCFM_OUTPUT_PATH" --collect --output ./dashboard-metrics
+```
+
+This writes:
+
+- `embedding.metrics.csv` / `embedding.metrics.json`
+- `classification.metrics.csv` / `classification.metrics.json`
+
+Use those CSVs with [`classification.html`](classification.html) and
+[`embeddings.html`](embeddings.html) (file picker). Restrict the family with
+`--kind embedding` or `--kind classification`.
+
+## Bootstrap embedding metrics
+
+Run repeated subsampled embedding evaluation and write aggregate tables
+(compatible with `docs/embeddings.html`):
+
+```bash
+scfm-eval report "$SCFM_OUTPUT_PATH" --bootstrap \
+  --output ./dashboard-metrics/embedding_bootstrap
+```
+
+Outputs include `embedding.metrics.bootstrap.csv` (and `.json`), plus mean/std/
+median aggregate CSVs. Copy `embedding.metrics.bootstrap.csv` next to
+`docs/embeddings.html` for automatic load, or use the page file picker.
+
 ## Compare selected runs
 
 Pass individual `results.json` files, run directories, or a mixture:

@@ -38,13 +38,99 @@ def _parser() -> argparse.ArgumentParser:
 
     report = subparsers.add_parser(
         "report",
-        help="Discover runs below one output root and create a report bundle.",
+        help=(
+            "Build a results.json comparison report, or collect/bootstrap "
+            "embedding and classification metric tables for the dashboards."
+        ),
     )
     report.add_argument(
         "root",
         nargs="?",
         default=os.environ.get("SCFM_OUTPUT_PATH", "output"),
         help="Output root to search recursively (default: SCFM_OUTPUT_PATH or output).",
+    )
+    report_mode = report.add_mutually_exclusive_group()
+    report_mode.add_argument(
+        "--collect",
+        action="store_true",
+        help=(
+            "Aggregate embedding_metrics.csv and classification CV metric CSVs "
+            "into dashboard CSV/JSON tables (no results.json report)."
+        ),
+    )
+    report_mode.add_argument(
+        "--bootstrap",
+        action="store_true",
+        help=(
+            "Run repeated subsampled embedding evaluation and write bootstrap "
+            "aggregate CSV/JSON tables (no results.json report)."
+        ),
+    )
+    report.add_argument(
+        "--kind",
+        choices=("all", "embedding", "classification"),
+        default="all",
+        help="With --collect: which metric family to aggregate (default: all).",
+    )
+    report.add_argument(
+        "--folder-substring",
+        default="cell_type",
+        help=(
+            "With --collect/--bootstrap: require this substring in a path "
+            "component when discovering embedding runs (default: cell_type)."
+        ),
+    )
+    report.add_argument(
+        "--score-col",
+        default="randomforest",
+        help="With --collect: preferred classifier column in *cv_metrics.csv.",
+    )
+    report.add_argument(
+        "--keep-luad-cancer-stage",
+        action="store_true",
+        help="With --collect: keep rows where exp == luad_cancer_stage.",
+    )
+    report.add_argument(
+        "--include-arxiv",
+        action="store_true",
+        help="With --collect: include runs whose path contains 'arxiv'.",
+    )
+    report.add_argument(
+        "--experiment-marker",
+        default="brca_cell_type",
+        help=(
+            "With --bootstrap: marker appearing twice in the run path used to "
+            "extract the model id (default: brca_cell_type)."
+        ),
+    )
+    report.add_argument(
+        "--n-runs",
+        type=int,
+        default=10,
+        help="With --bootstrap: number of subsample repeats (default: 10).",
+    )
+    report.add_argument(
+        "--sample-size",
+        type=int,
+        default=10000,
+        help="With --bootstrap: cells per subsample (default: 10000).",
+    )
+    report.add_argument(
+        "--base-seed",
+        type=int,
+        default=42,
+        help="With --bootstrap: base RNG seed (default: 42).",
+    )
+    report.add_argument(
+        "--n-jobs",
+        type=int,
+        default=-1,
+        help="With --bootstrap: EmbeddingEvaluator n_jobs (default: -1).",
+    )
+    report.add_argument(
+        "--no-merge-results",
+        action="store_true",
+        help="With --bootstrap: do not update per-run results.json files.",
     )
     _add_report_options(report)
 
@@ -264,7 +350,11 @@ def _add_report_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "-o",
         "--output",
-        help="Directory for report.html, comparison.json, and comparison.csv.",
+        help=(
+            "Output directory. For the default results.json report: "
+            "report.html, comparison.json, comparison.csv. "
+            "For --collect/--bootstrap: dashboard metric CSV/JSON tables."
+        ),
     )
     parser.add_argument(
         "--strict",
@@ -308,6 +398,98 @@ def _run_report(
     print(f"HTML report: {bundle.html_path}")
     print(f"JSON export: {bundle.comparison.json_path}")
     print(f"CSV export: {bundle.comparison.csv_path}")
+    return 0
+
+
+def _run_collect_metrics(parsed: argparse.Namespace) -> int:
+    from scfm_cancer_eval.reporting import create_collect_metrics_bundle
+
+    output_dir = (
+        Path(parsed.output) if parsed.output else Path(parsed.root) / "report"
+    )
+    print(
+        "Starting metric collection "
+        f"(root={parsed.root!s}, kind={parsed.kind}, output={output_dir})",
+        flush=True,
+    )
+    print(
+        "Note: the first pause is usually a recursive scan of the output tree; "
+        "on large or mounted paths this can take a while.",
+        flush=True,
+    )
+    bundle = create_collect_metrics_bundle(
+        parsed.root,
+        output_dir,
+        kind=parsed.kind,
+        folder_substring=parsed.folder_substring,
+        score_col=parsed.score_col,
+        keep_luad_cancer_stage=parsed.keep_luad_cancer_stage,
+        include_arxiv=parsed.include_arxiv,
+    )
+    if bundle.embedding is not None:
+        print(
+            f"Embedding metrics: {bundle.embedding.row_count} row(s) -> "
+            f"{bundle.embedding.csv_path} / {bundle.embedding.json_path}",
+            flush=True,
+        )
+    if bundle.classification is not None:
+        print(
+            f"Classification metrics: {bundle.classification.row_count} row(s) -> "
+            f"{bundle.classification.csv_path} / "
+            f"{bundle.classification.json_path}",
+            flush=True,
+        )
+    print(
+        "Load CSV files in docs/classification.html or docs/embeddings.html "
+        "(file picker), or place embedding.metrics.bootstrap.csv next to "
+        "docs/embeddings.html after --bootstrap.",
+        flush=True,
+    )
+    return 0
+
+
+def _run_bootstrap_metrics(parsed: argparse.Namespace) -> int:
+    from scfm_cancer_eval.reporting import create_bootstrap_metrics_bundle
+
+    output_dir = (
+        Path(parsed.output)
+        if parsed.output
+        else Path(parsed.root) / "report" / "embedding_bootstrap"
+    )
+    print(
+        "Starting embedding bootstrap "
+        f"(root={parsed.root!s}, output={output_dir}, "
+        f"n_runs={parsed.n_runs}, sample_size={parsed.sample_size})",
+        flush=True,
+    )
+    print(
+        "Note: each model loads data.h5ad then runs repeated subsampled "
+        "embedding evaluation; this is usually the slow step.",
+        flush=True,
+    )
+    bundle = create_bootstrap_metrics_bundle(
+        parsed.root,
+        output_dir,
+        folder_substring=parsed.folder_substring,
+        experiment_marker=parsed.experiment_marker,
+        sample_size=parsed.sample_size,
+        n_runs=parsed.n_runs,
+        base_seed=parsed.base_seed,
+        n_jobs=parsed.n_jobs,
+        merge_into_results_json=not parsed.no_merge_results,
+    )
+    print(
+        f"Bootstrap completed for {bundle.model_count} model(s); "
+        f"failures={bundle.failure_count}.",
+        flush=True,
+    )
+    print(f"Mean CSV: {bundle.mean_csv}", flush=True)
+    print(f"Std CSV: {bundle.std_csv}", flush=True)
+    print(f"Median CSV: {bundle.median_csv}", flush=True)
+    print(f"Bootstrap CSV: {bundle.bootstrap_csv}", flush=True)
+    print(f"Bootstrap JSON: {bundle.bootstrap_json}", flush=True)
+    if bundle.failed_csv is not None:
+        print(f"Failed models: {bundle.failed_csv}", flush=True)
     return 0
 
 
@@ -532,6 +714,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         if parsed.command == "report":
+            if parsed.collect:
+                return _run_collect_metrics(parsed)
+            if parsed.bootstrap:
+                return _run_bootstrap_metrics(parsed)
             output_dir = (
                 Path(parsed.output)
                 if parsed.output

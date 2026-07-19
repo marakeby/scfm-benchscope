@@ -1,21 +1,20 @@
-# PCA (n_components=100) — default pixi env
-# Usage: bash run/eval_pca.sh   (from repo root) or: cd run && bash eval_pca.sh
+# PCA (n_components=20) — default pixi env
+# Usage: bash run/eval_pca20.sh   (from repo root) or: cd run && bash eval_pca20.sh
 cd "$(dirname "$0")/.."
 
 #embedding tasks --------------------
-# pixi run python -m scfm_cancer_eval.run.run_exp exp/pca/n20/brca_cell_type.yaml 
+pixi run -- scfm-eval exp/pca/n20/brca_cell_type.yaml
 
 #classification tasks --------------------
 #BRCA
-# pixi run python -m scfm_cancer_eval.run.run_exp exp/pca/n20/brca_subtype.yaml 
-pixi run python -m scfm_cancer_eval.run.run_exp exp/pca/n20/brca_chemo.yaml 
-# pixi run python -m scfm_cancer_eval.run.run_exp exp/pca/n20/brca_outcome.yaml 
-# pixi run python -m scfm_cancer_eval.run.run_exp exp/pca/n20/brca_pre_post.yaml 
-#LUAD
+pixi run -- scfm-eval exp/pca/n20/brca_subtype.yaml
+pixi run -- scfm-eval exp/pca/n20/brca_chemo.yaml
+pixi run -- scfm-eval exp/pca/n20/brca_outcome.yaml
+pixi run -- scfm-eval exp/pca/n20/brca_pre_post.yaml
 
-# pixi run python -m scfm_cancer_eval.run.run_exp exp/pca/n20/luad_tki.yaml 
-# pixi run python -m scfm_cancer_eval.run.run_exp exp/pca/n20/luad_cancer_stage.yaml 
+#LUAD
+pixi run -- scfm-eval exp/pca/n20/luad_tki.yaml
 #CRC
-# pixi run python -m scfm_cancer_eval.run.run_exp exp/pca/n20/crc_mmr.yaml    
+pixi run -- scfm-eval exp/pca/n20/crc_mmr.yaml
 #Melanoma
-# pixi run python -m scfm_cancer_eval.run.run_exp exp/pca/n20/melanoma_response.yaml
+pixi run -- scfm-eval exp/pca/n20/melanoma_response.yaml

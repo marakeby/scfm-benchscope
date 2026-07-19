@@ -1,0 +1,14 @@
+run_id: geneformer_V1-10M-i2048_finetune_crc_mmr_lr1e-5_ep2_fr2
+dataset:
+- datasets/crc/mmr.yaml
+model:
+- models/geneformer/V1-10M-i2048_finetune.yaml
+embedding:
+  skip: true
+  viz: false
+  eval: false
+classification:
+  params:
+    learning_rate: 1.0e-05
+    epoch: 2
+    freeze_layers: 2

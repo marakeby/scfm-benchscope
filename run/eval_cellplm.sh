@@ -15,16 +15,16 @@ SUBSET_ARGS=()
 [[ -n "$MAX_CELLS_STRATIFY" ]] && SUBSET_ARGS+=(--max-cells-stratify "$MAX_CELLS_STRATIFY")
 
 #Embedding tasks --------------------
-pixi run -e cellplm python -m scfm_cancer_eval.run.run_exp exp/cellplm/85M-20231027/brca_cell_type.yaml "${SUBSET_ARGS[@]}"
+pixi run -e cellplm scfm-eval exp/cellplm/85M-20231027/brca_cell_type.yaml "${SUBSET_ARGS[@]}"
 #Classification tasks --------------------
 #BRCA
-pixi run -e cellplm python -m scfm_cancer_eval.run.run_exp exp/cellplm/85M-20231027/brca_subtype.yaml "${SUBSET_ARGS[@]}"
-pixi run -e cellplm python -m scfm_cancer_eval.run.run_exp exp/cellplm/85M-20231027/brca_chemo.yaml "${SUBSET_ARGS[@]}"
-pixi run -e cellplm python -m scfm_cancer_eval.run.run_exp exp/cellplm/85M-20231027/brca_outcome.yaml "${SUBSET_ARGS[@]}"
-pixi run -e cellplm python -m scfm_cancer_eval.run.run_exp exp/cellplm/85M-20231027/brca_pre_post.yaml "${SUBSET_ARGS[@]}"
+pixi run -e cellplm scfm-eval exp/cellplm/85M-20231027/brca_subtype.yaml "${SUBSET_ARGS[@]}"
+pixi run -e cellplm scfm-eval exp/cellplm/85M-20231027/brca_chemo.yaml "${SUBSET_ARGS[@]}"
+pixi run -e cellplm scfm-eval exp/cellplm/85M-20231027/brca_outcome.yaml "${SUBSET_ARGS[@]}"
+pixi run -e cellplm scfm-eval exp/cellplm/85M-20231027/brca_pre_post.yaml "${SUBSET_ARGS[@]}"
 #LUAD
-pixi run -e cellplm python -m scfm_cancer_eval.run.run_exp exp/cellplm/85M-20231027/luad_tki.yaml "${SUBSET_ARGS[@]}"
+pixi run -e cellplm scfm-eval exp/cellplm/85M-20231027/luad_tki.yaml "${SUBSET_ARGS[@]}"
 #CRC
-pixi run -e cellplm python -m scfm_cancer_eval.run.run_exp exp/cellplm/85M-20231027/crc_mmr.yaml "${SUBSET_ARGS[@]}"        
+pixi run -e cellplm scfm-eval exp/cellplm/85M-20231027/crc_mmr.yaml "${SUBSET_ARGS[@]}"        
 #Melanoma
-pixi run -e cellplm python -m scfm_cancer_eval.run.run_exp exp/cellplm/85M-20231027/melanoma_response.yaml "${SUBSET_ARGS[@]}"
+pixi run -e cellplm scfm-eval exp/cellplm/85M-20231027/melanoma_response.yaml "${SUBSET_ARGS[@]}"

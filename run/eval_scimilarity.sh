@@ -3,18 +3,18 @@
 cd "$(dirname "$0")/.."
 
 #Embedding tasks --------------------
-pixi run -e scimilarity python -m scfm_cancer_eval.run.run_exp exp/scimilarity/v1.1/brca_cell_type.yaml 
+pixi run -e scimilarity scfm-eval exp/scimilarity/v1.1/brca_cell_type.yaml 
 
 #Classification tasks --------------------  
-#BRCA
-pixi run -e scimilarity python -m scfm_cancer_eval.run.run_exp exp/scimilarity/v1.1/brca_subtype.yaml 
-pixi run -e scimilarity python -m scfm_cancer_eval.run.run_exp exp/scimilarity/v1.1/brca_chemo.yaml 
-pixi run -e scimilarity python -m scfm_cancer_eval.run.run_exp exp/scimilarity/v1.1/brca_outcome.yaml 
-pixi run -e scimilarity python -m scfm_cancer_eval.run.run_exp exp/scimilarity/v1.1/brca_pre_post.yaml 
+#BRCA   
+pixi run -e scimilarity scfm-eval exp/scimilarity/v1.1/brca_subtype.yaml 
+pixi run -e scimilarity scfm-eval exp/scimilarity/v1.1/brca_chemo.yaml 
+pixi run -e scimilarity scfm-eval exp/scimilarity/v1.1/brca_outcome.yaml 
+pixi run -e scimilarity scfm-eval exp/scimilarity/v1.1/brca_pre_post.yaml 
 #LUAD
-pixi run -e scimilarity python -m scfm_cancer_eval.run.run_exp exp/scimilarity/v1.1/luad_tki.yaml 
+pixi run -e scimilarity scfm-eval exp/scimilarity/v1.1/luad_tki.yaml 
 #CRC
-pixi run -e scimilarity python -m scfm_cancer_eval.run.run_exp exp/scimilarity/v1.1/crc_mmr.yaml 
+pixi run -e scimilarity scfm-eval exp/scimilarity/v1.1/crc_mmr.yaml 
 #Melanoma
-pixi run -e scimilarity python -m scfm_cancer_eval.run.run_exp exp/scimilarity/v1.1/melanoma_response.yaml
+pixi run -e scimilarity scfm-eval exp/scimilarity/v1.1/melanoma_response.yaml
 

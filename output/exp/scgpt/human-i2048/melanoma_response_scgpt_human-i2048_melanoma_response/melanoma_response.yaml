@@ -1,0 +1,7 @@
+run_id: 'scgpt_human-i2048_melanoma_response'
+dataset:
+  - datasets/melanoma/response.yaml
+model:
+  - models/scgpt/human-i2048.yaml
+classification:
+  - tasks/classification.yaml

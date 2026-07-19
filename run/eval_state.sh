@@ -3,17 +3,17 @@
 cd "$(dirname "$0")/.."
 
 #Embedding tasks --------------------           
-pixi run -e state python -m scfm_cancer_eval.run.run_exp exp/state/se600m_epoch16/brca_cell_type.yaml 
+pixi run -e state scfm-eval exp/state/se600m_epoch16/brca_cell_type.yaml 
 
 #Classification tasks --------------------
 #BRCA   
-pixi run -e state python -m scfm_cancer_eval.run.run_exp exp/state/se600m_epoch16/brca_subtype.yaml 
-pixi run -e state python -m scfm_cancer_eval.run.run_exp exp/state/se600m_epoch16/brca_chemo.yaml 
-pixi run -e state python -m scfm_cancer_eval.run.run_exp exp/state/se600m_epoch16/brca_outcome.yaml
-pixi run -e state python -m scfm_cancer_eval.run.run_exp exp/state/se600m_epoch16/brca_pre_post.yaml 
+pixi run -e state scfm-eval exp/state/se600m_epoch16/brca_subtype.yaml 
+pixi run -e state scfm-eval exp/state/se600m_epoch16/brca_chemo.yaml 
+pixi run -e state scfm-eval exp/state/se600m_epoch16/brca_outcome.yaml
+pixi run -e state scfm-eval exp/state/se600m_epoch16/brca_pre_post.yaml 
 #LUAD
-pixi run -e state python -m scfm_cancer_eval.run.run_exp exp/state/se600m_epoch16/luad_tki.yaml 
+pixi run -e state scfm-eval exp/state/se600m_epoch16/luad_tki.yaml 
 #CRC
-pixi run -e state python -m scfm_cancer_eval.run.run_exp exp/state/se600m_epoch16/crc_mmr.yaml 
+pixi run -e state scfm-eval exp/state/se600m_epoch16/crc_mmr.yaml 
 #Melanoma
-pixi run -e state python -m scfm_cancer_eval.run.run_exp exp/state/se600m_epoch16/melanoma_response.yaml 
+pixi run -e state scfm-eval exp/state/se600m_epoch16/melanoma_response.yaml 

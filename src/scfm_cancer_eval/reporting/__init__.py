@@ -1,5 +1,13 @@
 """Result discovery, comparison exports, and human-readable reports."""
 
+from scfm_cancer_eval.reporting.bootstrap_metrics import (
+    BootstrapMetricsBundle,
+    create_bootstrap_metrics_bundle,
+)
+from scfm_cancer_eval.reporting.collect_metrics import (
+    CollectMetricsBundle,
+    create_collect_metrics_bundle,
+)
 from scfm_cancer_eval.reporting.comparison import (
     COMPARISON_SCHEMA_NAME,
     COMPARISON_SCHEMA_VERSION,
@@ -26,8 +34,10 @@ from scfm_cancer_eval.reporting.workflow import (
 )
 
 __all__ = [
+    "BootstrapMetricsBundle",
     "COMPARISON_SCHEMA_NAME",
     "COMPARISON_SCHEMA_VERSION",
+    "CollectMetricsBundle",
     "ComparisonArtifacts",
     "ComparisonRecord",
     "DiscoveryIssue",
@@ -37,6 +47,8 @@ __all__ = [
     "RunSummary",
     "build_comparison_payload",
     "build_comparison_records",
+    "create_bootstrap_metrics_bundle",
+    "create_collect_metrics_bundle",
     "create_report_bundle",
     "discover_results",
     "render_html_report",
