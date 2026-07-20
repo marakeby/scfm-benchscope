@@ -96,7 +96,15 @@ class GFFineTuneModel:
         self.gradient_checkpointing = _as_bool(
             self.params.get('gradient_checkpointing', True)
         )
+        # None => auto (off when HF gradient_checkpointing is on).
+        if 'checkpoint_chunks' in self.params:
+            self.checkpoint_chunks = _as_bool(self.params.get('checkpoint_chunks'))
+        else:
+            self.checkpoint_chunks = None
         self.use_amp = _as_bool(self.params.get('use_amp', True))
+        self.empty_cache_between_bags = _as_bool(
+            self.params.get('empty_cache_between_bags', False)
+        )
         self.label_map = self.params['label_map'] #dictionary e.g. # {'Pre': 0, 'Post': 1}
         self.cv = self.params.get('cv', False)
         self.onesplit = self.params.get('onesplit', False)
@@ -364,7 +372,9 @@ class GFFineTuneModel:
             max_cells_per_patient=self.max_cells_per_patient,
             mil_chunk_size=self.mil_chunk_size,
             gradient_checkpointing=self.gradient_checkpointing,
+            checkpoint_chunks=self.checkpoint_chunks,
             use_amp=self.use_amp,
+            empty_cache_between_bags=self.empty_cache_between_bags,
         )
 
         logger.info(y_test)

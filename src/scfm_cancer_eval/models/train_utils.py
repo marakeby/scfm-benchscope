@@ -137,10 +137,15 @@ class ChunkedBertMILClassifier_check(nn.Module):
         device='cpu',
         freeze_layers: int = 0,
         gradient_checkpointing: bool = True,
+        checkpoint_chunks: bool | None = None,
     ):
         super().__init__()
         self.chunk_size = int(chunk_size)
         self.device = device
+        # Outer per-chunk checkpointing is redundant (and very slow) when HF GC is on.
+        if checkpoint_chunks is None:
+            checkpoint_chunks = not bool(gradient_checkpointing)
+        self.checkpoint_chunks = bool(checkpoint_chunks)
 
         self.bert = BertForSequenceClassification.from_pretrained(
             pretrained_model_path,
@@ -156,6 +161,10 @@ class ChunkedBertMILClassifier_check(nn.Module):
         if gradient_checkpointing:
             self.bert.gradient_checkpointing_enable()
             logger.info("Enabled gradient checkpointing for MIL finetune")
+        logger.info(
+            f"MIL forward: chunk_size={self.chunk_size}, "
+            f"checkpoint_chunks={self.checkpoint_chunks}"
+        )
 
     def _forward_chunk(self, chunk_input_ids, chunk_attention_mask):
         return self.bert(
@@ -183,7 +192,11 @@ class ChunkedBertMILClassifier_check(nn.Module):
 
         logits_sum = None
         total_cells = input_ids.size(0)
-        use_ckpt = self.training and total_cells > chunk_size
+        use_ckpt = (
+            self.training
+            and self.checkpoint_chunks
+            and total_cells > chunk_size
+        )
 
         for i in range(0, total_cells, chunk_size):
             chunk_ids = input_ids[i:i + chunk_size]
@@ -394,7 +407,16 @@ def evaluate_model(model, dataloader, device, threshold=0.5):
     logger.info(sample_ids)
     return metrics,sample_ids, y_true, y_pred, y_score
 
-def train_model(model, dataloader, optimizer, device, epochs, scheduler=None, use_amp: bool = True):
+def train_model(
+    model,
+    dataloader,
+    optimizer,
+    device,
+    epochs,
+    scheduler=None,
+    use_amp: bool = True,
+    empty_cache_between_bags: bool = False,
+):
     """
     Train a PyTorch model with binary classification.
 
@@ -406,13 +428,19 @@ def train_model(model, dataloader, optimizer, device, epochs, scheduler=None, us
         epochs (int): Number of training epochs.
         scheduler: Optional LR scheduler stepped once per optimizer step.
         use_amp: Use CUDA autocast + GradScaler when device is CUDA.
+        empty_cache_between_bags: If True, call torch.cuda.empty_cache() after each
+            patient bag. Helps fragmentation but slows training a lot; keep off unless OOM.
 
     Returns:
         model (torch.nn.Module): The trained model.
     """
     model.to(device)
     amp_enabled = bool(use_amp) and torch.cuda.is_available() and str(device).startswith("cuda")
-    scaler = torch.cuda.amp.GradScaler(enabled=amp_enabled)
+    # Prefer torch.amp.* (torch.cuda.amp.* is deprecated).
+    try:
+        scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled)
+    except (TypeError, AttributeError):
+        scaler = torch.cuda.amp.GradScaler(enabled=amp_enabled)
     
     for epoch in range(epochs):
         model.train()
@@ -426,7 +454,11 @@ def train_model(model, dataloader, optimizer, device, epochs, scheduler=None, us
             bag_sizes = batch["bag_sizes"]
             labels = batch["labels"].to(device, non_blocking=True)
 
-            with torch.cuda.amp.autocast(enabled=amp_enabled):
+            try:
+                autocast_ctx = torch.amp.autocast("cuda", enabled=amp_enabled)
+            except (TypeError, AttributeError):
+                autocast_ctx = torch.cuda.amp.autocast(enabled=amp_enabled)
+            with autocast_ctx:
                 outputs = model(input_ids, masks, bag_sizes)
                 loss = F.binary_cross_entropy_with_logits(outputs, labels)
 
@@ -439,9 +471,8 @@ def train_model(model, dataloader, optimizer, device, epochs, scheduler=None, us
             total_loss += loss.item()
             all_preds.extend(torch.sigmoid(outputs.detach().float()).cpu().numpy())
             all_labels.extend(labels.detach().cpu().numpy())
-            # Drop bag graph / free fragmentation between patients (cheap vs per-chunk empty_cache).
             del outputs, loss, input_ids, masks, labels
-            if amp_enabled:
+            if empty_cache_between_bags and amp_enabled:
                 torch.cuda.empty_cache()
 
         train_auc = roc_auc_score(all_labels, all_preds)
@@ -474,7 +505,9 @@ def train_patient_classifier(
     max_cells_per_patient: int = 1000,
     mil_chunk_size: int = 16,
     gradient_checkpointing: bool = True,
+    checkpoint_chunks: bool | None = None,
     use_amp: bool = True,
+    empty_cache_between_bags: bool = False,
 ):
     """Train patient-level MIL classifier with YAML-wired optimizer/freeze knobs."""
     logger.info(
@@ -483,7 +516,9 @@ def train_patient_classifier(
         f"freeze_layers={freeze_layers}, warmup_ratio={warmup_ratio}, "
         f"max_number_genes={max_number_genes}, max_cells_per_bag={max_cells_per_bag}, "
         f"max_cells_per_patient={max_cells_per_patient}, mil_chunk_size={mil_chunk_size}, "
-        f"gradient_checkpointing={gradient_checkpointing}, use_amp={use_amp})"
+        f"gradient_checkpointing={gradient_checkpointing}, "
+        f"checkpoint_chunks={checkpoint_chunks}, use_amp={use_amp}, "
+        f"empty_cache_between_bags={empty_cache_between_bags})"
     )
     
     train_patient_dataset = SubsampledPatientDataset(
@@ -512,6 +547,7 @@ def train_patient_classifier(
         freeze_layers=freeze_layers,
         chunk_size=mil_chunk_size,
         gradient_checkpointing=gradient_checkpointing,
+        checkpoint_chunks=checkpoint_chunks,
     )
    
     optimizer = torch.optim.AdamW(
@@ -543,6 +579,7 @@ def train_patient_classifier(
         epochs=epochs,
         scheduler=scheduler,
         use_amp=use_amp,
+        empty_cache_between_bags=empty_cache_between_bags,
     )
     
     test_dataloader = DataLoader(

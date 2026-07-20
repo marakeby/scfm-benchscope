@@ -13,9 +13,13 @@ classification:
         max_number_genes: 4096      # gene tokens per cell (match model_input_size)
         max_cells_per_bag: 500
         max_cells_per_patient: 1000
-        mil_chunk_size: 8           # V2 @ 4096 is heavier; lower if OOM
+        # On a ~40GB GPU, chunk 8 under-utilizes VRAM (~5GB) and is very slow.
+        # Raise toward 32–64; drop if OOM. Keep HF gradient_checkpointing on for 4096-len.
+        mil_chunk_size: 32
         gradient_checkpointing: true
+        checkpoint_chunks: false    # avoid double-checkpoint (HF GC already on)
         use_amp: true
+        empty_cache_between_bags: false
 
         # --- optimizer / schedule ---
         epoch: 3

@@ -43,7 +43,9 @@ _PARAM_KEYS = (
     "max_cells_per_patient",
     "mil_chunk_size",
     "gradient_checkpointing",
+    "checkpoint_chunks",
     "use_amp",
+    "empty_cache_between_bags",
 )
 
 
@@ -79,7 +81,9 @@ def _trial_tag(params: dict[str, Any]) -> str:
                 "max_cells_per_patient": "mcp",
                 "mil_chunk_size": "chk",
                 "gradient_checkpointing": "gc",
+                "checkpoint_chunks": "cc",
                 "use_amp": "amp",
+                "empty_cache_between_bags": "ec",
             }[key]
             parts.append(f"{short}{_slug(params[key])}")
     return "_".join(parts) if parts else "default"
