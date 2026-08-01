@@ -2359,5 +2359,39 @@
     "benchmarked": false,
     "added_date": "2026-07-19",
     "source": "web-search-agent"
+  },
+  {
+    "model_name": "scContam",
+    "paper_title": "Auditing pretraining contamination in single-cell foundation model benchmarks",
+    "status": "preprint",
+    "journal": "arXiv",
+    "year": 2026,
+    "paper_url": "https://arxiv.org/abs/2607.20572",
+    "github_url": null,
+    "weights_url": null,
+    "weights_size": null,
+    "has_github": false,
+    "has_weights": false,
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "scContam introduces a framework for auditing pretraining contamination in single-cell foundation model benchmarks. It combines MinHash-based gene-set fingerprinting with membership inference attacks to detect overlap between pretraining datasets and benchmarks.",
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Contrastive"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "",
+    "benchmarked": false,
+    "added_date": "2026-08-01",
+    "source": "web-search-agent"
   }
 ]
