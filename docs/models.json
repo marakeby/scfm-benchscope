@@ -2220,5 +2220,178 @@
     "benchmarked": false,
     "added_date": "2026-07-16",
     "source": "web-search-agent"
+  },
+  {
+    "model_name": "scTransformer",
+    "paper_title": "Integrating Gene Regulatory Priors into Transformer Attention with scTransformer for Interpretable scRNA-seq Analysis",
+    "status": "preprint",
+    "journal": "arXiv",
+    "year": 2026,
+    "paper_url": "https://arxiv.org/abs/2606.09558",
+    "github_url": null,
+    "weights_url": null,
+    "weights_size": null,
+    "has_github": false,
+    "has_weights": false,
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "scTransformer integrates gene regulatory information into Transformer attention mechanisms to enhance interpretability and performance in single-cell RNA-seq analysis.",
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Masked Gene Modeling"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "Gene Regulatory Network"
+    ],
+    "prior_knowledge_detail": "Incorporates known gene regulatory networks to guide attention mechanisms.",
+    "benchmarked": false,
+    "added_date": "2026-07-17",
+    "source": "web-search-agent"
+  },
+  {
+    "model_name": "OKR-CELL",
+    "paper_title": "Open World Knowledge Aided Single-Cell Foundation Model with Robust Cross-Modal Cell-Language Pre-training",
+    "status": "preprint",
+    "journal": "arXiv",
+    "year": 2026,
+    "paper_url": "https://arxiv.org/abs/2601.05648",
+    "github_url": null,
+    "weights_url": null,
+    "weights_size": null,
+    "has_github": false,
+    "has_weights": false,
+    "modalities": [
+      "scRNA-seq",
+      "Text"
+    ],
+    "category": "Multimodal",
+    "description": "OKR-CELL is a single-cell foundation model that integrates open-world knowledge through cross-modal cell-language pre-training, enhancing performance across various single-cell analysis tasks.",
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Contrastive"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "",
+    "benchmarked": false,
+    "added_date": "2026-07-17",
+    "source": "web-search-agent"
+  },
+  {
+    "model_name": "Dynamic Token Adaptation Model",
+    "paper_title": "Multi-modal Single-Cell Foundation Models via Dynamic Token Adaptation",
+    "status": "preprint",
+    "journal": "arXiv",
+    "year": 2025,
+    "paper_url": "https://arxiv.org/abs/2504.13049",
+    "github_url": null,
+    "weights_url": null,
+    "weights_size": null,
+    "has_github": false,
+    "has_weights": false,
+    "modalities": [
+      "scRNA-seq",
+      "DNA-seq"
+    ],
+    "category": "Multimodal",
+    "description": "This model introduces dynamic token adaptation to combine DNA-language and single-cell foundation models, predicting gene regulation at the single-cell level in different genetic contexts.",
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Contrastive"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "",
+    "benchmarked": false,
+    "added_date": "2026-07-17",
+    "source": "web-search-agent"
+  },
+  {
+    "model_name": "scMamba",
+    "paper_title": "scMamba: A Scalable Foundation Model for Single-Cell Multi-Omics Integration Beyond Highly Variable Feature Selection",
+    "status": "preprint",
+    "journal": "arXiv",
+    "year": 2025,
+    "paper_url": "https://arxiv.org/abs/2506.20697",
+    "github_url": null,
+    "weights_url": null,
+    "weights_size": null,
+    "has_github": false,
+    "has_weights": false,
+    "modalities": [
+      "scRNA-seq",
+      "scATAC-seq"
+    ],
+    "category": "Multimodal",
+    "description": "scMamba is a foundation model designed for integrating single-cell multi-omics data without prior feature selection, utilizing a patch-based cell tokenization strategy and contrastive learning for superior alignment across omics layers.",
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Contrastive Learning"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "",
+    "benchmarked": false,
+    "added_date": "2026-07-19",
+    "source": "web-search-agent"
+  },
+  {
+    "model_name": "scContam",
+    "paper_title": "Auditing pretraining contamination in single-cell foundation model benchmarks",
+    "status": "preprint",
+    "journal": "arXiv",
+    "year": 2026,
+    "paper_url": "https://arxiv.org/abs/2607.20572",
+    "github_url": null,
+    "weights_url": null,
+    "weights_size": null,
+    "has_github": false,
+    "has_weights": false,
+    "modalities": [
+      "scRNA-seq"
+    ],
+    "category": "FM",
+    "description": "scContam introduces a framework for auditing pretraining contamination in single-cell foundation model benchmarks. It combines MinHash-based gene-set fingerprinting with membership inference attacks to detect overlap between pretraining datasets and benchmarks.",
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Contrastive"
+    ],
+    "domain": [
+      "Generic"
+    ],
+    "prior_knowledge": [
+      "None"
+    ],
+    "prior_knowledge_detail": "",
+    "benchmarked": false,
+    "added_date": "2026-08-01",
+    "source": "web-search-agent"
   }
 ]
