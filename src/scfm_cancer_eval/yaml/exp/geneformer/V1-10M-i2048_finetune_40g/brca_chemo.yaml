@@ -1,0 +1,21 @@
+run_id: 'geneformer_V1-10M-i2048_finetune_40g_brca_chemo'
+dataset:
+  - datasets/brca/chemo/cancer_cells.yaml
+model:
+  - models/geneformer/V1-10M-i2048_finetune_40g.yaml
+embedding:
+    skip: True # dont excute this (embedding) step
+    viz: False
+    eval: False
+
+preprocessing:
+  skip: true
+  
+hvg:
+  flavor: seurat
+  layer: counts
+  normalize_before_hvg: True
+  n_top_genes: 4096
+  batch_key: batch
+  subset: True
+  preserve_counts: true

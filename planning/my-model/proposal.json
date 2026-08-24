@@ -1,0 +1,21 @@
+{
+  "files": [],
+  "integration_plan": null,
+  "model_spec": null,
+  "research_notes": [
+    "Paper inspection confirmed the candidate identity: Nature Methods published scGPT as a generative pretrained transformer foundation model for single-cell biology, pretrained across over 33 million cells and applied to downstream tasks including cell type annotation, integration, perturbation response prediction, and gene network inference. ([nature.com](https://www.nature.com/articles/s41592-024-02201-0))",
+    "Repository inspection found an MIT LICENSE file and pyproject metadata declaring MIT; the dependency metadata currently uses setuptools, requires Python >=3.7.12,<4, and lists dependencies including torch, scanpy, scvi-tools, scib, datasets, cell-gears, and orbax. ([raw.githubusercontent.com](https://raw.githubusercontent.com/bowang-lab/scGPT/main/LICENSE))",
+    "An immutable repository revision was resolvable: the current main commit page opened at full SHA cebd6fae655b9c585a4807daa3ac31bb764f06b4 and identifies commit cebd6fa for CUDA 12.8 and FlashAttention 2.x compatibility. ([github.com](https://github.com/bowang-lab/scGPT/commit/cebd6fae655b9c585a4807daa3ac31bb764f06b4))",
+    "Model-loading inspection showed the official code path for pretrained embeddings expects a checkpoint directory containing vocab.json, args.json, and best_model.pt, loads weights with torch.load, calls load_pretrained, and writes embeddings to adata.obsm[\"X_scGPT\"]. ([raw.githubusercontent.com](https://raw.githubusercontent.com/bowang-lab/scGPT/f6097112fe5175cd4e221890ed2e2b1815f54010/scgpt/tasks/cell_emb.py))",
+    "Official weight documentation in the repository README lists Google Drive checkpoint folders for whole-human, continual pretrained, organ-specific, and pan-cancer models, and recommends whole-human by default, but it does not publish SHA256 digests for concrete files. The candidate's provided GitHub pretrained directory URL fetched as 404. ([raw.githubusercontent.com](https://raw.githubusercontent.com/bowang-lab/scGPT/main/README.md))",
+    "The associated Zenodo software record publishes a reproducibility zip with an MD5 checksum only, not a SHA256 checksum for official model weight files. ([doi.org](https://doi.org/10.5281/zenodo.10466117))",
+    "A third-party Hugging Face artifact under tdc/scGPT exposes a SHA256 for a 208 MB scgpt_gh_repo_original_model.bin file, but that is not the official Google Drive checkpoint directory expected by the repository loading code, so it was not accepted as resolving the official weight_file_checksums hard field. ([huggingface.co](https://huggingface.co/tdc/scGPT/blob/acf749f35bf5c0b00633838f02588272ed0d9911/scgpt_gh_repo_original_model.bin))",
+    "GPU memory could not be verified from the paper or official repository documentation. The README discusses cloud GPUs, CUDA and flash-attn compatibility caveats, and an index/search memory claim, but it does not report a minimum GPU memory requirement for loading or evaluating the checkpoint. ([github.com](https://github.com/bowang-lab/scgpt))",
+    "No installation, model code execution, tests, checksum computation, or evaluation were run; this result is based on web inspection only."
+  ],
+  "status": "needs_input",
+  "unresolved_fields": [
+    "weight_file_checksums",
+    "gpu_memory_estimate"
+  ]
+}

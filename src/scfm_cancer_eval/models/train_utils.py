@@ -142,9 +142,11 @@ class ChunkedBertMILClassifier_check(nn.Module):
         super().__init__()
         self.chunk_size = int(chunk_size)
         self.device = device
-        # Outer per-chunk checkpointing is redundant (and very slow) when HF GC is on.
+        # Outer per-chunk checkpointing is REQUIRED when a bag spans multiple chunks:
+        # otherwise all chunk graphs are retained for backward and lowering chunk_size
+        # can even increase peak VRAM. HF gradient_checkpointing only helps within a chunk.
         if checkpoint_chunks is None:
-            checkpoint_chunks = not bool(gradient_checkpointing)
+            checkpoint_chunks = True
         self.checkpoint_chunks = bool(checkpoint_chunks)
 
         self.bert = BertForSequenceClassification.from_pretrained(
@@ -407,6 +409,42 @@ def evaluate_model(model, dataloader, device, threshold=0.5):
     logger.info(sample_ids)
     return metrics,sample_ids, y_true, y_pred, y_score
 
+def resolve_bag_pos_weight(train_patient_dataset, pos_weight):
+    """Resolve bag-level BCE ``pos_weight`` from ``auto`` / float / omit.
+
+    Matches frozen MIL: ``n_neg / n_pos``. Here counts are over MIL bags in
+    ``SubsampledPatientDataset`` (each bag carries its patient label).
+
+    Args:
+        train_patient_dataset: ``SubsampledPatientDataset`` with ``.bags``.
+        pos_weight: ``None`` (unweighted), ``"auto"``, or a positive float.
+
+    Returns:
+        float or None.
+    """
+    if pos_weight is None:
+        return None
+    if isinstance(pos_weight, str) and pos_weight.strip().lower() == "auto":
+        labels = [float(bag["label"]) for bag in train_patient_dataset.bags]
+        n_pos = sum(1 for y in labels if y == 1.0)
+        n_neg = sum(1 for y in labels if y == 0.0)
+        if n_pos <= 0:
+            logger.warning(
+                "pos_weight=auto but n_pos_bags=0 (n_neg=%s); using unweighted BCE",
+                n_neg,
+            )
+            return None
+        resolved = float(n_neg / max(n_pos, 1))
+        logger.info(
+            "pos_weight=auto -> %.4f (n_neg_bags=%d, n_pos_bags=%d)",
+            resolved,
+            n_neg,
+            n_pos,
+        )
+        return resolved
+    return float(pos_weight)
+
+
 def train_model(
     model,
     dataloader,
@@ -416,6 +454,7 @@ def train_model(
     scheduler=None,
     use_amp: bool = True,
     empty_cache_between_bags: bool = False,
+    pos_weight: float | None = None,
 ):
     """
     Train a PyTorch model with binary classification.
@@ -430,6 +469,7 @@ def train_model(
         use_amp: Use CUDA autocast + GradScaler when device is CUDA.
         empty_cache_between_bags: If True, call torch.cuda.empty_cache() after each
             patient bag. Helps fragmentation but slows training a lot; keep off unless OOM.
+        pos_weight: Optional BCE positive-class weight (bag-level imbalance).
 
     Returns:
         model (torch.nn.Module): The trained model.
@@ -441,6 +481,11 @@ def train_model(
         scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled)
     except (TypeError, AttributeError):
         scaler = torch.cuda.amp.GradScaler(enabled=amp_enabled)
+
+    pw_tensor = None
+    if pos_weight is not None:
+        pw_tensor = torch.tensor([float(pos_weight)], dtype=torch.float32, device=device)
+        logger.info("BCEWithLogitsLoss pos_weight=%s", float(pos_weight))
     
     for epoch in range(epochs):
         model.train()
@@ -460,7 +505,9 @@ def train_model(
                 autocast_ctx = torch.cuda.amp.autocast(enabled=amp_enabled)
             with autocast_ctx:
                 outputs = model(input_ids, masks, bag_sizes)
-                loss = F.binary_cross_entropy_with_logits(outputs, labels)
+                loss = F.binary_cross_entropy_with_logits(
+                    outputs, labels, pos_weight=pw_tensor
+                )
 
             scaler.scale(loss).backward()
             scaler.step(optimizer)
@@ -508,8 +555,13 @@ def train_patient_classifier(
     checkpoint_chunks: bool | None = None,
     use_amp: bool = True,
     empty_cache_between_bags: bool = False,
+    pos_weight=None,
 ):
-    """Train patient-level MIL classifier with YAML-wired optimizer/freeze knobs."""
+    """Train patient-level MIL classifier with YAML-wired optimizer/freeze knobs.
+
+    ``pos_weight`` may be ``None`` (unweighted BCE), ``"auto"`` (bag-level
+    ``n_neg/n_pos``), or an explicit float.
+    """
     logger.info(
         "Training Patient-Level MIL Classifier "
         f"(lr={learning_rate}, weight_decay={weight_decay}, epochs={epochs}, "
@@ -518,7 +570,8 @@ def train_patient_classifier(
         f"max_cells_per_patient={max_cells_per_patient}, mil_chunk_size={mil_chunk_size}, "
         f"gradient_checkpointing={gradient_checkpointing}, "
         f"checkpoint_chunks={checkpoint_chunks}, use_amp={use_amp}, "
-        f"empty_cache_between_bags={empty_cache_between_bags})"
+        f"empty_cache_between_bags={empty_cache_between_bags}, "
+        f"pos_weight={pos_weight!r})"
     )
     
     train_patient_dataset = SubsampledPatientDataset(
@@ -533,6 +586,7 @@ def train_patient_classifier(
         max_cells_per_patient=max_cells_per_patient,
         max_number_genes=max_number_genes,
     )
+    resolved_pos_weight = resolve_bag_pos_weight(train_patient_dataset, pos_weight)
     dataloader = DataLoader(
         train_patient_dataset,
         batch_size=1,
@@ -580,6 +634,7 @@ def train_patient_classifier(
         scheduler=scheduler,
         use_amp=use_amp,
         empty_cache_between_bags=empty_cache_between_bags,
+        pos_weight=resolved_pos_weight,
     )
     
     test_dataloader = DataLoader(

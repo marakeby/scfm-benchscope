@@ -13,17 +13,19 @@ classification:
         batch_size: 64          # used by cell-level paths (avg/vote); MIL uses bag batch_size=1
 
         # --- MIL memory / throughput knobs ---
-        # Match v7 effective MIL defaults, except keep full model context (2048).
-        # v7 hardcoded max_number_genes=512; freeze was ignored; lr=2e-5; chunk=128; no AMP.
-        max_number_genes: 2048      # gene tokens per cell (match model_input_size; not v7's 512)
+        # Same v7-like train recipe as V1-10M-i2048_finetune.yaml, but tuned for a
+        # 40G GPU: whole-bag forward (chunk=500) with checkpointing off so peak
+        # VRAM is not capped at a small chunk (~10G).
+        max_number_genes: 2048      # gene tokens per cell (match model_input_size)
         max_cells_per_bag: 500      # cells per MIL bag
         max_cells_per_patient: 1000 # cap cells used per patient before bagging
-        mil_chunk_size: 128         # v7 default chunk size
+        mil_chunk_size: 500         # process full bag in one BERT forward
         gradient_checkpointing: true
+        checkpoint_chunks: false
         use_amp: false              # v7 trained in fp32
 
         # --- optimizer / schedule ---
-        epoch: 5
+        epoch: 7
         freeze_layers: 0            # v7 MIL ignored freeze_layers
         learning_rate: 0.00002      # v7 hardcoded AdamW lr
         weight_decay: 0.01

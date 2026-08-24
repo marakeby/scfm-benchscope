@@ -17,8 +17,8 @@ grid:
   max_number_genes: [4096]
   max_cells_per_bag: [500]
   max_cells_per_patient: [1000]
-  mil_chunk_size: [32]              # raise if VRAM free; lower to [16]/[8] if OOM
+  mil_chunk_size: [8]
   gradient_checkpointing: [true]
-  checkpoint_chunks: [false]
+  checkpoint_chunks: [true]         # required so VRAM ≈ one chunk, not full bag
   use_amp: [true]
   empty_cache_between_bags: [false]

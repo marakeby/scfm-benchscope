@@ -16,12 +16,11 @@ export OPENAI_API_KEY=...
 
 scfm-eval plan candidate.json \
   --provider openai \
-  --model gpt-4o-search-preview \
   --output planning/my-model
 ```
 
-`--model` is optional. The default can also be configured with
-`SCFM_PLANNER_OPENAI_MODEL`.
+The OpenAI provider uses the Responses API with `web_search`. Default model is
+`gpt-5.5`. Override with `--model` or `SCFM_PLANNER_OPENAI_MODEL`.
 
 ## Run with Anthropic
 

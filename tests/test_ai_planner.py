@@ -4,6 +4,7 @@ import contextlib
 import copy
 import io
 import json
+import os
 import sys
 import tempfile
 import types
@@ -14,6 +15,7 @@ from unittest.mock import patch
 from scfm_cancer_eval import cli
 from scfm_cancer_eval.onboarding import (
     PlannerError,
+    build_planner_prompt,
     load_integration_plan,
     load_model_candidate,
     load_model_spec,
@@ -21,6 +23,7 @@ from scfm_cancer_eval.onboarding import (
     plan_candidate,
 )
 from scfm_cancer_eval.onboarding.providers import parse_json_object
+from scfm_cancer_eval.onboarding.providers.openai import OpenAIPlannerProvider
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -175,7 +178,25 @@ class AiPlannerTests(unittest.TestCase):
                     Path(tmp) / "workspace",
                 )
 
+    def test_planner_prompt_includes_field_checklist_and_needs_input_example(
+        self,
+    ) -> None:
+        candidate = load_model_candidate(CANDIDATE)
+        prompt = build_planner_prompt(candidate)
+
+        self.assertIn(candidate.candidate_id, prompt)
+        self.assertIn("immutable_repository_revision", prompt)
+        self.assertIn("weight_file_checksums", prompt)
+        self.assertIn("license_compatibility", prompt)
+        self.assertIn("gpu_memory_estimate", prompt)
+        self.assertIn('"status": "needs_input"', prompt)
+        self.assertIn("repository {url, commit}", prompt)
+        self.assertIn("Prefer verifying a field", prompt)
+
     def test_provider_loader_supports_builtins_and_custom_classes(self) -> None:
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SCFM_PLANNER_OPENAI_MODEL", None)
+            openai_default = OpenAIPlannerProvider()
         openai = load_planner_provider("openai", model="openai-test")
         anthropic = load_planner_provider(
             "anthropic",
@@ -203,6 +224,7 @@ class AiPlannerTests(unittest.TestCase):
         finally:
             del sys.modules[module.__name__]
 
+        self.assertEqual(openai_default.model, "gpt-5.5")
         self.assertEqual(openai.model, "openai-test")
         self.assertEqual(anthropic.model, "anthropic-test")
         self.assertEqual(custom.name, "custom")

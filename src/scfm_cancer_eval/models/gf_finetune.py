@@ -105,6 +105,8 @@ class GFFineTuneModel:
         self.empty_cache_between_bags = _as_bool(
             self.params.get('empty_cache_between_bags', False)
         )
+        # Bag-level BCE pos_weight: None | "auto" | float (see train_utils.resolve_bag_pos_weight).
+        self.pos_weight = self.params.get('pos_weight', None)
         self.label_map = self.params['label_map'] #dictionary e.g. # {'Pre': 0, 'Post': 1}
         self.cv = self.params.get('cv', False)
         self.onesplit = self.params.get('onesplit', False)
@@ -375,6 +377,7 @@ class GFFineTuneModel:
             checkpoint_chunks=self.checkpoint_chunks,
             use_amp=self.use_amp,
             empty_cache_between_bags=self.empty_cache_between_bags,
+            pos_weight=self.pos_weight,
         )
 
         logger.info(y_test)

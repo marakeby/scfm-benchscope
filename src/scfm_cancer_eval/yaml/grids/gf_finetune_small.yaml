@@ -1,5 +1,5 @@
-# Small Geneformer MIL finetune grid (LR × epochs × freeze).
-# Base task is intentionally small/fast; swap base_exp for other datasets.
+# Geneformer MIL finetune grid pinned to v7-effective settings
+# (except max_number_genes=2048 instead of v7's hardcoded 512).
 #
 # Usage (from repo root):
 #   pixi run -e geneformer python -m scfm_cancer_eval.run.grid_search_finetune \
@@ -11,16 +11,17 @@ base_exp: exp/geneformer/V1-10M-i2048_finetune/crc_mmr.yaml
 metric: AUC
 
 grid:
-  learning_rate: [1.0e-5, 2.0e-5, 5.0e-5]
-  epoch: [2, 3, 5]
-  freeze_layers: [0, 2]
+  # v7-effective settings (except max_number_genes kept at 2048).
+  learning_rate: [2.0e-5]
+  epoch: [5]
+  freeze_layers: [0]
   # Memory / throughput (single-valued so they don't multiply the grid):
   max_number_genes: [2048]
   max_cells_per_bag: [500]
   max_cells_per_patient: [1000]
-  mil_chunk_size: [16]              # lower to [8] or [4] if OOM
+  mil_chunk_size: [128]
   gradient_checkpointing: [true]
-  use_amp: [true]
+  use_amp: [false]
   # weight_decay / warmup_ratio can be added the same way, e.g.:
   # weight_decay: [0.0, 1.0e-5, 0.01]
   # warmup_ratio: [0.0, 0.1]

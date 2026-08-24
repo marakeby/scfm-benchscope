@@ -7,6 +7,13 @@ from typing import Any, Mapping
 
 from scfm_cancer_eval.onboarding.providers.base import parse_json_object
 
+# Responses API + web_search (gpt-4o-search-preview is shut down 2026-07-23).
+_DEFAULT_MODEL = "gpt-5.5"
+_SYSTEM_INSTRUCTIONS = (
+    "You research software integrations and return only valid JSON. "
+    "Never invent commits, checksums, licenses, or benchmark results."
+)
+
 
 class OpenAIPlannerProvider:
     name = "openai"
@@ -15,7 +22,7 @@ class OpenAIPlannerProvider:
         self.model = (
             model
             or os.environ.get("SCFM_PLANNER_OPENAI_MODEL")
-            or "gpt-4o-search-preview"
+            or _DEFAULT_MODEL
         )
 
     def generate(self, prompt: str) -> Mapping[str, Any]:
@@ -27,20 +34,16 @@ class OpenAIPlannerProvider:
             ) from exc
 
         client = OpenAI()
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model=self.model,
-            web_search_options={},
-            messages=[
+            tools=[
                 {
-                    "role": "system",
-                    "content": (
-                        "You research software integrations and return only "
-                        "valid JSON. Never invent commits, checksums, licenses, "
-                        "or benchmark results."
-                    ),
-                },
-                {"role": "user", "content": prompt},
+                    "type": "web_search",
+                    "search_context_size": "high",
+                }
             ],
-            max_tokens=12000,
+            instructions=_SYSTEM_INSTRUCTIONS,
+            input=prompt,
+            max_output_tokens=16000,
         )
-        return parse_json_object(response.choices[0].message.content or "")
+        return parse_json_object(getattr(response, "output_text", None) or "")

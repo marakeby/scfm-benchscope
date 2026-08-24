@@ -1,9 +1,0 @@
-run_id: 
-dataset:
-    - brca_full/subtype/dataset_shared.yaml
-
-embedding:
-    skip: True # dont excute this (embedding) step
-    viz: False
-    eval: False
-

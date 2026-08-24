@@ -66,14 +66,54 @@ Candidate evidence:
 
 This is proposal-only work. Do not claim that you ran installation, model code,
 tests, or evaluation. Use web research to inspect the paper, repository,
-dependency files, model-loading code, and weight documentation.
+dependency files, model-loading code, LICENSE, and weight documentation.
 
-Never invent a Git commit, weight checksum, license, dependency, or hardware
-measurement. If any required value cannot be verified, return status
-"needs_input", list the missing facts in unresolved_fields, and leave
-model_spec and integration_plan null.
+Never invent a Git commit, weight checksum, license expression, dependency pin,
+or hardware measurement. Prefer verifying a field over leaving it unresolved.
+If a required value still cannot be verified after research, return status
+"needs_input", list only missing fact names in unresolved_fields, put
+explanatory prose in research_notes (not unresolved_fields), and leave
+model_spec and integration_plan null with files [].
 
-When all required facts are verified, return status "ready" and:
+### How to resolve hard fields
+- immutable_repository_revision → repository.commit: a full 40-char git SHA
+  from the repository (commits API, release tag commit, or docs). Do not use
+  branch names such as "main".
+- weight_file_checksums → weights[].sha256: 64-char hex digests for concrete
+  weight-file URLs. A directory page without published digests is not enough.
+- license_compatibility → license.expression + license.status: read LICENSE /
+  SPDX text; status must be compatible, review_required, or incompatible.
+- gpu_memory_estimate → constraints.min_gpu_memory_gb (and resources when
+  ready): only if paper/docs report a figure; otherwise leave unresolved.
+
+### Required keys when status is "ready"
+model_spec must include:
+- model_spec_id
+- model {{model_id, name, description}}
+- license {{expression, status, notes}}
+- repository {{url, commit}}  # commit is a 40-char SHA
+- weights [{{artifact_id, url, sha256, filename, access}}]
+- adapter {{module, class, output_key}}
+- tasks
+- constraints {{requires_gpu, min_gpu_memory_gb, platforms, notes}}
+  # platforms must include linux-64
+
+integration_plan must include:
+- integration_plan_id
+- environment {{name, platform, python, conda_dependencies, pypi_dependencies}}
+  # platform must be linux-64
+- installation {{method, package_path, editable, no_deps}}  # method: "pixi"
+- smoke_tests [{{test_id, kind, timeout_minutes}}]
+  # kind is import, adapter, or tiny_evaluation
+- resources {{gpu_type, gpu_count, gpu_memory_gb, disk_gb, runtime_minutes,
+  estimated_cost_usd}}
+- assumptions, risks
+
+You may omit or placeholder schema, created_at, candidate linkage,
+fingerprints, planner identity, and generated_files hashes; the framework
+overwrites those deterministically.
+
+When all required facts are verified, return status "ready" with:
 1. model_spec: a complete scfm_eval.model_spec v1.0.0 object.
 2. integration_plan: a complete scfm_eval.integration_plan v1.0.0 object.
 3. files: generated text files with path, purpose, and content.
@@ -85,8 +125,19 @@ The files must include:
 
 Use structured Pixi dependencies and smoke tests. Do not include shell scripts,
 secrets, API keys, a pixi.lock fabricated by the model, or an execution
-manifest. The framework will replace timestamps, fingerprints, planner
-identity, and generated-file hashes deterministically.
+manifest.
+
+### needs_input example
+{{
+  "status": "needs_input",
+  "unresolved_fields": ["weight_file_checksums"],
+  "research_notes": [
+    "Weight docs list download URLs but no published sha256 digests."
+  ],
+  "model_spec": null,
+  "integration_plan": null,
+  "files": []
+}}
 
 Return only one JSON object with this shape:
 {{
