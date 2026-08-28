@@ -1,0 +1,1 @@
+UMAP of pre-treatment BRCA tumor cells (n=26,697 cells) colored by cell-type label (8 categories). Panels compare scVI, GF-V1 [Zero-Shot], GF-V1 [Continual Training]. Neighbor graphs were computed in embedding space (k=25).

@@ -21,6 +21,7 @@ grid:
   max_cells_per_patient: [1000]
   mil_chunk_size: [128]
   gradient_checkpointing: [true]
+  checkpoint_chunks: [false]
   use_amp: [false]
   # weight_decay / warmup_ratio can be added the same way, e.g.:
   # weight_decay: [0.0, 1.0e-5, 0.01]

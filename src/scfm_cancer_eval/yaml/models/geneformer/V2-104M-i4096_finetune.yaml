@@ -9,24 +9,25 @@ classification:
         model_input_size: 4096
         batch_size: 32          # used by cell-level paths (avg/vote); MIL uses bag batch_size=1
 
-        # --- MIL memory / throughput knobs ---
-        max_number_genes: 4096
+        # Paper / v7 MIL recipe (June 2026 code at 5cbf104). YAML then listed
+        # freeze_layers=6, lr=5e-5, weight_decay=1e-5, but MIL ignored those and
+        # used the hardcoded values below. The later AMP + checkpoint_chunks
+        # recipe (v8) collapsed fold scores; do not re-enable it for paper runs.
+        max_number_genes: 512
         max_cells_per_bag: 500
         max_cells_per_patient: 1000
-        # Peak VRAM ≈ one chunk (not full bag) only if checkpoint_chunks=true.
-        # With checkpoint_chunks=false, lowering mil_chunk_size does NOT fix OOM.
-        mil_chunk_size: 64
-        gradient_checkpointing: true   # within-BERT layers
-        checkpoint_chunks: true        # across cell chunks (needed to bound VRAM)
-        use_amp: true
+        mil_chunk_size: 128
+        gradient_checkpointing: true   # v7 always enabled BERT checkpointing
+        checkpoint_chunks: false       # did not exist in v7
+        use_amp: false                 # v7 trained in fp32
         empty_cache_between_bags: false
 
-        # --- optimizer / schedule ---
         epoch: 3
-        freeze_layers: 6
-        learning_rate: 5e-05
-        weight_decay: 0.00001
+        freeze_layers: 0               # v7 MIL did not freeze encoder layers
+        learning_rate: 2.0e-5          # v7 hardcoded AdamW lr (yaml 5e-5 was unused)
+        weight_decay: 0.01             # AdamW default; yaml 1e-5 was unused
         warmup_ratio: 0
+        # pos_weight omitted: v7 used unweighted BCE
 
         train_funcs:
             # - avg

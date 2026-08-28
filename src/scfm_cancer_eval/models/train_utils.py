@@ -133,7 +133,7 @@ class ChunkedBertMILClassifier_check(nn.Module):
         self,
         pretrained_model_path="bert-base-uncased",
         num_labels=1,
-        chunk_size=16,
+        chunk_size=128,
         device='cpu',
         freeze_layers: int = 0,
         gradient_checkpointing: bool = True,
@@ -142,11 +142,11 @@ class ChunkedBertMILClassifier_check(nn.Module):
         super().__init__()
         self.chunk_size = int(chunk_size)
         self.device = device
-        # Outer per-chunk checkpointing is REQUIRED when a bag spans multiple chunks:
-        # otherwise all chunk graphs are retained for backward and lowering chunk_size
-        # can even increase peak VRAM. HF gradient_checkpointing only helps within a chunk.
+        # v7 had no outer per-chunk checkpointing (default False). Opt in via
+        # YAML when bounding VRAM on long-context bags; that v8 recipe collapsed
+        # GF-V2 fold scores and is not the paper setting.
         if checkpoint_chunks is None:
-            checkpoint_chunks = True
+            checkpoint_chunks = False
         self.checkpoint_chunks = bool(checkpoint_chunks)
 
         self.bert = BertForSequenceClassification.from_pretrained(
@@ -452,7 +452,7 @@ def train_model(
     device,
     epochs,
     scheduler=None,
-    use_amp: bool = True,
+    use_amp: bool = False,
     empty_cache_between_bags: bool = False,
     pos_weight: float | None = None,
 ):
@@ -550,10 +550,10 @@ def train_patient_classifier(
     max_number_genes: int = 512,
     max_cells_per_bag: int = 500,
     max_cells_per_patient: int = 1000,
-    mil_chunk_size: int = 16,
+    mil_chunk_size: int = 128,
     gradient_checkpointing: bool = True,
-    checkpoint_chunks: bool | None = None,
-    use_amp: bool = True,
+    checkpoint_chunks: bool | None = False,
+    use_amp: bool = False,
     empty_cache_between_bags: bool = False,
     pos_weight=None,
 ):

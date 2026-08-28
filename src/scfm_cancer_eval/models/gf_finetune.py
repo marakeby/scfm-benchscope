@@ -86,22 +86,19 @@ class GFFineTuneModel:
         self.learning_rate = float(self.params.get('learning_rate', 2e-5))
         self.weight_decay = float(self.params.get('weight_decay', 0.01))
         self.warmup_ratio = float(self.params.get('warmup_ratio', 0.0))
-        # MIL knobs (all overridable via classification.params in YAML).
-        self.max_number_genes = int(
-            self.params.get('max_number_genes', self.model_input_size)
-        )
+        # MIL knobs (YAML-overridable). Defaults match v7 / paper (5cbf104):
+        # 512 gene tokens, chunk 128, fp32, no outer chunk checkpointing.
+        self.max_number_genes = int(self.params.get('max_number_genes', 512))
         self.max_cells_per_bag = int(self.params.get('max_cells_per_bag', 500))
         self.max_cells_per_patient = int(self.params.get('max_cells_per_patient', 1000))
-        self.mil_chunk_size = int(self.params.get('mil_chunk_size', 16))
+        self.mil_chunk_size = int(self.params.get('mil_chunk_size', 128))
         self.gradient_checkpointing = _as_bool(
             self.params.get('gradient_checkpointing', True)
         )
-        # None => auto (off when HF gradient_checkpointing is on).
-        if 'checkpoint_chunks' in self.params:
-            self.checkpoint_chunks = _as_bool(self.params.get('checkpoint_chunks'))
-        else:
-            self.checkpoint_chunks = None
-        self.use_amp = _as_bool(self.params.get('use_amp', True))
+        self.checkpoint_chunks = _as_bool(
+            self.params.get('checkpoint_chunks', False)
+        )
+        self.use_amp = _as_bool(self.params.get('use_amp', False))
         self.empty_cache_between_bags = _as_bool(
             self.params.get('empty_cache_between_bags', False)
         )

@@ -15,4 +15,7 @@ hvg:
   batch_key: batch
   subset: True
   preserve_counts: true
-  
+
+classification:
+  skip: true
+ 

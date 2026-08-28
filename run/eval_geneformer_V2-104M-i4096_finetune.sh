@@ -1,9 +1,10 @@
-# Geneformer V2 104M fine-tune (classification head) — pixi env: geneformer
+# Geneformer V2 104M MIL fine-tune — paper / v7 recipe (see
+# yaml/models/geneformer/V2-104M-i4096_finetune.yaml). pixi env: geneformer
 # Usage: bash run/eval_geneformer_V2-104M-i4096_finetune.sh (from repo root)
 cd "$(dirname "$0")/.." 
 
 #Embedding tasks --------------------
-# pixi run -e geneformer scfm-eval exp/geneformer/V2-104M-i4096_finetune/brca_cell_type.yaml
+pixi run -e geneformer scfm-eval exp/geneformer/V2-104M-i4096_finetune/brca_cell_type.yaml
 
 #Classification tasks ------------------
 #BRCA

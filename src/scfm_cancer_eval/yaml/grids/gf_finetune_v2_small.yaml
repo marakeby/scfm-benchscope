@@ -1,4 +1,7 @@
-# Small V2-104M MIL finetune grid.
+# Small V2-104M MIL finetune grid (memory / LR search, NOT the paper recipe).
+# Paper / v7 is in models/geneformer/V2-104M-i4096_finetune.yaml (fp32, 512
+# genes, chunk 128, no AMP, checkpoint_chunks=false). AMP + checkpoint_chunks
+# here matches the collapsed v8 run.
 #
 # Usage (from repo root):
 #   pixi run -e geneformer python -m scfm_cancer_eval.run.grid_search_finetune \

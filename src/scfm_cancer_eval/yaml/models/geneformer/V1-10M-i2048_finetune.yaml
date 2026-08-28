@@ -20,6 +20,7 @@ classification:
         max_cells_per_patient: 1000 # cap cells used per patient before bagging
         mil_chunk_size: 128         # v7 default chunk size
         gradient_checkpointing: true
+        checkpoint_chunks: false    # did not exist in v7; omit used to default on
         use_amp: false              # v7 trained in fp32
 
         # --- optimizer / schedule ---
