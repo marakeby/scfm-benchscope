@@ -440,9 +440,10 @@ def _run_collect_metrics(parsed: argparse.Namespace) -> int:
             flush=True,
         )
     print(
-        "Load CSV files in docs/classification.html or docs/embeddings.html "
-        "(file picker), or place embedding.metrics.bootstrap.csv next to "
-        "docs/embeddings.html after --bootstrap.",
+        "Copy metric JSON into docs/results/ for dashboard auto-load: "
+        "classification.metrics.json and "
+        "embedding_bootstrap/embedding.metrics.bootstrap.json, "
+        "or use the page file pickers.",
         flush=True,
     )
     return 0

@@ -56,9 +56,12 @@ This writes:
 - `embedding.metrics.csv` / `embedding.metrics.json`
 - `classification.metrics.csv` / `classification.metrics.json`
 
-Use those CSVs with [`classification.html`](classification.html) and
-[`embeddings.html`](embeddings.html) (file picker). Restrict the family with
-`--kind embedding` or `--kind classification`.
+Copy the collected tables into `docs/results/` so the static site can serve
+them. [`classification.html`](classification.html) auto-loads
+`docs/results/classification.metrics.json` (then the CSV if JSON is missing).
+[`embeddings.html`](embeddings.html) auto-loads
+`docs/results/embedding_bootstrap/embedding.metrics.bootstrap.json`. Restrict
+the family with `--kind embedding` or `--kind classification`.
 
 ## Bootstrap embedding metrics
 
@@ -71,8 +74,9 @@ scfm-eval report "$SCFM_OUTPUT_PATH" --bootstrap \
 ```
 
 Outputs include `embedding.metrics.bootstrap.csv` (and `.json`), plus mean/std/
-median aggregate CSVs. Copy `embedding.metrics.bootstrap.csv` next to
-`docs/embeddings.html` for automatic load, or use the page file picker.
+median aggregate CSVs. Copy the bootstrap JSON/CSV into
+`docs/results/embedding_bootstrap/` for [`embeddings.html`](embeddings.html)
+auto-load, or open **Load other file** in the sidebar to pick a local JSON or CSV.
 
 ## Compare selected runs
 
