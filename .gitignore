@@ -185,6 +185,8 @@ cython_debug/
 #.idea/
 
 **/*.png
+!docs/assets/
+!docs/assets/**/*.png
 **/*.csv
 **/*.xlsx
 *arxiv*
