@@ -1,10 +1,9 @@
 # Approved execution
 
-Only a verified approval bundle plus a separate execution-approval record may
-spend evaluation budget. The executor never invents steps, expands retries, or
-publishes scientific results.
+To spend evaluation budget you need two things: the verified bundle, and a
+separate grant file from the merged pull request.
 
-## Record a merged pull-request approval
+## Record the grant
 
 ```bash
 scfm-eval approval grant approvals/scgpt/scgpt-attempt-1 \
@@ -16,12 +15,12 @@ scfm-eval approval grant approvals/scgpt/scgpt-attempt-1 \
   --bundle-path approvals/scgpt/scgpt-attempt-1
 ```
 
-The grant command re-verifies the bundle and writes an immutable approval
-record bound to the manifest fingerprint. Comments or labels are not enough.
+The command checks the bundle again and writes a grant bound to the
+manifest fingerprint. A comment or label is not enough.
 
-## Execute one approved manifest
+## Run the approved plan
 
-Dry run with the fake transport (CI and local smoke tests):
+Smoke test (no install, no GPU):
 
 ```bash
 scfm-eval execute approvals/scgpt/scgpt-attempt-1 \
@@ -30,7 +29,7 @@ scfm-eval execute approvals/scgpt/scgpt-attempt-1 \
   --transport fake
 ```
 
-Local job directory:
+On this machine:
 
 ```bash
 scfm-eval execute approvals/scgpt/scgpt-attempt-1 \
@@ -40,7 +39,7 @@ scfm-eval execute approvals/scgpt/scgpt-attempt-1 \
   --local-root /tmp/scfm-jobs
 ```
 
-GPU VM over SSH:
+On a GPU VM over SSH:
 
 ```bash
 scfm-eval execute approvals/scgpt/scgpt-attempt-1 \
@@ -53,15 +52,15 @@ scfm-eval execute approvals/scgpt/scgpt-attempt-1 \
   --ssh-identity-file ~/.ssh/scfm_eval
 ```
 
-The executor:
+The runner:
 
-1. verifies the approval bundle fingerprints;
-2. requires an `approved` execution-approval for the same manifest fingerprint;
-3. runs the fixed step order from the manifest;
-4. retries only allowlisted steps within `max_attempts`;
-5. stops when estimated GPU cost exceeds `max_budget_usd`;
-6. writes `execution-record.json` with status `completed_unreviewed`.
+1. checks the bundle fingerprints
+2. requires a matching `approved` grant
+3. runs the steps in the manifest, in order
+4. retries only allowlisted steps, up to `max_attempts`
+5. stops if estimated GPU cost exceeds `max_budget_usd`
+6. writes `execution-record.json` with status `completed_unreviewed`
 
-Successful technical completion is not scientific acceptance. Record
-`accepted`, `needs_tuning`, or `rejected` with
-[Scientific review](scientific-review.md) before report publication.
+A finished job is not a published result. Record accepted, needs tuning, or
+rejected in [Scientific review](scientific-review.md) before official
+reports.

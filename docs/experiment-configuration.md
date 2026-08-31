@@ -1,11 +1,11 @@
 # Experiment configuration
 
-Experiments are YAML mappings assembled from reusable dataset, model, and task
-fragments.
+An experiment is a YAML file built from reusable dataset, model, and task
+pieces.
 
-## Required sections
+## What the runner needs
 
-After composition, the runner expects:
+After all includes are merged, the file must have:
 
 - `dataset`
 - `qc`
@@ -13,10 +13,10 @@ After composition, the runner expects:
 - `embedding`
 - `classification`
 
-`run_id`, `hvg`, and `task` are optional, although a stable `run_id` is useful
-for comparing runs.
+`run_id`, `hvg`, and `task` are optional. A stable `run_id` makes comparisons
+easier.
 
-## Composed experiment
+## Example
 
 ```yaml
 run_id: my_model_brca_cell_type
@@ -35,16 +35,15 @@ embedding:
   eval: true
 ```
 
-When `dataset`, `model`, or `classification` contains a string or list, its
-values are include paths. When it contains a mapping, it is the configuration
-section itself.
+If `dataset`, `model`, or `classification` is a string or list, those values
+are include paths. If it is a mapping, it is the section itself.
 
-Legacy `datasets`, `models`, `classifications`, `bases`, and `defaults`
-includes remain supported.
+Older include keys still work: `datasets`, `models`, `classifications`,
+`bases`, and `defaults`.
 
-## Merge behavior
+## How includes merge
 
-Fragments are merged in this order:
+Order:
 
 1. dataset includes
 2. model includes
@@ -52,44 +51,41 @@ Fragments are merged in this order:
 4. `bases` or `defaults`
 5. values in the current file
 
-Mappings are merged recursively. Lists and scalar values are replaced by the
-later value.
+Later values win. Nested maps are merged. Lists and single values are
+replaced.
 
-Absolute includes are used unchanged. Paths beginning with `./` or `../`
-resolve relative to the including YAML file. Other paths resolve under
-`SCFM_PARAMS_PATH`, or the bundled `src/scfm_cancer_eval/yaml/` tree when that
-variable is unset.
+- Absolute paths are used as-is
+- Paths starting with `./` or `../` are relative to the file that includes them
+- Other paths resolve under `SCFM_PARAMS_PATH`, or
+  `src/scfm_cancer_eval/yaml/` if that variable is unset
 
-The loader rejects cyclic includes.
+Cycles are rejected.
 
-## Dataset paths
+## Dataset and model paths
 
-Relative `dataset.path` values resolve under `SCFM_DATA_PATH`. The data loader
-maps the configured `label_key` and `batch_key` to the canonical `label` and
-`batch` observation columns used by evaluators.
+Relative `dataset.path` values resolve under `SCFM_DATA_PATH`. The loader
+maps `label_key` and `batch_key` to the `label` and `batch` columns used by
+evaluators.
 
-Many dataset fragments store class values under `dataset.label_map`. When a
-classifier does not provide its own `params.label_map`, the runner inherits
-the dataset or task mapping.
+If a classifier does not set `params.label_map`, it inherits
+`dataset.label_map` from the dataset or task fragment.
 
-## Model paths
+Relative checkpoint parameters listed in an extractor’s `MODELS_PATH_KEYS`
+resolve under `SCFM_MODELS_PATH`. Other string parameters are passed through
+unchanged.
 
-Relative checkpoint parameters declared by an extractor's
-`MODELS_PATH_KEYS` resolve under `SCFM_MODELS_PATH`. Other string parameters
-are passed to the adapter unchanged.
+## Validate YAML
 
-## Validation
-
-Enable model/data compatibility checks for a run:
+Check one experiment before it runs:
 
 ```bash
 SCFM_VALIDATE_EXP=1 pixi run -e default run-exp EXPERIMENT.yaml
 ```
 
-Validate the bundled configuration collection without running models:
+Check the bundled collection without running models:
 
 ```bash
 pixi run -e default python scripts/validate_all_yaml.py
 ```
 
-Every run stores its fully merged configuration as `resolved_config.yaml`.
+Every run writes the fully merged config as `resolved_config.yaml`.

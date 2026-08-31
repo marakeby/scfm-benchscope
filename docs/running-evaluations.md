@@ -1,32 +1,33 @@
 # Running evaluations
 
-## Install the environments
+Work from the repository root.
 
-Run commands from the repository root:
+## Install environments
 
 ```bash
 pixi install
 ```
 
-Some models require source packages that are installed separately:
+Some models need extra source packages:
 
 ```bash
 pixi run install-packages
 ```
 
-The helper performs a frozen Pixi installation. Geneformer is already pinned
-in the `geneformer` environment; use
-`scripts/install_packages.sh --with-geneformer-source` only when developing
-against an editable upstream checkout.
-scFoundation has its own setup task:
+That command does a frozen Pixi install. Geneformer is already pinned in the
+`geneformer` environment. Use
+`scripts/install_packages.sh --with-geneformer-source` only if you are
+developing against an editable upstream checkout.
+
+scFoundation has its own step:
 
 ```bash
 pixi run install-scfoundation
 ```
 
-## Configure runtime paths
+## Set data, weight, and output paths
 
-Set paths before starting Python or running an experiment:
+Set these before you start Python or run an experiment:
 
 ```bash
 export SCFM_DATA_PATH=/mnt/data
@@ -34,17 +35,33 @@ export SCFM_MODELS_PATH=/mnt/models
 export SCFM_OUTPUT_PATH=/mnt/scfm-results
 ```
 
-- `SCFM_DATA_PATH` is the root for relative `dataset.path` values.
-- `SCFM_MODELS_PATH` is the root for relative checkpoint paths.
-- `SCFM_OUTPUT_PATH` receives run directories and `metrics_runs.csv`.
-- `SCFM_PARAMS_PATH` optionally replaces the bundled YAML configuration root.
+| Variable | Used for |
+| --- | --- |
+| `SCFM_DATA_PATH` | Relative `dataset.path` values |
+| `SCFM_MODELS_PATH` | Relative checkpoint paths |
+| `SCFM_OUTPUT_PATH` | Run directories and `metrics_runs.csv` |
+| `SCFM_PARAMS_PATH` | Optional replacement for the bundled YAML root |
 
-You can instead copy `scripts/config/runtime_paths.env.example` and source
-`scripts/set_runtime_paths.sh`.
+You can copy `scripts/config/runtime_paths.env.example` and source
+`scripts/set_runtime_paths.sh` instead.
+
+## Download data and weights
+
+```bash
+cp scripts/config/data_download.env.example scripts/config/data_download.env
+cp scripts/config/model_weights.env.example scripts/config/model_weights.env
+
+# Edit both files, then:
+pixi run download-data
+pixi run download-models
+```
+
+The scripts cover GCS, HTTP, rsync, Git LFS, and Hugging Face. You can also
+copy files yourself into `SCFM_DATA_PATH` and `SCFM_MODELS_PATH`.
 
 ## Run an experiment
 
-Use the environment associated with the model:
+Use the Pixi environment that matches the model:
 
 ```bash
 # PCA, HVG, and mock baselines
@@ -58,11 +75,11 @@ pixi run -e geneformer run-exp \
 pixi run -e scvi run-exp exp/scvi/default/brca_cell_type.yaml
 ```
 
-Other model environments include `scgpt`, `scimilarity`, `cellplm`, `state`,
-`scf`, `nicheformer`, `scconcept`, and `scbert`. The shell helpers under
-`run/` show the environment used by each bundled model.
+Other environments: `scgpt`, `scimilarity`, `cellplm`, `state`, `scf`,
+`nicheformer`, `scconcept`, `scbert`. The helpers under `run/` show which
+environment each bundled model uses.
 
-Useful runtime limits:
+Optional limits:
 
 ```bash
 pixi run -e default run-exp EXPERIMENT.yaml \
@@ -71,76 +88,53 @@ pixi run -e default run-exp EXPERIMENT.yaml \
   --max-cells-stratify donor_id
 ```
 
-Set `SCFM_VALIDATE_EXP=1` to validate model/data constraints before the
-evaluation starts.
+Set `SCFM_VALIDATE_EXP=1` to check model and data constraints before the run
+starts.
 
-## Provision data and weights
-
-Configuration templates are available under `scripts/config/`:
-
-```bash
-cp scripts/config/data_download.env.example scripts/config/data_download.env
-cp scripts/config/model_weights.env.example scripts/config/model_weights.env
-
-# Edit both files, then run:
-pixi run download-data
-pixi run download-models
-```
-
-The download scripts support the repository's current GCS, HTTP, rsync, Git
-LFS, and Hugging Face workflows. You can also place files manually under
-`SCFM_DATA_PATH` and `SCFM_MODELS_PATH`.
-
-## Find the results
-
-The command prints `save_dir` when the run starts. A successful run contains:
-
-- `results.json`: validated `scfm_eval.results` v1.1.0 record
-- `resolved_config.yaml`: exact configuration used
-- `run_summary.json`: paths, identifiers, and timestamps
-- `metrics.json`: compact metric summary
-- `embedding_metrics.csv`: embedding metrics when enabled
-- `data.h5ad`: generated embedding matrix and observations
-- classifier CSV files and plots when classification is enabled
-
-The output root also contains `metrics_runs.csv`, with one summary row per
-completed run.
-
-Generate a browser report and machine-readable comparison exports:
-
-```bash
-scfm-eval report "$SCFM_OUTPUT_PATH"
-```
-
-The command writes `report/report.html`, `report/comparison.json`, and
-`report/comparison.csv` below the output root. See
-[Comparing and visualizing results](reporting.md) for selected-run comparisons,
-strict validation, and the Python reporting API.
-
-## External configurations
-
-An absolute experiment path is supported:
+An absolute experiment path works:
 
 ```bash
 pixi run -e default run-exp /path/to/my_experiment.yaml
 ```
 
-Includes beginning with `./` or `../` resolve relative to the including file.
-Other relative includes resolve under the bundled YAML root or
-`SCFM_PARAMS_PATH`. External runs are stored below
+Includes that start with `./` or `../` are relative to the file that includes
+them. Other relative includes resolve under the bundled YAML tree or
+`SCFM_PARAMS_PATH`. External runs land in
 `$SCFM_OUTPUT_PATH/external/<config-hash>/`.
+
+## Find the results
+
+The command prints `save_dir` when the run starts. A finished run usually has:
+
+- `results.json` — metrics and provenance
+- `resolved_config.yaml` — the exact config that ran
+- `run_summary.json` — paths and timestamps
+- `metrics.json` — compact metric summary
+- `embedding_metrics.csv` — embedding metrics, if enabled
+- `data.h5ad` — embeddings and observations
+- classifier CSVs and plots, if classification is enabled
+
+The output root also has `metrics_runs.csv`, one row per finished run.
+
+Build a browser report:
+
+```bash
+scfm-eval report "$SCFM_OUTPUT_PATH"
+```
+
+That writes `report/report.html`, `report/comparison.json`, and
+`report/comparison.csv`. See [Compare results](reporting.md) for more options.
 
 ## GPU machines
 
-For an interactive GPU VM, install the NVIDIA driver, Git, and Git LFS, then
-run:
+On an interactive GPU VM, install the NVIDIA driver, Git, and Git LFS, then:
 
 ```bash
 bash scripts/bootstrap_vm.sh
 pixi run verify-gpu
 ```
 
-Use the canonical `Dockerfile` when you need a containerized CUDA runtime:
+Or use Docker:
 
 ```bash
 docker build -t scfm-eval:default .
@@ -151,7 +145,6 @@ docker run --rm \
   scfm-eval:default exp/pca/n50/brca_cell_type.yaml
 ```
 
-Build with `--build-arg SCFM_PIXI_ENV=<model-env>` for a pretrained model
-stack. The host must have NVIDIA Container Toolkit installed when using
-`docker run --gpus all`. See [Installation](installation.md) for complete
-examples.
+Add `--build-arg SCFM_PIXI_ENV=<model-env>` for a pretrained model stack.
+`--gpus all` needs NVIDIA Container Toolkit on the host. See
+[Installation](installation.md) for more Docker examples.

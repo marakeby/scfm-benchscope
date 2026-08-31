@@ -1,4 +1,8 @@
-# scFM_eval
+<p align="center">
+  <img src="docs/assets/scfm-benchscope-logo.png" alt="scFM BenchScope" width="420">
+</p>
+
+# scFM BenchScope
 
 Evaluate single-cell foundation model embeddings and downstream classifiers
 using reproducible datasets, tasks, and metrics.
@@ -17,11 +21,11 @@ export SCFM_DATA_PATH=/path/to/datasets
 export SCFM_MODELS_PATH=/path/to/model-weights
 export SCFM_OUTPUT_PATH="$PWD/output"
 
-# Weight-free baseline; expects the BRCA dataset referenced by this config.
-pixi run -e default run-exp exp/pca/n50/brca_cell_type.yaml
+# scGPT; expects the BRCA dataset and weights referenced by this config.
+pixi run -e scgpt run-exp exp/scgpt/cancer-i2048/brca_cell_type.yaml
 ```
 
-Experiment paths such as `exp/pca/...` refer to the bundled configuration tree
+Experiment paths such as `exp/scgpt/...` refer to the bundled configuration tree
 under `src/scfm_cancer_eval/yaml/`.
 
 For pretrained models, select the matching Pixi environment and experiment:
@@ -75,22 +79,17 @@ print(result.results_path)
 print(result.status)
 ```
 
-See [Adding a model](docs/adding-a-model.md) for the adapter contract,
-importable model configurations, custom YAML, and checkpoint handling.
+See [Adding a model](docs/adding-a-model.md) to plug in your own adapter.
 
 ## More documentation
 
-- [Installation](docs/installation.md)
-- [Running evaluations](docs/running-evaluations.md)
-- [Comparing and visualizing results](docs/reporting.md)
-- [Model candidate format](docs/model-candidates.md)
-- [Model discovery agent](docs/discovery-agent.md)
-- [AI integration planner](docs/ai-integration-planner.md)
-- [Pre-run approval](docs/pre-run-approval.md)
-- [Approved execution](docs/approved-execution.md)
-- [Scientific review](docs/scientific-review.md)
-- [Verification and rollout](docs/verification-rollout.md) ([scGPT checklist](scripts/rollout_scgpt_checklist.sh))
-- [Planning and approval contracts](docs/planning-contracts.md)
-- [Adding a model](docs/adding-a-model.md)
-- [Experiment configuration](docs/experiment-configuration.md)
+[docs/README.md](docs/README.md) is the index. Short version:
+
+- [Install](docs/installation.md)
+- [Run an experiment](docs/running-evaluations.md)
+- [Compare results](docs/reporting.md)
+- [Add your model](docs/adding-a-model.md)
+- [Write experiment YAML](docs/experiment-configuration.md)
+- [Find models](docs/discovery-agent.md)
+- [Onboard a model with the integration agent](docs/integration/README.md)
 

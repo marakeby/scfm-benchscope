@@ -1,27 +1,24 @@
 # Comparing and visualizing results
 
-Every completed evaluation writes a validated `results.json`. Reporting reads
-those files directly, so it works for runs created through YAML, the Python API,
-Pixi, or Docker.
+Every finished evaluation writes a `results.json`. Reports read those files,
+whether the run came from YAML, the Python API, Pixi, or Docker.
 
-## Build a report for an output root
+## Build a report
 
 ```bash
 scfm-eval report "$SCFM_OUTPUT_PATH"
 ```
 
-By default this creates `$SCFM_OUTPUT_PATH/report/` containing:
+This creates `$SCFM_OUTPUT_PATH/report/` with:
 
-- `report.html`: self-contained interactive report
-- `comparison.json`: versioned structured comparison records
-- `comparison.csv`: flat records for spreadsheets and analysis tools
+- `report.html` — open this in a browser (no server needed)
+- `comparison.json` — structured records
+- `comparison.csv` — spreadsheet-friendly table
 
-Open `report.html` directly in a browser. It does not require a server or an
-internet connection. The report can filter by search text, dataset, and
-evaluation kind; table headers sort the records, and the metric selector
-visualizes aggregate metric values.
+The HTML report can filter by text, dataset, and evaluation kind. Click a
+column header to sort. Use the metric selector to plot values.
 
-Choose another destination or title when publishing a report:
+Write the report somewhere else, or give it a title:
 
 ```bash
 scfm-eval report ./output \
@@ -29,8 +26,8 @@ scfm-eval report ./output \
   --title "BRCA model comparison"
 ```
 
-Draft reports include every valid run and label each with `review_status`.
-Official publication keeps only scientifically accepted runs:
+A normal report includes every valid run and labels each with
+`review_status`. To publish only scientifically accepted runs:
 
 ```bash
 scfm-eval report ./output \
@@ -39,48 +36,12 @@ scfm-eval report ./output \
   --title "Accepted BRCA model comparison"
 ```
 
-See [Scientific review](scientific-review.md) for the post-run decision gate.
+See [Scientific review](integration/scientific-review.md) for how a run
+becomes accepted.
 
-## Collect dashboard metric tables
+## Compare specific runs
 
-Aggregate embedding and classification metric CSVs the same way as the analysis
-collectors (`collect_embedding_metrics.py`,
-`collect_classification_metrics.py`):
-
-```bash
-scfm-eval report "$SCFM_OUTPUT_PATH" --collect --output ./dashboard-metrics
-```
-
-This writes:
-
-- `embedding.metrics.csv` / `embedding.metrics.json`
-- `classification.metrics.csv` / `classification.metrics.json`
-
-Copy the collected tables into `docs/results/` so the static site can serve
-them. [`classification.html`](classification.html) auto-loads
-`docs/results/classification.metrics.json` (then the CSV if JSON is missing).
-[`embeddings.html`](embeddings.html) auto-loads
-`docs/results/embedding_bootstrap/embedding.metrics.bootstrap.json`. Restrict
-the family with `--kind embedding` or `--kind classification`.
-
-## Bootstrap embedding metrics
-
-Run repeated subsampled embedding evaluation and write aggregate tables
-(compatible with `docs/embeddings.html`):
-
-```bash
-scfm-eval report "$SCFM_OUTPUT_PATH" --bootstrap \
-  --output ./dashboard-metrics/embedding_bootstrap
-```
-
-Outputs include `embedding.metrics.bootstrap.csv` (and `.json`), plus mean/std/
-median aggregate CSVs. Copy the bootstrap JSON/CSV into
-`docs/results/embedding_bootstrap/` for [`embeddings.html`](embeddings.html)
-auto-load, or open **Load other file** in the sidebar to pick a local JSON or CSV.
-
-## Compare selected runs
-
-Pass individual `results.json` files, run directories, or a mixture:
+Pass `results.json` files, run directories, or a mix:
 
 ```bash
 scfm-eval compare \
@@ -89,31 +50,56 @@ scfm-eval compare \
   --output ./model-comparison
 ```
 
-Directories are searched recursively. Repeated paths are deduplicated.
+Directories are searched recursively. Duplicate paths are ignored.
 
-## Invalid results
-
-The default mode skips missing or invalid files, keeps valid runs, and records
-each problem in `comparison.json` and `report.html`. Use `--strict` for
-automation that should fail when any requested result is invalid:
+Invalid or missing files are skipped by default. Problems are listed in
+`comparison.json` and `report.html`. Use `--strict` if you want the command
+to fail when any requested result is bad:
 
 ```bash
 scfm-eval compare run-a/results.json run-b/results.json --strict
 ```
 
-The command always fails if it cannot find at least one valid result.
+The command always fails if it finds no valid result.
 
-## Comparison record shape
+## Collect dashboard tables
 
-There is one comparison record per entry in a run's `evaluations` array. A run
-without evaluation entries receives one fallback record so that successful
-embedding-only or extraction-only runs remain visible.
+```bash
+scfm-eval report "$SCFM_OUTPUT_PATH" --collect --output ./dashboard-metrics
+```
 
-Records carry the run, model, dataset, task, evaluation kind, variant, split,
-status, source path, and aggregate metrics. CSV metric columns use the
-`metric__<name>` prefix and are sorted for stable downstream imports. The JSON
-export uses the `scfm_eval.comparison` v1.1.0 contract and includes
-`review_status` on every record.
+This writes embedding and classification CSVs/JSON. Copy them into
+`docs/results/` so the static site can load them:
+
+- [`classification.html`](classification.html) loads
+  `docs/results/classification.metrics.json` (then the CSV if JSON is missing)
+- [`embeddings.html`](embeddings.html) loads
+  `docs/results/embedding_bootstrap/embedding.metrics.bootstrap.json`
+
+Use `--kind embedding` or `--kind classification` to collect only one family.
+
+## Bootstrap embedding metrics
+
+Repeat subsampled embedding evaluation and write aggregate tables for
+[`embeddings.html`](embeddings.html):
+
+```bash
+scfm-eval report "$SCFM_OUTPUT_PATH" --bootstrap \
+  --output ./dashboard-metrics/embedding_bootstrap
+```
+
+Copy the bootstrap JSON/CSV into `docs/results/embedding_bootstrap/`, or use
+**Load other file** in the sidebar.
+
+## What a comparison row contains
+
+There is one row per entry in a run's `evaluations` list. A run with no
+evaluations still gets one row so embedding-only or extraction-only runs
+stay visible.
+
+Each row has the run, model, dataset, task, kind, variant, split, status,
+source path, review status, and metrics. CSV metric columns are named
+`metric__<name>`.
 
 ## Python API
 
