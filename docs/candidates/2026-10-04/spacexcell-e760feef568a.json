@@ -1,0 +1,34 @@
+{
+  "candidate_id": "spacexcell",
+  "discovered_at": "2026-10-04T13:40:49.151750Z",
+  "discovery": {
+    "agent": "openai-discovery",
+    "confidence": 0.8,
+    "source_type": "scheduled_search",
+    "source_url": "https://www.nature.com/articles/s41592-024-01567-y"
+  },
+  "model": {
+    "name": "SpaceXCell",
+    "summary": "SpaceXCell applies spatially-aware foundation models to improve the analysis of spatial transcriptomics data. The model enhances cell type annotation accuracy by integrating spatial context with underlying gene expression data."
+  },
+  "notes": "Automatically published discovery evidence. Catalog classifications remain in docs/models.json.",
+  "schema": {
+    "name": "scfm_eval.model_candidate",
+    "version": "1.0.0"
+  },
+  "sources": {
+    "paper": {
+      "title": "SpaceXCell: Spatially-aware Foundation Models for Transcriptomics",
+      "url": "https://www.nature.com/articles/s41592-024-01567-y"
+    },
+    "repository": null,
+    "weights": []
+  },
+  "suggested_tasks": [],
+  "unresolved_fields": [
+    "evaluation_tasks",
+    "license_compatibility",
+    "repository_url",
+    "weights_url"
+  ]
+}

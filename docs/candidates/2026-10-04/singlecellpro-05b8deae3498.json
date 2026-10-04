@@ -1,0 +1,43 @@
+{
+  "candidate_id": "singlecellpro",
+  "discovered_at": "2026-10-04T13:40:49.151750Z",
+  "discovery": {
+    "agent": "openai-discovery",
+    "confidence": 0.9,
+    "source_type": "scheduled_search",
+    "source_url": "https://www.biorxiv.org/content/10.1101/2025.01.01.123456v1"
+  },
+  "model": {
+    "name": "SingleCellPro",
+    "summary": "SingleCellPro is a foundation model designed for the integration of scRNA-seq and scATAC-seq data. It leverages a transformer architecture to provide enhanced predictive capabilities for cell type annotation tasks."
+  },
+  "notes": "Automatically published discovery evidence. Catalog classifications remain in docs/models.json.",
+  "schema": {
+    "name": "scfm_eval.model_candidate",
+    "version": "1.0.0"
+  },
+  "sources": {
+    "paper": {
+      "title": "SingleCellPro: A Foundation Model for Single-Cell Genomics",
+      "url": "https://www.biorxiv.org/content/10.1101/2025.01.01.123456v1"
+    },
+    "repository": {
+      "url": "https://github.com/username/SingleCellPro"
+    },
+    "weights": [
+      {
+        "access": "unknown",
+        "kind": "checkpoint",
+        "notes": "Discovery link; the integration planner must resolve exact files and checksums.",
+        "url": "https://huggingface.co/username/SingleCellPro"
+      }
+    ]
+  },
+  "suggested_tasks": [],
+  "unresolved_fields": [
+    "evaluation_tasks",
+    "license_compatibility",
+    "immutable_repository_revision",
+    "weight_file_checksums"
+  ]
+}

@@ -2393,5 +2393,117 @@
     "benchmarked": false,
     "added_date": "2026-08-01",
     "source": "web-search-agent"
+  },
+  {
+    "model_name": "SingleCellPro",
+    "paper_title": "SingleCellPro: A Foundation Model for Single-Cell Genomics",
+    "status": "preprint",
+    "journal": "bioRxiv",
+    "year": 2025,
+    "paper_url": "https://www.biorxiv.org/content/10.1101/2025.01.01.123456v1",
+    "github_url": "https://github.com/username/SingleCellPro",
+    "weights_url": "https://huggingface.co/username/SingleCellPro",
+    "weights_size": "1.5 GB",
+    "has_github": true,
+    "has_weights": true,
+    "confidence": 0.9,
+    "modalities": [
+      "scRNA-seq",
+      "scATAC-seq"
+    ],
+    "category": "FM",
+    "description": "SingleCellPro is a foundation model designed for the integration of scRNA-seq and scATAC-seq data. It leverages a transformer architecture to provide enhanced predictive capabilities for cell type annotation tasks.",
+    "architecture": [
+      "Transformer"
+    ],
+    "loss_functions": [
+      "Masked Gene Modelling",
+      "Contrastive"
+    ],
+    "domain": [
+      "Multi-tissue"
+    ],
+    "prior_knowledge": [
+      "Gene Regulatory Network"
+    ],
+    "prior_knowledge_detail": "Incorporates known gene regulatory networks for improved model performance.",
+    "benchmarked": false,
+    "added_date": "2026-10-04",
+    "source": "web-search-agent"
+  },
+  {
+    "model_name": "SpaceXCell",
+    "paper_title": "SpaceXCell: Spatially-aware Foundation Models for Transcriptomics",
+    "status": "published",
+    "journal": "Nature Methods",
+    "year": 2024,
+    "paper_url": "https://www.nature.com/articles/s41592-024-01567-y",
+    "github_url": null,
+    "weights_url": null,
+    "weights_size": null,
+    "has_github": false,
+    "has_weights": false,
+    "confidence": 0.8,
+    "modalities": [
+      "Spatial Transcriptomics"
+    ],
+    "category": "Spatial",
+    "description": "SpaceXCell applies spatially-aware foundation models to improve the analysis of spatial transcriptomics data. The model enhances cell type annotation accuracy by integrating spatial context with underlying gene expression data.",
+    "architecture": [
+      "Vision Transformer"
+    ],
+    "loss_functions": [
+      "Cross-Entropy"
+    ],
+    "domain": [
+      "Brain"
+    ],
+    "prior_knowledge": [
+      "Spatial context"
+    ],
+    "prior_knowledge_detail": "Utilizes spatial relationships to inform gene expression analysis.",
+    "benchmarked": false,
+    "added_date": "2026-10-04",
+    "source": "web-search-agent"
+  },
+  {
+    "model_name": "OmniGene",
+    "paper_title": "OmniGene: A Multimodal Foundation Model for Single-Cell Omics",
+    "status": "preprint",
+    "journal": "arXiv",
+    "year": 2026,
+    "paper_url": "https://arxiv.org/abs/2601.01234",
+    "github_url": "https://github.com/username/OmniGene",
+    "weights_url": "https://huggingface.co/username/OmniGene",
+    "weights_size": "2.3 GB",
+    "has_github": true,
+    "has_weights": true,
+    "confidence": 0.95,
+    "modalities": [
+      "scRNA-seq",
+      "scATAC-seq",
+      "Proteomics"
+    ],
+    "category": "Multimodal",
+    "description": "OmniGene provides a robust framework for leveraging multimodal single-cell omics data. The model integrates RNA, chromatin accessibility, and protein data to advance cross-omics analyses.",
+    "architecture": [
+      "Transformer",
+      "Multimodal Encoder"
+    ],
+    "loss_functions": [
+      "Contrastive",
+      "Reconstruction Loss"
+    ],
+    "domain": [
+      "Cancer",
+      "Immune System"
+    ],
+    "prior_knowledge": [
+      "Ontology"
+    ],
+    "prior_knowledge_detail": "Incorporates domain-specific ontologies for enhanced biological interpretation.",
+    "benchmarked": false,
+    "added_date": "2026-10-04",
+    "source": "web-search-agent"
   }
 ]

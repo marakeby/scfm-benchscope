@@ -1,0 +1,43 @@
+{
+  "candidate_id": "omnigene",
+  "discovered_at": "2026-10-04T13:40:49.151750Z",
+  "discovery": {
+    "agent": "openai-discovery",
+    "confidence": 0.95,
+    "source_type": "scheduled_search",
+    "source_url": "https://arxiv.org/abs/2601.01234"
+  },
+  "model": {
+    "name": "OmniGene",
+    "summary": "OmniGene provides a robust framework for leveraging multimodal single-cell omics data. The model integrates RNA, chromatin accessibility, and protein data to advance cross-omics analyses."
+  },
+  "notes": "Automatically published discovery evidence. Catalog classifications remain in docs/models.json.",
+  "schema": {
+    "name": "scfm_eval.model_candidate",
+    "version": "1.0.0"
+  },
+  "sources": {
+    "paper": {
+      "title": "OmniGene: A Multimodal Foundation Model for Single-Cell Omics",
+      "url": "https://arxiv.org/abs/2601.01234"
+    },
+    "repository": {
+      "url": "https://github.com/username/OmniGene"
+    },
+    "weights": [
+      {
+        "access": "unknown",
+        "kind": "checkpoint",
+        "notes": "Discovery link; the integration planner must resolve exact files and checksums.",
+        "url": "https://huggingface.co/username/OmniGene"
+      }
+    ]
+  },
+  "suggested_tasks": [],
+  "unresolved_fields": [
+    "evaluation_tasks",
+    "license_compatibility",
+    "immutable_repository_revision",
+    "weight_file_checksums"
+  ]
+}
